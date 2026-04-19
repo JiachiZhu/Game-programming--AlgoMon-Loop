@@ -41,6 +41,21 @@ A 2D side-view tactical battle system. Skills are packaged as executable data in
 
 The Priority Queue ensures faster AlgoMons act first without any random roll — speed is deterministic and strategic.
 
+#### AlgoMon Stat Design — Six Dimensions
+
+Each AlgoMon has six base stats that map directly to classic RPG archetypes, re-skinned as hardware specifications:
+
+| Stat | RPG Equivalent | Role in Combat |
+|---|---|---|
+| **Battery** | HP | Reaches zero → unit is shut down |
+| **Clock Speed** | Speed | Key for the Priority Queue — higher clock acts first |
+| **Computing Power** | Physical Attack | Damage output via A-type (Attack) instructions |
+| **Data Bandwidth** | Magic Attack | Damage output via S-type (Special) instructions |
+| **Firewall** | Physical Defence | Damage reduction against Computing Power attacks |
+| **Encryption** | Magic Defence | Damage reduction against Data Bandwidth attacks |
+
+The dual-damage-route design creates a meaningful strategic layer: if the opponent's Firewall is high, swap to a high-Bandwidth AlgoMon to exploit their Encryption instead — and vice versa. This mirrors the physical/magical split found in classic monster-battler games, grounded here in networking and hardware terminology.
+
 ### 3. The Terminal — Gene Lab & Payload Vault
 The meta-progression layer, styled as a backend admin dashboard.
 
