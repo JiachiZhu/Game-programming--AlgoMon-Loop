@@ -67,6 +67,17 @@ The meta-progression layer, styled as a backend admin dashboard.
 
 The IV/EXP split is the game's core design pillar: grinding only raises software progress. To break the hardware ceiling, players must invest in genetic merging — a deliberate resource sink.
 
+#### Payload vs. Party — Two-Tier Roster System
+
+| | Payload (Warehouse) | Party (Active Squad) |
+|---|---|---|
+| **What it is** | Every AlgoMon the player has ever captured | The squad selected for the current run |
+| **Size limit** | Unlimited | Max 6 |
+| **Where managed** | The Lab — sorted via QuickSort | Pre-run selection screen |
+| **Algorithmic focus** | O(N log N) retrieval and sorting | — |
+
+This separation means the player must make deliberate squad-building decisions before each run — they cannot bring everything.
+
 ---
 
 ## 🗺️ UI Prototypes
