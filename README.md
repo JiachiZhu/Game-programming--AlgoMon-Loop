@@ -1,2 +1,109 @@
-# Game-programming--AlgoMon-Loop
-A data-driven PVE roguelite emphasizing complex data structures and algorithmic combat. Navigate procedural node networks, capture creatures, and optimize IVs via genetic merging.
+# AlgoMon — Algorithmic Monster Roguelite
+
+> **A data-driven PVE Roguelite built on real Computer Science.**  
+> Navigate procedural node networks, capture algorithmic creatures, and optimize their hardware limits through genetic merging — all powered by the data structures you know from class.
+
+**Engine:** Unity 2022.3 LTS &nbsp;|&nbsp; **Language:** C# &nbsp;|&nbsp; **Genre:** Roguelite / Tactical Simulator  
+**Status:** `Pre-production — System Prototyping Complete`
+
+---
+
+## 🧬 Concept
+
+AlgoMon rejects the traditional fantasy dungeon aesthetic. Instead, the player is a **cyber-hacker** operating inside a data network, capturing and reprogramming **algorithmic creatures** — beings whose stats, abilities, and genetic makeup are pure data structures.
+
+Every mechanic in this game is a direct expression of a computer science concept. The algorithms are not hidden in the engine; they *are* the gameplay.
+
+---
+
+## ⚙️ Core Systems & Algorithm Index
+
+### 1. The Grid — Procedural Node Network
+The exploration layer is a pure UI route-selection graph, with no walking or real-time movement.
+
+| Component | Algorithm / Pattern | Complexity |
+|---|---|---|
+| Map generation | **Directed Acyclic Graph (DAG)** with layered topology | O(V + E) |
+| Path connectivity | Topological sort + reachability validation | O(V + E) |
+| State separation | Tactical Chips (session) vs. Payload (persistent) | — |
+
+A DAG guarantees the player always has a valid route to the Boss node, while preventing backward loops that would break roguelite progression.
+
+### 2. The Arena — Priority-Based Combat Engine
+A 2D side-view tactical battle system. Skills are packaged as executable data instructions, not magic spells.
+
+| Component | Algorithm / Pattern | Complexity |
+|---|---|---|
+| Turn ordering | **Min-Heap Priority Queue** keyed on Clock Speed | O(log N) per insert/extract |
+| Skill resolution | A-S-D (Attack / Status / Defense) **RPS matrix multiplier** | O(1) |
+| Buff/Debuff system | **Observer Pattern (Event Bus)** — fully decoupled | O(1) dispatch |
+| Dual resource model | Battery (HP) + Computing Power (CP) constraints | — |
+
+The Priority Queue ensures faster AlgoMons act first without any random roll — speed is deterministic and strategic.
+
+### 3. The Terminal — Gene Lab & Payload Vault
+The meta-progression layer, styled as a backend admin dashboard.
+
+| Component | Algorithm / Pattern | Complexity |
+|---|---|---|
+| IV inheritance (gene merge) | **Greedy Algorithm** — `IV_child = Math.Max(IV_A, IV_B)` per stat | O(S) where S = stat dimensions |
+| Payload sorting & search | **QuickSort** with multi-key comparator | O(N log N) average |
+| Stat model | Hard-cap IV (hardware) / soft-cap EXP (software) separation | — |
+
+The IV/EXP split is the game's core design pillar: grinding only raises software progress. To break the hardware ceiling, players must invest in genetic merging — a deliberate resource sink.
+
+---
+
+## 🗺️ UI Prototypes
+
+Detailed UI wireframes and interaction flows are archived in the [`/Prototype`](./Prototype/) directory.
+
+| Screen | Preview |
+|---|---|
+| Main Terminal Dashboard | ![Main Menu](./Prototype/Game%20main%20menu.png) |
+| The Grid — Initial State | ![Grid Start](./Prototype/exploration_grid_start.png) |
+| The Grid — Active Pathing | ![Grid Active](./Prototype/exploration_grid_active.png) |
+| The Arena — Battle View | ![Battle Scene](./Prototype/Battle%20scene.jpg) |
+| Payload Vault — Data Matrix | ![Display Panel](./Prototype/AlgoMon%20display%20panel.png) |
+
+---
+
+## 📂 Project Structure
+
+```
+AlgoMon-Loop/
+├── Assets/_AlgoMon/
+│   ├── Scripts/
+│   │   ├── Core/          # EventBus, GameManager, StateMachine
+│   │   ├── Data/          # ScriptableObjects — AlgoMonSO, SkillSO
+│   │   ├── Grid/          # DAGGenerator, NodeGraph, PathValidator
+│   │   ├── Battle/        # PriorityQueue, CombatResolver, ASDMatrix
+│   │   ├── Lab/           # GeneticMerger, PayloadSorter (QuickSort)
+│   │   └── UI/            # Controllers for Terminal, Grid, Arena, Lab
+│   ├── Scenes/
+│   │   ├── MainTerminal.unity
+│   │   ├── TheGrid.unity
+│   │   ├── TheArena.unity
+│   │   └── TheLab.unity
+│   └── ScriptableObjects/
+├── Prototype/             # UI wireframes & design archive
+└── README.md
+```
+
+---
+
+## 🚀 Getting Started
+
+1. Clone the repository
+2. Open in **Unity Hub** with Unity **2022.3 LTS**
+3. Open scene `Assets/_AlgoMon/Scenes/MainTerminal.unity`
+4. Press Play
+
+---
+
+## 👥 Team
+
+| Role | Contributor |
+|---|---|
+| Design & Engineering | *(your name)* |
+| Academic Supervisor | *(professor's GitHub handle)* |
