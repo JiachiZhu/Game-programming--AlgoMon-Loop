@@ -10,7 +10,7 @@
 
 ## 🧬 Concept
 
-AlgoMon rejects the traditional fantasy dungeon aesthetic. Instead, the player is a **cyber-hacker** operating inside a data network, capturing and reprogramming **algorithmic creatures** — beings whose stats, abilities, and genetic makeup are pure data structures.
+AlgoMon rejects the traditional fantasy dungeon aesthetic. Instead, the player is a **cyber-hacker** operating inside a data network, capturing and reprogramming **algorithmic creatures** — beings whose stats, abilities, and genetic makeup are pure data structures. Player will constantly engage in attacks, fixes, and management of the network (that is, constantly interacting with various bug algomons), incorporate them into one's own use, gradually become stronger, and eventually become the strongest hacker in the entire DIICSU.
 
 Every mechanic in this game is a direct expression of a computer science concept. The algorithms are not hidden in the engine; they *are* the gameplay.
 
@@ -131,5 +131,4 @@ AlgoMon-Loop/
 
 | Role | Contributor |
 |---|---|
-| Design & Engineering | *(your name)* |
-| Academic Supervisor | *(professor's GitHub handle)* |
+| Design & Engineering | Jiachi Zhu |
