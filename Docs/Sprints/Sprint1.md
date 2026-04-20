@@ -13,8 +13,9 @@ Establish the complete project foundation: data models, messaging system, and co
 | #2 | [Core] Implement EventBus (Observer Pattern) | ✅ Done |
 | #3 | [Data] Define AlgoMonData ScriptableObject | ✅ Done |
 | #4 | [Core] Create GameManager singleton | ✅ Done |
-| #5 | [Battle] Implement PriorityQueue (min-heap) | 🔲 In progress |
-| #6 | [Battle] Implement CombatResolver (ASD matrix) | 🔲 Planned |
+| #5 | [Battle] Implement PriorityQueue (min-heap) | ✅ Done |
+| #6 | [Battle] Implement CombatResolver (ASD counter + element matrix) | ✅ Done |
+| #7 | [Fix] TurnQueue priority inverted — slowest unit acts first | ✅ Done |
 
 ---
 
@@ -27,9 +28,25 @@ Establish the complete project foundation: data models, messaging system, and co
 ---
 
 ## Outcome
-*(To be filled at end of sprint)*
+
+All 7 issues completed. The full data and messaging foundation is in place:
+
+- EventBus (Observer Pattern) decouples all game systems
+- AlgoMonData / AlgoMonInstance implement the IV/EXP hardware-software split
+- GameManager singleton manages Payload (warehouse) and Party (active squad, max 6)
+- PriorityQueue (max-heap) drives ClockSpeed-based turn ordering, O(log N)
+- TurnQueue wraps PriorityQueue with ASD counter override (ForceAfter)
+- CombatResolver handles ASD triangle counter check and 6×6 element type chart
+- Bug #7 caught and fixed: TurnQueue priority was inverted (used -ClockSpeed on a max-heap)
+
+Design decisions made this sprint:
+- Chose Universal 2D (URP) over Built-In pipeline for future visual flexibility
+- Renamed Bandwidth → Throughput for clearer domain semantics
+- Settled on 6 element types: Water / Fire / Grass / Ice / Electric / Ground
+- ASD counter changes turn order (animation interrupt) but damage bonus is per-skill, not flat
 
 ---
 
 ## Carry-over
-*(To be filled at end of sprint)*
+
+None. Sprint 2 will begin Arena scene UI and Grid DAG generation.
