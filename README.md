@@ -140,4 +140,4 @@ AlgoMon-Loop/
 
 | Asset | Tool | Notes |
 |---|---|---|
-| AlgoMon sprite artwork (12 images) | Google Gemini 2.5 Pro (image generation) | All portraits generated specifically for this project |
+| AlgoMon sprite artwork (12 images) | Google Gemini 3.1 Pro (image generation) | All portraits generated specifically for this project |
