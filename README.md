@@ -133,3 +133,11 @@ AlgoMon-Loop/
 | Role | Contributor |
 |---|---|
 | Design & Engineering | Jiachi Zhu |
+
+---
+
+## 🎨 Credits
+
+| Asset | Tool | Notes |
+|---|---|---|
+| AlgoMon sprite artwork (12 images) | Google Gemini 2.5 Pro (image generation) | All portraits generated specifically for this project |
