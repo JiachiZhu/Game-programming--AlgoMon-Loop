@@ -7,9 +7,17 @@
 
 public struct DamageEvent
 {
+    public string AttackerId;
     public string TargetId;
     public int Amount;
-    public DamageType Type;
+    public DamageType DmgType;
+    public ElementType SkillElement;
+}
+
+public struct CounterEvent
+{
+    public string CounterId;    // unit that won the ASD counter
+    public string CounteredId;  // unit that lost
 }
 
 public struct BattleEndEvent
@@ -39,7 +47,26 @@ public struct SceneTransitionEvent
 
 // --- Enums ---
 
-public enum DamageType  { Computing, Throughput }
-public enum StatusType  { Overclock, Throttle, Firewall, Corrupted }
-public enum NodeType    { Combat, Elite, Rest, Shop, Boss }
-public enum GameScene   { MainTerminal, TheGrid, TheArena, TheLab }
+public enum DamageType     { Computing, Throughput }
+public enum StatusType     { Overclock, Throttle, Corrupted }
+public enum NodeType       { Combat, Elite, Rest, Shop, Boss }
+public enum GameScene      { MainTerminal, TheGrid, TheArena, TheLab }
+
+/// <summary>
+/// The three stances in the ASD combat triangle.
+///   Attack  beats Status   (A > S)
+///   Status  beats Defense  (S > D)
+///   Defense beats Attack   (D > A)
+/// </summary>
+public enum InstructionType { Attack, Status, Defense }
+
+/// <summary>
+/// Six elemental types. Effectiveness is resolved via a 6x6 matrix
+/// in CombatResolver. Strong = x1.5, Neutral = x1.0, Weak = x0.75.
+///
+/// Stated advantages:
+///   Water > Fire,  Fire > Grass,  Grass > Water  (triangle)
+///   Electric > Water,  Ground > Electric          (chain)
+///   Ice > Grass,  Fire > Ice                      (extras)
+/// </summary>
+public enum ElementType    { Water, Fire, Grass, Ice, Electric, Ground }

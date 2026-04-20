@@ -2,7 +2,6 @@ using UnityEngine;
 
 /// <summary>
 /// ScriptableObject defining a single skill (data instruction).
-/// Full implementation in a later sprint.
 /// </summary>
 [CreateAssetMenu(fileName = "New Skill", menuName = "AlgoMon/Skill Data")]
 public class SkillData : ScriptableObject
@@ -12,12 +11,15 @@ public class SkillData : ScriptableObject
     [TextArea] public string description;
 
     [Header("Classification")]
-    public InstructionType type;
-    public DamageType damageType;
+    public InstructionType instructionType;  // A / S / D — used for ASD counter check
+    public DamageType      damageType;       // Computing Power or Throughput
+    public ElementType     elementType;      // determines element chart multiplier
 
     [Header("Values")]
-    public int basePower;
-    public int cpCost;
-}
+    public int   basePower;
+    public int   cpCost;
 
-public enum InstructionType { Attack, Status, Defense }
+    [Header("Counter Success Effect")]
+    [Tooltip("Damage multiplier applied when this skill wins the ASD counter. 1 = no bonus.")]
+    public float counterSuccessMultiplier = 1f;
+}

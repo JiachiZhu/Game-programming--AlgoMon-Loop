@@ -34,12 +34,13 @@ A 2D side-view tactical battle system. Skills are packaged as executable data in
 
 | Component | Algorithm / Pattern | Complexity |
 |---|---|---|
-| Turn ordering | **Min-Heap Priority Queue** keyed on Clock Speed | O(log N) per insert/extract |
-| Skill resolution | A-S-D (Attack / Status / Defense) **RPS matrix multiplier** | O(1) |
+| Turn ordering | **Max-Heap Priority Queue** keyed on Clock Speed | O(log N) per insert/extract |
+| ASD counter system | A-S-D **RPS triangle** — counter overrides turn order | O(1) |
+| Element type chart | **6×6 static matrix** lookup (Water/Fire/Grass/Ice/Electric/Ground) | O(1) |
 | Buff/Debuff system | **Observer Pattern (Event Bus)** — fully decoupled | O(1) dispatch |
 | Dual resource model | Battery (HP) + Computing Power (CP) constraints | — |
 
-The Priority Queue ensures faster AlgoMons act first without any random roll — speed is deterministic and strategic.
+The Priority Queue ensures faster AlgoMons act first. However, the **ASD counter system** can override this: both players simultaneously choose Attack / Status / Defense (A > S > D > A). If a counter occurs, the countered unit's animation is interrupted mid-play, and the countering unit's skill animation is inserted — regardless of Clock Speed. The counter also triggers any bonus effect defined on the skill (e.g. ×3 damage).
 
 #### AlgoMon Stat Design — Six Dimensions
 
