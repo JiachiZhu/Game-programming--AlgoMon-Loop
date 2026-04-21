@@ -19,6 +19,11 @@ public class SkillData : ScriptableObject
     public int   basePower;
     public int   cpCost;
 
+    [Header("Turn Priority")]
+    [Tooltip("+1 = first-strike (acts before priority 0), 0 = normal, -1 = last-strike (acts after priority 0). " +
+             "Skill priority is overridden by ASD counter result (ForceAfter).")]
+    public int priority = 0;
+
     [Header("Counter Success Effect")]
     [Tooltip("Damage multiplier applied when this skill wins the ASD counter. 1 = no bonus.")]
     public float counterSuccessMultiplier = 1f;

@@ -2,22 +2,30 @@ using System.Collections.Generic;
 
 /// <summary>
 /// Manages battle turn order for a set of AlgoMon combatants.
-/// Wraps PriorityQueue and maps each AlgoMon's ClockSpeed as priority.
+/// Wraps PriorityQueue and maps each AlgoMon's effective priority as the heap key.
 ///
-/// The underlying structure is a max-heap, so the unit with the
-/// HIGHEST ClockSpeed is extracted first — fastest acts first.
+/// Three-tier priority (highest to lowest):
+///   1. ASD counter winner  — ForceAfter() hard-overrides, always wins
+///   2. Skill priority tier — effectivePriority = skill.priority * 10000 + ClockSpeed
+///   3. ClockSpeed tiebreak — faster unit acts first within the same skill priority tier
+///
+/// BattleManager is responsible for computing effectivePriority from the declared
+/// skill and calling Enqueue(mon, effectivePriority). The no-arg Enqueue(mon)
+/// falls back to ClockSpeed only (skill priority = 0 assumed).
 ///
 /// ASD counter override:
 ///   Call ForceAfter(countered, counter) after an ASD counter is detected.
 ///   This re-inserts the countered unit with a priority just below the
-///   counter unit, regardless of ClockSpeed.
+///   counter unit, overriding both ClockSpeed and skill priority.
 ///
 /// Typical battle loop:
-///   1. Initialize(combatants)      — load all combatants once
-///   2. current = Dequeue()         — who acts this turn
-///   3. resolve action
-///   4. if alive: Enqueue(current)  — re-insert for next round
-///   5. repeat from step 2
+///   1. Initialize(combatants)                     — load all combatants once
+///   2. Both sides declare skill
+///   3. Enqueue(mon, skill.priority*10000+ClockSpeed) — or use ForceAfter after ASD check
+///   4. current = Dequeue()                        — who acts this turn
+///   5. resolve action
+///   6. if alive: re-enqueue for next round
+///   7. repeat from step 2
 /// </summary>
 public class TurnQueue
 {
@@ -31,11 +39,19 @@ public class TurnQueue
     // Public API
 
     /// <summary>
-    /// Adds a combatant using ClockSpeed as priority.
-    /// Higher ClockSpeed = extracted first.
+    /// Adds a combatant using ClockSpeed as priority (skill priority = 0 assumed).
+    /// Use the overload below when the declared skill has a non-zero priority.
     /// </summary>
     public void Enqueue(AlgoMonInstance mon) =>
         _queue.Enqueue(mon, mon.ClockSpeed);
+
+    /// <summary>
+    /// Adds a combatant with a caller-supplied effective priority.
+    /// BattleManager should pass: skill.priority * 10000f + mon.ClockSpeed
+    /// so that skill priority tiers are respected before ClockSpeed tiebreak.
+    /// </summary>
+    public void Enqueue(AlgoMonInstance mon, float effectivePriority) =>
+        _queue.Enqueue(mon, effectivePriority);
 
     /// <summary>Removes and returns the next combatant to act.</summary>
     public AlgoMonInstance Dequeue() => _queue.Dequeue();
