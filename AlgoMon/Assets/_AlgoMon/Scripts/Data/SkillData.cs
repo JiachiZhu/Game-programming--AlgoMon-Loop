@@ -25,6 +25,10 @@ public class SkillData : ScriptableObject
     public int priority = 0;
 
     [Header("Counter Success Effect")]
-    [Tooltip("Damage multiplier applied when this skill wins the ASD counter. 1 = no bonus.")]
+    [Tooltip("Default: opponent is delayed, CP consumed.\n" +
+             "Nullify: opponent's skill cancelled, CP not consumed, turn wasted.")]
+    public CounterSuccessType counterSuccessType = CounterSuccessType.Default;
+
+    [Tooltip("Damage multiplier applied to THIS skill when it wins the ASD counter. 1 = no bonus.")]
     public float counterSuccessMultiplier = 1f;
 }

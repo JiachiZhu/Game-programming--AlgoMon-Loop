@@ -72,6 +72,19 @@ public enum InstructionType { Attack, Status, Defense }
 public enum ElementType    { Water, Fire, Grass, Ice, Electric, Ground }
 
 /// <summary>
+/// Determines what happens to the OPPONENT when this skill wins the ASD counter.
+///
+///   Default — opponent is delayed via ForceAfter; their skill still executes
+///             and their CP is consumed as normal.
+///   Nullify — opponent's skill is cancelled entirely; their CP is NOT consumed
+///             but their turn is wasted (空过). Reserved for dedicated interrupt skills.
+///
+/// In both cases the counter winner's own counterSuccessMultiplier applies to damage.
+/// BattleManager reads this field to decide how to handle the countered unit.
+/// </summary>
+public enum CounterSuccessType { Default, Nullify }
+
+/// <summary>
 /// Conditions that activate a species' built-in Subroutine (passive ability).
 /// BattleManager checks these each time the relevant moment occurs.
 /// </summary>
