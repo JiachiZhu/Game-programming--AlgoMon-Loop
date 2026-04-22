@@ -15,9 +15,14 @@ using UnityEngine;
 ///      6 types: Water / Fire / Grass / Ice / Electric / Ground
 ///      Strong x1.5 | Neutral x1.0 | Weak x0.75
 ///
-/// Damage formula:
-///   A-type: Max(1, Floor(attacker.ComputingPower × (skill.basePower / 100.0) × elementMult × counterMult) - defender.Firewall)
-///   S-type: Max(1, Floor(attacker.Throughput    × (skill.basePower / 100.0) × elementMult × counterMult) - defender.Encryption)
+/// Damage formula (ratio-based defence):
+///   raw   = rawAttack × (basePower / 100) × elementMult × counterMult
+///   damage = Max(1, Floor(raw × 50 / (50 + defence)))
+///
+/// The constant 50 is a softcap — defence equal to 50 halves incoming damage.
+/// Reference values:
+///   defence =   0 → ×1.00   defence =  50 → ×0.50
+///   defence = 100 → ×0.33   defence = 150 → ×0.25
 /// </summary>
 public static class CombatResolver
 {
@@ -84,7 +89,8 @@ public static class CombatResolver
             : defender.Encryption;
 
         float baseMult = attackerSkill.basePower / 100f;
-        int damage = Mathf.Max(1, Mathf.FloorToInt(rawAttack * baseMult * elementMult * counterMult) - defence);
+        float raw      = rawAttack * baseMult * elementMult * counterMult;
+        int damage     = Mathf.Max(1, Mathf.FloorToInt(raw * 50f / (50f + defence)));
 
         EventBus.Publish(new DamageEvent
         {

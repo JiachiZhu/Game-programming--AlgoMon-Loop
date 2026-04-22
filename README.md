@@ -37,11 +37,31 @@ A 2D side-view tactical battle system. Skills are packaged as executable data in
 | Turn ordering | **Max-Heap Priority Queue** keyed on Clock Speed; skill priority tier (+1 first-strike > 0 normal > -1 last-strike) overrides Clock Speed | O(log N) per insert/extract |
 | ASD counter system | A-S-D **RPS triangle** — counter overrides all priority tiers | O(1) |
 | Element type chart | **6×6 static matrix** lookup (Water/Fire/Grass/Ice/Electric/Ground) | O(1) |
-| Skill damage model | rawAttack x (basePower/100) x elementMult x counterMult - defence | O(1) |
+| Skill damage model | raw = rawAttack x (basePower/100) x elementMult x counterMult; damage = Floor(raw x 50 / (50 + defence)) | O(1) |
 | Buff/Debuff system | **Observer Pattern (Event Bus)** — fully decoupled | O(1) dispatch |
 | Dual resource model | Battery (HP) + Computing Power (CP) constraints | — |
 
 Turn priority resolves in three tiers: **ASD counter winner** (highest, overrides everything) -> **skill priority** (+1 first-strike > 0 normal > -1 last-strike) -> **Clock Speed** tiebreak. Both players simultaneously choose Attack / Status / Defense (A > S > D > A). If a counter occurs, the countered unit's animation is interrupted and the countering unit's skill is inserted — regardless of Clock Speed or skill priority. The counter also applies the bonus multiplier defined on the skill.
+
+#### Computing Power (CP) — Resource System
+
+Every skill costs CP to execute. Each AlgoMon has a shared CP pool with a hard cap of **10 CP**.
+
+| CP Cost | Skill tier | Risk profile |
+|---|---|---|
+| 1 – 2 | Priority / light attack | Low risk, low payoff |
+| 3 – 4 | Standard attack | Core combat budget |
+| 5 – 6 | Heavy attack | High payoff, high risk |
+
+**Recharge** is a built-in Status (S) skill available to every AlgoMon:
+it costs 0 CP and restores 5 CP in one turn. Because it is a Status instruction,
+it participates in the ASD triangle — an opponent who reads a Recharge
+can counter with Attack and interrupt it. Timing a Recharge is therefore a
+meaningful decision embedded in the same RPS mind-game as every other action.
+
+Using a 5–6 CP skill against a skilled opponent is a commitment: if the ASD
+counter fails, the skill is interrupted and the CP is spent — leaving the
+user drastically resource-starved for the next few turns.
 
 #### AlgoMon Stat Design — Six Dimensions
 
