@@ -73,7 +73,7 @@ CP consequences when countered depend on which side loses:
 | Scenario | CP outcome for the loser |
 |---|---|
 | Attack countered by a Nullify | Attacker's skill cancelled, **CP not consumed** |
-| Defense countered by a Nullify Status | Defence cancelled, **CP not consumed** |
+| Defense countered by a Status | Obtain additional status effects，Defence keep, **CP consumed** |
 | Attack blocked by a Defense (Block) | Attack fires at reduced damage, **CP consumed** |
 
 #### AlgoMon Stat Design — Six Dimensions
