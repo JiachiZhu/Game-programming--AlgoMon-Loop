@@ -35,13 +35,26 @@ A 2D side-view tactical battle system. Skills are packaged as executable data in
 | Component | Algorithm / Pattern | Complexity |
 |---|---|---|
 | Turn ordering | **Max-Heap Priority Queue** keyed on Clock Speed; skill priority tier (+1 first-strike > 0 normal > -1 last-strike) overrides Clock Speed | O(log N) per insert/extract |
-| ASD counter system | A-S-D **RPS triangle** — counter overrides all priority tiers | O(1) |
+| ASD counter system | Per-skill opt-in RPS triangle (A>S>D>A); only skills with `canCounter=true` trigger the check | O(1) |
 | Element type chart | **6×6 static matrix** lookup (Water/Fire/Grass/Ice/Electric/Ground) | O(1) |
 | Skill damage model | raw = rawAttack x (basePower/100) x elementMult x counterMult; damage = Floor(raw x 50 / (50 + defence)) | O(1) |
 | Buff/Debuff system | **Observer Pattern (Event Bus)** — fully decoupled | O(1) dispatch |
 | Dual resource model | Battery (HP) + Computing Power (CP) constraints | — |
 
-Turn priority resolves in three tiers: **ASD counter winner** (highest, overrides everything) -> **skill priority** (+1 first-strike > 0 normal > -1 last-strike) -> **Clock Speed** tiebreak. Both players simultaneously choose Attack / Status / Defense (A > S > D > A). If a counter occurs, the countered unit's animation is interrupted and the countering unit's skill is inserted — regardless of Clock Speed or skill priority. The counter also applies the bonus multiplier defined on the skill.
+Turn priority resolves in three tiers: **ASD counter winner** (highest) -> **skill priority** (+1 first-strike > 0 normal > -1 last-strike) -> **Clock Speed** tiebreak.
+
+Both players simultaneously choose Attack / Status / Defense and declare a skill. The **ASD check only fires when the acting skill has `canCounter = true`** and its instruction type wins the matchup (A>S, S>D, D>A). Skills without `canCounter` resolve purely by speed and priority — no RPS, no interruption.
+
+When a counter succeeds, the effect depends on the winning skill's `counterSuccessType`:
+
+| counterSuccessType | What happens to the LOSER |
+|---|---|
+| **None** | Delayed via ForceAfter; skill still executes, CP consumed |
+| **Nullify** | Skill fully cancelled; CP **not** consumed, turn wasted |
+| **Block** | Attack still fires but damage reduced by `counterBlockPercent` |
+| **SelfBuff** | Loser unaffected; winner gains extra buff stacks on top of base effect |
+
+All Defense skills have `canCounter = true` by design. Defense skills also have a **1-turn cooldown** after use to prevent passive looping.
 
 #### Computing Power (CP) — Resource System
 
@@ -53,15 +66,15 @@ Every skill costs CP to execute. Each AlgoMon has a shared CP pool with a hard c
 | 3 – 4 | Standard attack | Core combat budget |
 | 5 – 6 | Heavy attack | High payoff, high risk |
 
-**Recharge** is a built-in Status (S) skill available to every AlgoMon:
-it costs 0 CP and restores 5 CP in one turn. Because it is a Status instruction,
-it participates in the ASD triangle — an opponent who reads a Recharge
-can counter with Attack and interrupt it. Timing a Recharge is therefore a
-meaningful decision embedded in the same RPS mind-game as every other action.
+**Recharge** is a built-in Status (S) skill available to every AlgoMon: 0 CP cost, restores 5 CP in one turn. Recharge has `canCounter = true`, so an opponent who reads the Recharge can counter it with an Attack skill that carries Nullify — cancelling the Recharge and wasting the turn (CP not consumed, since Recharge costs 0). Timing a Recharge is a meaningful commitment embedded in the same RPS mind-game.
 
-Using a 5–6 CP skill against a skilled opponent is a commitment: if the ASD
-counter fails, the skill is interrupted and the CP is spent — leaving the
-user drastically resource-starved for the next few turns.
+CP consequences when countered depend on which side loses:
+
+| Scenario | CP outcome for the loser |
+|---|---|
+| Attack countered by a Nullify | Attacker's skill cancelled, **CP not consumed** |
+| Defense countered by a Nullify Status | Defence cancelled, **CP not consumed** |
+| Attack blocked by a Defense (Block) | Attack fires at reduced damage, **CP consumed** |
 
 #### AlgoMon Stat Design — Six Dimensions
 
