@@ -72,17 +72,23 @@ public enum InstructionType { Attack, Status, Defense }
 public enum ElementType    { Water, Fire, Grass, Ice, Electric, Ground }
 
 /// <summary>
-/// Determines what happens to the OPPONENT when this skill wins the ASD counter.
+/// The additional effect that occurs when THIS skill wins the ASD counter check.
+/// Counter effects are per-skill, not tied to instruction type — an Attack skill
+/// may have Nullify, None, or any other effect depending on its design.
 ///
-///   Default — opponent is delayed via ForceAfter; their skill still executes
-///             and their CP is consumed as normal.
-///   Nullify — opponent's skill is cancelled entirely; their CP is NOT consumed
-///             but their turn is wasted (空过). Reserved for dedicated interrupt skills.
+///   None     — no special counter effect; opponent acts after (ForceAfter), CP consumed.
+///              counterSuccessMultiplier still applies to this skill's damage.
+///   Nullify  — opponent's skill is fully cancelled; their CP is NOT consumed, turn wasted.
+///   Block    — opponent's attack still executes but damage is reduced by counterBlockPercent.
+///              Typical for Defense skills (all Defense skills must have canCounter = true).
+///   SelfBuff — apply an additional buff to self on top of the skill's base effect.
+///              Magnitude = counterBonusValue stacks/points of counterSelfStatus.
 ///
-/// In both cases the counter winner's own counterSuccessMultiplier applies to damage.
-/// BattleManager reads this field to decide how to handle the countered unit.
+/// Note: ASD check only fires when the acting skill has canCounter = true AND
+/// its instructionType wins against the opponent's instructionType (A>S, S>D, D>A).
+/// If canCounter = false, turn order is resolved by speed/priority only.
 /// </summary>
-public enum CounterSuccessType { Default, Nullify }
+public enum CounterSuccessType { None, Nullify, Block, SelfBuff }
 
 /// <summary>
 /// Conditions that activate a species' built-in Subroutine (passive ability).
