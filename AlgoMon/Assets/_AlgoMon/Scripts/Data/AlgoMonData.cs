@@ -13,6 +13,11 @@ public class AlgoMonData : ScriptableObject
     [TextArea] public string description;
     public Sprite portrait;
 
+    [Header("Subroutine — Passive Ability")]
+    [Tooltip("This species' hardwired passive. Triggers automatically in battle. " +
+             "Assign a SubroutineData asset. Effect logic is handled by BattleManager.")]
+    public SubroutineData subroutine;
+
     [Header("Base Skill Pool")]
     public SkillData[] learnableSkills;
 }

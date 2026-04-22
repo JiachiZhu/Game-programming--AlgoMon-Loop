@@ -70,3 +70,33 @@ public enum InstructionType { Attack, Status, Defense }
 ///   Ice > Grass,  Fire > Ice                      (extras)
 /// </summary>
 public enum ElementType    { Water, Fire, Grass, Ice, Electric, Ground }
+
+/// <summary>
+/// Conditions that activate a species' built-in Subroutine (passive ability).
+/// BattleManager checks these each time the relevant moment occurs.
+/// </summary>
+public enum SubroutineTrigger
+{
+    OnBattleStart,      // activates once when the battle begins
+    OnTurnStart,        // activates at the start of this unit's turn
+    OnCounterWin,       // activates when this unit wins an ASD counter
+    OnCounterLose,      // activates when this unit loses an ASD counter
+    OnDamageTaken,      // activates after this unit takes damage
+    OnAllyFainted,      // activates when a party ally is shut down
+    OnLowBattery,       // activates when Battery drops below 25%
+}
+
+/// <summary>
+/// Effects applied when a Subroutine triggers.
+/// BattleManager maps these to concrete stat/priority modifications.
+/// </summary>
+public enum SubroutineEffect
+{
+    PriorityBoost,      // add +value to skill priority this turn
+    ComputingBoost,     // multiply Computing Power by value% for one turn
+    ThroughputBoost,    // multiply Throughput by value% for one turn
+    FirewallBoost,      // multiply Firewall by value% for one turn
+    EncryptionBoost,    // multiply Encryption by value% for one turn
+    HealSelf,           // restore value% of max Battery
+    ApplyStatus,        // apply a StatusType (use statusType field in SubroutineData)
+}
