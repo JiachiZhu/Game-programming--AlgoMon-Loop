@@ -47,10 +47,50 @@ public struct SceneTransitionEvent
 
 // --- Enums ---
 
-public enum DamageType     { Computing, Throughput }
-public enum StatusType     { Overclock, Throttle, Corrupted }
-public enum NodeType       { Combat, Elite, Rest, Shop, Boss }
-public enum GameScene      { MainTerminal, TheGrid, TheArena, TheLab }
+public enum DamageType { Computing, Throughput }
+public enum NodeType   { Combat, Elite, Rest, Shop, Boss }
+public enum GameScene  { MainTerminal, TheGrid, TheArena, TheLab }
+
+/// <summary>
+/// All persistent status conditions that can be applied to an AlgoMon.
+/// Stack values and durations are tracked by BattleManager at runtime.
+///
+/// Stacking model (additive percentage per layer):
+///   Burn    — each layer deals 5% max-Battery damage per turn. Max 4 layers.
+///   Leech   — each layer steals 5% max-Battery HP per turn from target to user. Max 3 layers.
+///   Freeze  — each layer reduces ClockSpeed by 15%. Max 3 layers (-45% total).
+///             Cleared only by turn-end roll; NOT cleared by Fire-type hits.
+///   Ensnare — target cannot swap out for duration turns.
+///   Concurrent — next skill executes twice (costs 2x CP); clears after activation.
+///   BufferLoad — next skill CP cost -4 (min 0); clears after activation.
+///   Backup  — (removed from Redundant Backup; reserved for future use)
+///
+/// Legacy placeholders (from initial design, may be repurposed):
+///   Overclock, Throttle, Corrupted
+/// </summary>
+public enum StatusType
+{
+    // --- Active debuffs ---
+    Burn,           // 5% max-HP damage/turn per layer, max 4 layers
+    Freeze,         // -15% ClockSpeed/layer, max 3 layers; cleared by turn-end roll
+    Leech,          // 5% max-HP stolen/turn per layer (heals caster), max 3 layers
+    Ensnare,        // cannot swap out AlgoMon for N turns
+
+    // --- Self buffs (one-shot, clear on trigger) ---
+    Concurrent,     // next skill fires twice (uses 2x CP)
+    BufferLoad,     // next skill CP cost -4 (min 0)
+
+    // --- Stat buffs (additive %, stacks persist until battle end) ---
+    ComputingUp,    // Computing Power +10% per stack
+    ThroughputUp,   // Throughput +10% per stack
+    FirewallUp,     // Firewall +10% per stack
+    EncryptionUp,   // Encryption +10% per stack
+
+    // --- Legacy / reserved ---
+    Overclock,      // placeholder — speed boost (to be fully defined)
+    Throttle,       // placeholder — speed reduction (may merge with Freeze)
+    Corrupted,      // placeholder — general debuff state
+}
 
 /// <summary>
 /// The three stances in the ASD combat triangle.

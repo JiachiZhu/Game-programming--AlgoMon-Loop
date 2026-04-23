@@ -40,15 +40,41 @@ public class SkillData : ScriptableObject
     public float counterSuccessMultiplier = 1f;
 
     [Header("Counter Effect Parameters")]
-    [Tooltip("Block only: fraction of opponent's incoming damage absorbed. 0.7 = 70% reduced.")]
+    [Tooltip("Block only: fraction of opponent's incoming damage absorbed. 0.7 = absorbs 70%.")]
     [Range(0f, 1f)] public float counterBlockPercent = 0f;
 
     [Tooltip("SelfBuff only: which status is applied (or amplified) on counter win.")]
     public StatusType counterSelfStatus;
 
-    [Tooltip("SelfBuff only: additional stacks or magnitude added to counterSelfStatus.")]
+    [Tooltip("SelfBuff only: additional stacks added to counterSelfStatus on counter win.")]
     public int counterBonusValue = 0;
 
     [Tooltip("SelfBuff only: duration in turns of the counter-triggered buff. 0 = this turn only.")]
     public int counterStatusDuration = 0;
+
+    [Tooltip("Counter win: drain this many CP from the opponent. 0 = no drain.")]
+    public int counterCPDrain = 0;
+
+    [Tooltip("Counter win: reduce ALL own skill CP costs by this amount for counterStatusDuration turns. 0 = no discount.")]
+    public int counterCPDiscount = 0;
+
+    [Tooltip("Counter win: permanently reduce THIS skill's cpCost by this amount (min 0). 0 = no reduction.")]
+    public int counterPermanentCPCostReduce = 0;
+
+    [Header("On-Hit Effects")]
+    [Tooltip("On damage dealt: steal this many CP from the opponent. 0 = no steal.")]
+    public int cpDrain = 0;
+
+    [Tooltip("On damage dealt: reduce opponent's Firewall by this fraction. 0.2 = shred 20%. 0 = no shred.")]
+    [Range(0f, 1f)] public float onHitFirewallShred = 0f;
+
+    [Header("On-Hit Status")]
+    [Tooltip("Apply this status to the opponent on hit. Leave at default if no status is applied.")]
+    public StatusType onHitStatus;
+
+    [Tooltip("Number of stacks of onHitStatus to apply. 0 = no status applied.")]
+    public int onHitStatusStacks = 0;
+
+    [Tooltip("Duration in turns of the on-hit status. 0 = use status default.")]
+    public int onHitStatusDuration = 0;
 }
