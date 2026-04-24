@@ -1,0 +1,12 @@
+# Unity (nested project) — do not commit generated folders
+Library/
+Temp/
+obj/
+Build/
+Builds/
+Logs/
+UserSettings/
+*.log
+.DS_Store
+MemoryCaptures/
+Recordings/
