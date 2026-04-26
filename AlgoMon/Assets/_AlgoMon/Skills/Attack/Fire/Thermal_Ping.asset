@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6dbb5f173bb8f8543b06a6523882e793, type: 3}
+  m_Name: Thermal_Ping
+  m_EditorClassIdentifier: 
+  skillName: Thermal Ping
+  description: "A lightweight heat-tagged request fired at extreme speed. Used to chip
+    low-HP targets or probe enemy defenses."
+  instructionType: 0
+  damageType: 0
+  elementType: 2
+  basePower: 30
+  cpCost: 1
+  priority: 1
+  canCounter: 0
+  counterSuccessType: 0
+  counterSuccessMultiplier: 1
+  counterBlockPercent: 0
+  counterSelfStatus: 0
+  counterBonusValue: 0
+  counterStatusDuration: 0
+  counterCPDrain: 0
+  counterCPDiscount: 0
+  counterPermanentCPCostReduce: 0
+  cpDrain: 0
+  onHitFirewallShred: 0
+  onHitStatus: 0
+  onHitStatusStacks: 0
+  onHitStatusDuration: 0
