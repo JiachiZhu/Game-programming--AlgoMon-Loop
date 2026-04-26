@@ -4,7 +4,7 @@ using UnityEngine;
 /// ScriptableObject defining a single skill (data instruction).
 ///
 /// Effects are organized into three clear groups:
-///   Base Effect   — the primary effect when this skill is used (Status skills)
+///   Base Effect   — the primary effect when this skill is used (any instruction type)
 ///   Counter Win   — what happens when this skill wins the ASD check, split by target
 ///   On Hit        — what happens when this skill deals damage, split by target
 ///
@@ -50,8 +50,10 @@ public class SkillData : ScriptableObject
     // Leave baseStatusStacks = 0 if this skill has no status-based primary effect.
     // =========================================================================
 
-    [Header("Base Effect — Status Skills")]
-    [Tooltip("Who receives the primary status effect.\nSelf = buff/heal the user.\nOpponent = debuff the target.")]
+    [Header("Base Effect")]
+    [Tooltip("Who receives the primary status effect.\n" +
+             "Self = apply to user when this skill is executed.\n" +
+             "Opponent = apply to target (Attack: on hit; Status/Defense: on use).")]
     public StatusTarget baseStatusTarget = StatusTarget.Self;
 
     public StatusType baseStatus;
