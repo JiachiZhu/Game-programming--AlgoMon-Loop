@@ -12,6 +12,7 @@ public class AlgoMonData : ScriptableObject
     public string codeName;
     [TextArea] public string description;
     public Sprite portrait;
+    public ElementType elementType;
 
     [Header("Subroutine — Passive Ability")]
     [Tooltip("This species' hardwired passive. Triggers automatically in battle. " +
