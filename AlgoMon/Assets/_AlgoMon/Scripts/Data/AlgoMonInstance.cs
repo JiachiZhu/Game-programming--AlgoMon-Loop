@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -33,6 +34,35 @@ public class AlgoMonInstance
     [Range(1, MAX_LEVEL)] public int level = 1;
     public int exp = 0;
     public int expToNextLevel => level * level * 4;
+
+    [Header("Known Skills")]
+    [Tooltip("Skills currently loaded into this AlgoMon's active slots. " +
+             "Populated from data.learnset on level-up. Max 4 slots.")]
+    public List<SkillData> knownSkills = new List<SkillData>();
+    public const int MaxSkillSlots = 4;
+
+    /// <summary>
+    /// Checks data.learnset for any skill that unlocks at exactly the current level
+    /// and adds it to knownSkills if a slot is available.
+    /// Returns the list of newly learned skills (for UI prompt / replace flow).
+    /// </summary>
+    public List<SkillData> CheckLearnsetAtCurrentLevel()
+    {
+        var newSkills = new List<SkillData>();
+        if (data == null) return newSkills;
+
+        foreach (LearnsetEntry entry in data.learnset)
+        {
+            if (entry.skill == null) continue;
+            if (entry.unlockLevel != level) continue;
+            if (knownSkills.Contains(entry.skill)) continue;
+
+            newSkills.Add(entry.skill);
+            if (knownSkills.Count < MaxSkillSlots)
+                knownSkills.Add(entry.skill);
+        }
+        return newSkills;
+    }
 
     // --- Computed Stats ---
     public int Battery        => Calc(iv_Battery);

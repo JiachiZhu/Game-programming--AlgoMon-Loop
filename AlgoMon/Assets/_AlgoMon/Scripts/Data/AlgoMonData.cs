@@ -18,6 +18,9 @@ public class AlgoMonData : ScriptableObject
              "Assign a SubroutineData asset. Effect logic is handled by BattleManager.")]
     public SubroutineData subroutine;
 
-    [Header("Base Skill Pool")]
-    public SkillData[] learnableSkills;
+    [Header("Learnset")]
+    [Tooltip("All skills this species can learn, paired with the level they unlock at. " +
+             "Skills with unlockLevel = 1 are available from capture. " +
+             "BattleManager / LevelUpHandler populates AlgoMonInstance.knownSkills from this list.")]
+    public LearnsetEntry[] learnset;
 }
