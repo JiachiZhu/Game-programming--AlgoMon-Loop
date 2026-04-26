@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6dbb5f173bb8f8543b06a6523882e793, type: 3}
+  m_Name: "Sleep Thread\uFF1F"
+  m_EditorClassIdentifier: 
+  skillName: Sleep Thread
+  description: Instantly initiating absolute defense. Forcefully suspends the main
+    thread of the system and enters a "frost sleep" state. Counter win:Reduce damage
+    by 70% and cause the opponent to gain one layer of freeze.
+  instructionType: 2
+  damageType: 0
+  elementType: 4
+  basePower: 0
+  cpCost: 2
+  priority: 0
+  baseStatusTarget: 0
+  baseStatus: 0
+  baseStatusStacks: 0
+  baseStatusDurationType: 2
+  baseStatusDuration: 3
+  canCounter: 1
+  counterNullifies: 0
+  counterBlockPercent: 0.7
+  counterDrainOpponentCP: 0
+  counterShredOpponentFirewall: 0
+  counterFirewallShredDurationType: 1
+  counterFirewallShredDuration: 1
+  counterApplyToOpponent: 1
+  counterOpponentStatusStacks: 1
+  counterOpponentStatusDurationType: 1
+  counterOpponentStatusDuration: 1
+  counterForceOpponentLast: 0
+  counterSelfDamageMultiplier: 1
+  counterApplyToSelf: 0
+  counterSelfStatusStacks: 0
+  counterSelfStatusDurationType: 2
+  counterSelfStatusDuration: 1
+  counterRecast: 0
+  counterSelfCPDiscount: 0
+  counterCPDiscountDurationType: 2
+  counterCPDiscountDuration: 2
+  counterPermanentCPReduce: 0
+  counterNextPriorityBonus: 0
+  counterNextBasePowerBonus: 0
+  counterSelfHealPercent: 0
+  counterClearsOwnDebuffs: 0
+  onHitDrainOpponentCP: 0
+  onHitShredOpponentFirewall: 0
+  onHitFirewallShredDurationType: 1
+  onHitFirewallShredDuration: 1
+  onHitApplyToOpponent: 0
+  onHitOpponentStatusStacks: 0
+  onHitOpponentStatusDurationType: 2
+  onHitOpponentStatusDuration: 1

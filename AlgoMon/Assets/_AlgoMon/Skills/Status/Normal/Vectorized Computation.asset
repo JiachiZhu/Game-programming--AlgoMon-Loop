@@ -1,0 +1,63 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6dbb5f173bb8f8543b06a6523882e793, type: 3}
+  m_Name: Vectorized Computation
+  m_EditorClassIdentifier: 
+  skillName: Vectorized Computation
+  description: Just as modern advanced database kernels handle massive amounts of
+    data, activate the vectorization execution engine and process logical instructions
+    in batches.Throughput plus ten layers
+  instructionType: 1
+  damageType: 0
+  elementType: 0
+  basePower: 0
+  cpCost: 2
+  priority: 0
+  baseStatusTarget: 0
+  baseStatus: 7
+  baseStatusStacks: 10
+  baseStatusDurationType: 1
+  baseStatusDuration: 0
+  canCounter: 0
+  counterNullifies: 0
+  counterBlockPercent: 0
+  counterDrainOpponentCP: 0
+  counterShredOpponentFirewall: 0
+  counterFirewallShredDurationType: 1
+  counterFirewallShredDuration: 1
+  counterApplyToOpponent: 0
+  counterOpponentStatusStacks: 0
+  counterOpponentStatusDurationType: 2
+  counterOpponentStatusDuration: 1
+  counterForceOpponentLast: 0
+  counterSelfDamageMultiplier: 1
+  counterApplyToSelf: 0
+  counterSelfStatusStacks: 0
+  counterSelfStatusDurationType: 2
+  counterSelfStatusDuration: 1
+  counterRecast: 0
+  counterSelfCPDiscount: 0
+  counterCPDiscountDurationType: 2
+  counterCPDiscountDuration: 2
+  counterPermanentCPReduce: 0
+  counterNextPriorityBonus: 0
+  counterNextBasePowerBonus: 0
+  counterSelfHealPercent: 0
+  counterClearsOwnDebuffs: 0
+  onHitDrainOpponentCP: 0
+  onHitShredOpponentFirewall: 0
+  onHitFirewallShredDurationType: 1
+  onHitFirewallShredDuration: 1
+  onHitApplyToOpponent: 0
+  onHitOpponentStatusStacks: 0
+  onHitOpponentStatusDurationType: 2
+  onHitOpponentStatusDuration: 1

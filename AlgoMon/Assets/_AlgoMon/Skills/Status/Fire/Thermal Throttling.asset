@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6dbb5f173bb8f8543b06a6523882e793, type: 3}
+  m_Name: Thermal Throttling
+  m_EditorClassIdentifier: 
+  skillName: Thermal Throttling
+  description: Send a large number of high-energy-consuming garbage operation instructions
+    to the target, causing its system to overheat. Make the target fall into the
+    "burned" state (level 5). In this state, the AlgoMon will lose a fixed amount
+    of health points each round. Counter win:The opponent gains an additional 3 layers
+    of burning effect
+  instructionType: 1
+  damageType: 0
+  elementType: 2
+  basePower: 0
+  cpCost: 3
+  priority: 0
+  baseStatusTarget: 1
+  baseStatus: 0
+  baseStatusStacks: 5
+  baseStatusDurationType: 2
+  baseStatusDuration: 3
+  canCounter: 1
+  counterNullifies: 0
+  counterBlockPercent: 0
+  counterDrainOpponentCP: 0
+  counterShredOpponentFirewall: 0
+  counterFirewallShredDurationType: 1
+  counterFirewallShredDuration: 1
+  counterApplyToOpponent: 0
+  counterOpponentStatusStacks: 3
+  counterOpponentStatusDurationType: 2
+  counterOpponentStatusDuration: 3
+  counterForceOpponentLast: 0
+  counterSelfDamageMultiplier: 1
+  counterApplyToSelf: 0
+  counterSelfStatusStacks: 0
+  counterSelfStatusDurationType: 2
+  counterSelfStatusDuration: 1
+  counterRecast: 0
+  counterSelfCPDiscount: 0
+  counterCPDiscountDurationType: 2
+  counterCPDiscountDuration: 2
+  counterPermanentCPReduce: 0
+  counterNextPriorityBonus: 0
+  counterNextBasePowerBonus: 0
+  counterSelfHealPercent: 0
+  counterClearsOwnDebuffs: 0
+  onHitDrainOpponentCP: 0
+  onHitShredOpponentFirewall: 0
+  onHitFirewallShredDurationType: 1
+  onHitFirewallShredDuration: 1
+  onHitApplyToOpponent: 0
+  onHitOpponentStatusStacks: 0
+  onHitOpponentStatusDurationType: 2
+  onHitOpponentStatusDuration: 1
