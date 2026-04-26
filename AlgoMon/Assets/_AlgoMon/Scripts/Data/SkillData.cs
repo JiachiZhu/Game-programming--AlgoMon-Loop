@@ -84,10 +84,6 @@ public class SkillData : ScriptableObject
     [Tooltip("Cancel the opponent's skill entirely.\nTheir CP is NOT consumed and their turn is wasted.")]
     public bool counterNullifies = false;
 
-    [Tooltip("Reduce the opponent's incoming attack damage by this fraction.\n0.7 = absorb 70% of their damage.\nUsed by Defense skills.")]
-    [Range(0f, 1f)]
-    public float counterBlockPercent = 0f;
-
     [Tooltip("Steal this many CP from the opponent on counter win.")]
     public int counterDrainOpponentCP = 0;
 
@@ -114,6 +110,10 @@ public class SkillData : ScriptableObject
     // =========================================================================
 
     [Header("Counter Win → SELF")]
+
+    [Tooltip("Absorb this fraction of the opponent's incoming attack damage.\n0.7 = take only 30% of their damage. Used by Defense skills.")]
+    [Range(0f, 1f)]
+    public float counterBlockPercent = 0f;
 
     [Tooltip("Damage multiplier applied to THIS skill's output when it wins the counter.\n1 = no bonus. 1.5 = 50% more damage.")]
     public float counterSelfDamageMultiplier = 1f;
