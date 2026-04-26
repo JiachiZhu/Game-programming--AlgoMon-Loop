@@ -106,9 +106,16 @@ public static class CombatResolver
 
     /// <summary>
     /// Looks up the element multiplier from the 6x6 chart.
+    /// Normal type is always neutral (x1.0) against everything.
     /// </summary>
     public static float GetElementMultiplier(ElementType attackElement, ElementType defendElement)
     {
-        return ElementChart[(int)attackElement, (int)defendElement];
+        if (attackElement == ElementType.Normal || defendElement == ElementType.Normal)
+            return 1.0f;
+
+        // Subtract 1 to offset the Normal entry at index 0
+        int row = (int)attackElement - 1;
+        int col = (int)defendElement - 1;
+        return ElementChart[row, col];
     }
 }

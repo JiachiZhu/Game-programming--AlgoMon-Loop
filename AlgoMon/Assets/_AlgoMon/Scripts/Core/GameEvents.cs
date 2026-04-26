@@ -101,15 +101,16 @@ public enum StatusType
 public enum InstructionType { Attack, Status, Defense }
 
 /// <summary>
-/// Six elemental types. Effectiveness is resolved via a 6x6 matrix
+/// Six elemental types plus Normal (neutral). Effectiveness is resolved via a 6x6 matrix
 /// in CombatResolver. Strong = x1.5, Neutral = x1.0, Weak = x0.75.
+/// Normal-type skills are neutral against all elements (no entry in ElementChart needed).
 ///
 /// Stated advantages:
 ///   Water > Fire,  Fire > Grass,  Grass > Water  (triangle)
 ///   Electric > Water,  Ground > Electric          (chain)
 ///   Ice > Grass,  Fire > Ice                      (extras)
 /// </summary>
-public enum ElementType    { Water, Fire, Grass, Ice, Electric, Ground }
+public enum ElementType    { Normal, Water, Fire, Grass, Ice, Electric, Ground }
 
 /// <summary>
 /// The additional effect that occurs when THIS skill wins the ASD counter check.
