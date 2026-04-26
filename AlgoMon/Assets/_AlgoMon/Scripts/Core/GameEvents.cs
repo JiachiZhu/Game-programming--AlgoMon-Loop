@@ -47,7 +47,7 @@ public struct SceneTransitionEvent
 
 // --- Enums ---
 
-public enum DamageType { Computing, Throughput }
+public enum DamageType { None, Computing, Throughput }
 public enum NodeType   { Combat, Elite, Rest, Shop, Boss }
 public enum GameScene  { MainTerminal, TheGrid, TheArena, TheLab }
 

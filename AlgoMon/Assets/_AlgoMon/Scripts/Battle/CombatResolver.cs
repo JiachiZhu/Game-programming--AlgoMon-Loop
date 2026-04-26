@@ -59,6 +59,7 @@ public static class CombatResolver
     /// <summary>
     /// Resolves damage dealt by attackerSkill from attacker to defender.
     /// Publishes DamageEvent (and CounterEvent if applicable) via EventBus.
+    /// Returns 0 if the skill has DamageType.None (Defense / Status skills).
     /// </summary>
     public static int ResolveDamage(
         AlgoMonInstance attacker,
@@ -66,6 +67,9 @@ public static class CombatResolver
         SkillData       attackerSkill,
         InstructionType defenderAction)
     {
+        if (attackerSkill.damageType == DamageType.None)
+            return 0;
+
         bool counter = IsCounter(attackerSkill.instructionType, defenderAction);
 
         if (counter)
