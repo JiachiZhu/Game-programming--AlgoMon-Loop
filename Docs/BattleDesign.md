@@ -90,7 +90,7 @@ If `canCounter = false`, there is no RPS interaction — turn order is speed/pri
 
 - Each AlgoMon has **max 10 CP**.
 - Skills consume CP when executed.
-- **Recharge** (universal Status skill, 0 CP): restores 5 CP. Has `canCounter = true`.
+- **Recharge** (universal Status skill, 0 CP): restores 5 CP. `canCounter = false` — Recharge does not actively try to counter anything. However, it CAN BE countered by opponent Attack skills that have `canCounter = true` (A > S wins the matchup). If the opponent's Attack has Nullify, Recharge is cancelled and the turn is wasted.
 
 ### CP on counter loss
 

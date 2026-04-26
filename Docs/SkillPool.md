@@ -11,7 +11,7 @@
 
 | Name | Element | Type | DmgType | basePower | cpCost | priority | canCounter | counterSuccessType | Effects |
 |------|---------|------|---------|-----------|--------|----------|------------|--------------------|---------|
-| Recharge 充能 | — | Status | — | 0 | 0 | 0 | true | None | Restore 5 CP to self. Universal — all species can use. |
+| Recharge 充能 | — | Status | — | 0 | 0 | 0 | false | None | Restore 5 CP to self. Universal — all species can use. Can BE countered by opponent Attack skills with canCounter=true. |
 
 ---
 

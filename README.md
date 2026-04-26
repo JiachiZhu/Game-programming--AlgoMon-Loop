@@ -66,7 +66,7 @@ Every skill costs CP to execute. Each AlgoMon has a shared CP pool with a hard c
 | 3 – 4 | Standard attack | Core combat budget |
 | 5 – 6 | Heavy attack | High payoff, high risk |
 
-**Recharge** is a built-in Status (S) skill available to every AlgoMon: 0 CP cost, restores 5 CP in one turn. Recharge has `canCounter = true`, so an opponent who reads the Recharge can counter it with an Attack skill that carries Nullify — cancelling the Recharge and wasting the turn (CP not consumed, since Recharge costs 0). Timing a Recharge is a meaningful commitment embedded in the same RPS mind-game.
+**Recharge** is a built-in Status (S) skill available to every AlgoMon: 0 CP cost, restores 5 CP in one turn. Recharge has `canCounter = false` — it does not actively try to counter anything. However, it can BE countered: any opponent Attack skill with `canCounter = true` wins the A > S matchup. If that Attack carries Nullify, the Recharge is cancelled and the turn is wasted (CP not consumed). Timing a Recharge is a meaningful commitment embedded in the same RPS mind-game.
 
 CP consequences when countered depend on which side loses:
 
