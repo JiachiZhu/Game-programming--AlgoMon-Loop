@@ -45,7 +45,7 @@
 
 | Name | Type | DmgType | basePower | cpCost | priority | canCounter | counterSuccessType | Effects |
 |------|------|---------|-----------|--------|----------|------------|--------------------|---------|
-| 短路火花 Short Circuit | Attack | Computing | 20 | 2 | +1 | true | None | Counter win: self gains "next attack priority +1 AND basePower +10". **Special**: compound self-buff. Custom BattleManager handling. |
+| 短路火花 Short Circuit | Attack | Computing | 20 | 2 | +1 | true | None | Counter win: self gains "next attack priority +1 AND The damage of this skill has increased by 1.5 times.". |
 | 伏特阵列 Volt Array | Attack | Computing | 50 | 4 | 0 | false | None | — |
 | 千兆瓦释放 Gigawatt Discharge | Attack | Computing | 80 | 7 | 0 | false | None | — |
 
