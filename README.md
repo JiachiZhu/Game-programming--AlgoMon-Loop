@@ -175,4 +175,4 @@ AlgoMon-Loop/
 | Asset | Tool | Notes |
 |---|---|---|
 | AlgoMon sprite artwork (12 images) | Google Gemini 3.1 Pro (image generation) | All portraits generated specifically for this project |
-| Development Guidelines | [Karpathy Cursor Rules](https://github.com/richards199999/karpathy-guidelines) | Used to configure Cursor IDE to maintain code quality and avoid AI generation pitfalls |
+| Development Guidelines | [Karpathy Cursor Rules]([https://github.com/richards199999/karpathy-guidelines](https://github.com/forrestchang/andrej-karpathy-skills/blob/main/.cursor/rules/karpathy-guidelines.mdc)) | Used to configure Cursor IDE to maintain code quality and avoid AI generation pitfalls |
