@@ -165,14 +165,19 @@
 
 ## Recommended Learnsets (Unlock Levels)
 
-| Species | Element | Lv1 Starter (4 slots) | Lv10 | Lv20 | Lv30 |
-|---------|---------|----------------------|------|------|------|
-| Sortex | Electric | Short Circuit, Volt Array, Faraday Cage, Null Reject | Hyper-Threading | Auto-Tuning | Gigawatt Discharge |
-| Overflux | Fire | Thermal Ping, Ignite Loop, Circuit Breaker, Null Reject | Thermal Throttling | Auto-Tuning | Meltdown Override |
-| Nullbyte | Water | Coolant Splash, Flood Attack, Redundant Backup, Null Reject | Buffer Pool Preload | Vectorized Computation | Deep Web Tsunami |
-| Recursix | Grass | Spore Script, Root Access, Safe Mode, Null Reject | XSS Injection | Vectorized Computation | Trojan Forest |
-| Cachelon | Ice | Frost Byte, System Freeze, Sleep Thread, Null Reject | Database Deadlock | Vectorized Computation | Absolute Zero Crash |
-| Heapion | Ground | Gravel Bit, Hardware Quake, Hardcode Armor, Null Reject | Sector Sinkhole | Auto-Tuning | Bad Sector Collapse |
+> Lv1 starts with 3 skills (standard attack + elemental defense + matching stat buff).
+> Lv10 fills the 4th slot with the elemental status skill.
+> Lv20 and Lv30 unlock new attacks that require replacing an existing skill.
+> Computing species get Auto-Tuning; Throughput species get Vectorized Computation as starter buff.
+
+| Species | Element | DmgType | Lv1 Slot 1 | Lv1 Slot 2 | Lv1 Slot 3 | Lv10 | Lv20 | Lv30 |
+|---------|---------|---------|-----------|-----------|-----------|------|------|------|
+| Sortex | Electric | Computing | Volt Array | Faraday Cage | Auto-Tuning | Hyper-Threading | Short Circuit | Gigawatt Discharge |
+| Overflux | Fire | Computing | Ignite Loop | Circuit Breaker | Auto-Tuning | Thermal Throttling | Thermal Ping | Meltdown Override |
+| Nullbyte | Water | Throughput | Flood Attack | Redundant Backup | Vectorized Computation | Buffer Pool Preload | Coolant Splash | Deep Web Tsunami |
+| Recursix | Grass | Throughput | Root Access | Safe Mode | Vectorized Computation | XSS Injection | Spore Script | Trojan Forest |
+| Cachelon | Ice | Throughput | System Freeze | Sleep Thread | Vectorized Computation | Database Deadlock | Frost Byte | Absolute Zero Crash |
+| Heapion | Ground | Computing | Hardware Quake | Hardcode Armor | Auto-Tuning | Sector Sinkhole | Gravel Bit | Bad Sector Collapse |
 
 ---
 
