@@ -139,11 +139,11 @@ damage = Max(1, Floor(raw × 50 / (50 + defence)))
 
 ### Status duration convention
 
-| `duration` value | Meaning |
-|-----------------|---------|
-| **0** | Permanent — survives swaps, lasts until battle end |
-| **1** | This turn only |
-| **2, 3, N** | Lasts N turns |
+| `counterStatusDurationType` | Meaning |
+|-----------------------------|---------|
+| **Permanent** | Survives swaps, lasts until battle end |
+| **WhileOnField** | No turn limit; cleared immediately when AlgoMon is swapped out |
+| **Turns** | Lasts `counterStatusDuration` turns; also cleared on swap |
 
 ### Status persistence on swap ⚠️ CRITICAL RULE
 

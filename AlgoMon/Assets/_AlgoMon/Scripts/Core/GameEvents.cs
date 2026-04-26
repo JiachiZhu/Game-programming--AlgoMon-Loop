@@ -48,6 +48,16 @@ public struct SceneTransitionEvent
 // --- Enums ---
 
 public enum DamageType { None, Computing, Throughput }
+
+/// <summary>
+/// How long a status effect lasts.
+///   Permanent   — survives AlgoMon swaps; removed only at battle end.
+///   WhileOnField — cleared immediately when the AlgoMon is swapped out;
+///                  no turn countdown while on field.
+///   Turns        — counts down each turn; also cleared on swap.
+///                  Use StatusDuration field to set the turn count.
+/// </summary>
+public enum StatusDurationType { Permanent, WhileOnField, Turns }
 public enum NodeType   { Combat, Elite, Rest, Shop, Boss }
 public enum GameScene  { MainTerminal, TheGrid, TheArena, TheLab }
 

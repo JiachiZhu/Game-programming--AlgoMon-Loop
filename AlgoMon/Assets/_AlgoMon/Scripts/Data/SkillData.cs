@@ -49,11 +49,14 @@ public class SkillData : ScriptableObject
     [Tooltip("SelfBuff only: additional stacks added to counterSelfStatus on counter win.")]
     public int counterBonusValue = 0;
 
-    [Tooltip("SelfBuff only: duration of the counter-triggered buff.\n" +
-             "0 = permanent (lasts until battle end).\n" +
-             "1 = this turn only.\n" +
-             "2+ = lasts N turns.")]
-    public int counterStatusDuration = 0;
+    [Tooltip("How long the counter-triggered status lasts.\n" +
+             "Permanent    = survives swaps, lasts until battle end.\n" +
+             "WhileOnField = no turn limit, but cleared when swapped out.\n" +
+             "Turns        = lasts counterStatusDuration turns, cleared on swap.")]
+    public StatusDurationType counterStatusDurationType = StatusDurationType.Permanent;
+
+    [Tooltip("Only used when counterStatusDurationType = Turns. Number of turns the status lasts.")]
+    public int counterStatusDuration = 1;
 
     [Tooltip("Counter win: drain this many CP from the opponent. 0 = no drain.")]
     public int counterCPDrain = 0;
