@@ -74,6 +74,15 @@ public class SkillData : ScriptableObject
     [Tooltip("On damage dealt: reduce opponent's Firewall by this fraction. 0.2 = shred 20%. 0 = no shred.")]
     [Range(0f, 1f)] public float onHitFirewallShred = 0f;
 
+    [Tooltip("How long the Firewall shred lasts.\n" +
+             "Permanent = lasts until battle end (survives swaps).\n" +
+             "WhileOnField = lasts while shredded unit stays on field.\n" +
+             "Turns = lasts onHitFirewallShredDuration turns.")]
+    public StatusDurationType onHitFirewallShredDurationType = StatusDurationType.WhileOnField;
+
+    [Tooltip("Only used when onHitFirewallShredDurationType = Turns.")]
+    public int onHitFirewallShredDuration = 1;
+
     [Header("On-Hit Status")]
     [Tooltip("Apply this status to the opponent on hit. Leave at default if no status is applied.")]
     public StatusType onHitStatus;
@@ -81,6 +90,12 @@ public class SkillData : ScriptableObject
     [Tooltip("Number of stacks of onHitStatus to apply. 0 = no status applied.")]
     public int onHitStatusStacks = 0;
 
-    [Tooltip("Duration in turns of the on-hit status. 0 = use status default.")]
-    public int onHitStatusDuration = 0;
+    [Tooltip("How long the on-hit status lasts.\n" +
+             "Permanent = lasts until battle end (survives swaps).\n" +
+             "WhileOnField = lasts while target stays on field.\n" +
+             "Turns = lasts onHitStatusDuration turns.")]
+    public StatusDurationType onHitStatusDurationType = StatusDurationType.Turns;
+
+    [Tooltip("Only used when onHitStatusDurationType = Turns.")]
+    public int onHitStatusDuration = 1;
 }
