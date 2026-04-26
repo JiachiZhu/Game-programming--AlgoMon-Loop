@@ -40,6 +40,14 @@ public class SkillData : ScriptableObject
     public int   basePower;
     public int   cpCost;
 
+    [Tooltip("If true, this skill is always available to every AlgoMon without occupying a skill slot.\n" +
+             "BattleManager offers it as an extra option each turn. (e.g. Recharge)")]
+    public bool isUniversal = false;
+
+    [Tooltip("Restore this many CP to SELF when this skill is used. 0 = no CP recovery.\n" +
+             "Applied before damage/status resolution. (e.g. Recharge restores 5 CP)")]
+    public int baseHealCPAmount = 0;
+
     [Header("Turn Priority")]
     [Tooltip("+1 = first-strike (acts before priority 0).\n0 = normal.\n-1 = last-strike.\nASD counter winner overrides all priority tiers.")]
     public int priority = 0;
