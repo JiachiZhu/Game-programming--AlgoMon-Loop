@@ -22,7 +22,7 @@
 | Name | Type | DmgType | basePower | cpCost | priority | canCounter | counterSuccessType | Effects |
 |------|------|---------|-----------|--------|----------|------------|--------------------|---------|
 | 热能探测 Thermal Ping | Attack | Computing | 30 | 1 | +1 | false | None | — |
-| 点火循环 Ignite Loop | Attack | Computing | 35 | 3 | 0 | true | None | **Special**: counter success auto-triggers a second Ignite Loop at 1 CP cost this turn. Needs custom BattleManager handling. |
+| 点火循环 Ignite Loop | Attack | Computing | 35 | 3 | 0 | true | None | **Special**: counter success re-casts Ignite Loop once at 0 CP cost this turn. No existing field covers this — BattleManager custom handling required. |
 | 熔毁指令 Meltdown Override | Attack | Computing | 80 | 6 | −1 | false | None | — |
 
 ### 💧 Water — Throughput (Magical)
@@ -185,7 +185,7 @@
 
 | Skill | Issue |
 |-------|-------|
-| 点火循环 Ignite Loop | Counter success auto-triggers a second cast. Not representable by current fields. |
+| 点火循环 Ignite Loop | Counter success re-casts itself once at 0 CP. Not representable by current fields. |
 | 短路火花 Short Circuit | Counter success grants self "next attack priority+1 AND basePower+10". Compound buff. |
 | 孢子脚本 Spore Script | Counter success applies opponent Leech — current `counterSelfStatus` only models self-buffs. |
 | 绝对零度宕机 Absolute Zero Crash | Counter success forces opponent to act last next turn (priority −2 injection). |
