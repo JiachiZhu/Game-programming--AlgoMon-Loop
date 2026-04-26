@@ -9,7 +9,7 @@ using UnityEngine;
 ///      Attack > Status > Defense > Attack
 ///      If a counter occurs: CounterEvent is published. The countered unit
 ///      is forced to act after the countering unit regardless of ClockSpeed.
-///      Damage uses the skill's counterSuccessMultiplier if the attacker won.
+///      Damage uses the skill's counterSelfDamageMultiplier if the attacker won.
 ///
 ///   2. Element Type Chart (matrix lookup, O(1))
 ///      6 types: Water / Fire / Grass / Ice / Electric / Ground
@@ -81,7 +81,7 @@ public static class CombatResolver
             });
         }
 
-        float counterMult  = counter ? attackerSkill.counterSuccessMultiplier : 1f;
+        float counterMult  = counter ? attackerSkill.counterSelfDamageMultiplier : 1f;
         float elementMult  = GetElementMultiplier(attackerSkill.elementType, defender.data.elementType);
 
         int rawAttack = attackerSkill.damageType == DamageType.Computing

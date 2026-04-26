@@ -129,23 +129,6 @@ public enum InstructionType { Attack, Status, Defense }
 /// </summary>
 public enum ElementType    { Normal, Water, Fire, Grass, Ice, Electric, Ground }
 
-/// <summary>
-/// The additional effect that occurs when THIS skill wins the ASD counter check.
-/// Counter effects are per-skill, not tied to instruction type — an Attack skill
-/// may have Nullify, None, or any other effect depending on its design.
-///
-///   None     — no special counter effect; opponent acts after (ForceAfter), CP consumed.
-///              counterSuccessMultiplier still applies to this skill's damage.
-///   Nullify  — opponent's skill is fully cancelled; their CP is NOT consumed, turn wasted.
-///   Block    — opponent's attack still executes but damage is reduced by counterBlockPercent.
-///              Typical for Defense skills (all Defense skills must have canCounter = true).
-///   SelfBuff — apply an additional buff to self on top of the skill's base effect.
-///              Magnitude = counterBonusValue stacks/points of counterSelfStatus.
-///
-/// Note: ASD check only fires when the acting skill has canCounter = true AND
-/// its instructionType wins against the opponent's instructionType (A>S, S>D, D>A).
-/// If canCounter = false, turn order is resolved by speed/priority only.
-/// </summary>
 public enum CounterSuccessType { None, Nullify, Block, SelfBuff }
 
 /// <summary>
