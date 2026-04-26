@@ -50,6 +50,13 @@ public struct SceneTransitionEvent
 public enum DamageType { None, Computing, Throughput }
 
 /// <summary>
+/// Who receives a status effect — the user (Self) or the opponent.
+/// Used by baseStatusTarget, and by BattleManager when interpreting
+/// counterSelfStatus on skills marked as opponent-targeted in their description.
+/// </summary>
+public enum StatusTarget { Self, Opponent }
+
+/// <summary>
 /// How long a status effect lasts.
 ///   Permanent   — survives AlgoMon swaps; removed only at battle end.
 ///   WhileOnField — cleared immediately when the AlgoMon is swapped out;

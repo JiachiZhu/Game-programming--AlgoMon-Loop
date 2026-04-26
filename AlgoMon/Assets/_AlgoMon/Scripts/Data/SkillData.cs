@@ -19,6 +19,28 @@ public class SkillData : ScriptableObject
     public int   basePower;
     public int   cpCost;
 
+    [Header("Base Skill Effect (Status skills)")]
+    [Tooltip("Who receives the primary effect when this Status skill is used.\n" +
+             "Self = buff/heal the user (e.g. Auto-Tuning, Hyper-Threading).\n" +
+             "Opponent = debuff the target (e.g. Thermal Throttling, Database Deadlock).")]
+    public StatusTarget baseStatusTarget = StatusTarget.Self;
+
+    [Tooltip("The status applied as this skill's primary effect.\n" +
+             "Only relevant for Status (S) instruction type. Stacks = 0 means no effect.")]
+    public StatusType baseStatus;
+
+    [Tooltip("Number of stacks to apply. 0 = this skill has no base status effect.")]
+    public int baseStatusStacks = 0;
+
+    [Tooltip("How long the base status lasts.\n" +
+             "Permanent = survives swaps.\n" +
+             "WhileOnField = cleared on swap, no turn limit.\n" +
+             "Turns = lasts baseStatusDuration turns, cleared on swap.")]
+    public StatusDurationType baseStatusDurationType = StatusDurationType.Turns;
+
+    [Tooltip("Only used when baseStatusDurationType = Turns.")]
+    public int baseStatusDuration = 3;
+
     [Header("Turn Priority")]
     [Tooltip("+1 = first-strike (acts before priority 0), 0 = normal, -1 = last-strike (acts after priority 0). " +
              "Skill priority is overridden by ASD counter result (ForceAfter).")]
