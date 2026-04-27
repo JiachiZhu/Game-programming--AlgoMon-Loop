@@ -145,18 +145,3 @@ public enum SubroutineTrigger
     OnAllyFainted,      // activates when a party ally is shut down
     OnLowBattery,       // activates when Battery drops below 25%
 }
-
-/// <summary>
-/// Effects applied when a Subroutine triggers.
-/// BattleManager maps these to concrete stat/priority modifications.
-/// </summary>
-public enum SubroutineEffect
-{
-    PriorityBoost,      // add +value to skill priority this turn
-    ComputingBoost,     // multiply Computing Power by value% for one turn
-    ThroughputBoost,    // multiply Throughput by value% for one turn
-    FirewallBoost,      // multiply Firewall by value% for one turn
-    EncryptionBoost,    // multiply Encryption by value% for one turn
-    HealSelf,           // restore value% of max Battery
-    ApplyStatus,        // apply a StatusType (use statusType field in SubroutineData)
-}

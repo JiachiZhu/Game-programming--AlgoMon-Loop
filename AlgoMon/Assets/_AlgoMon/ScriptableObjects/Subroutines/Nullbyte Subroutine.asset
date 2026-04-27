@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71af7f6d6d1f8c941a4487a280cd48a5, type: 3}
+  m_Name: Nullbyte Subroutine
+  m_EditorClassIdentifier: 
+  subroutineName: Data Backflow
+  description: When Nullbyte wins an ASD counter, redirected data pressure feeds
+    its special route. Apply 1 ThroughputUp stack for 1 turn.
+  trigger: 2
+  drainOpponentCP: 0
+  shredOpponentFirewall: 0
+  firewallShredDurationType: 1
+  firewallShredDuration: 1
+  applyToOpponent: 0
+  opponentStatusStacks: 0
+  opponentStatusDurationType: 2
+  opponentStatusDuration: 1
+  forceOpponentLast: 0
+  applyToSelf: 7
+  selfStatusStacks: 1
+  selfStatusDurationType: 2
+  selfStatusDuration: 1
+  selfCPDiscount: 0
+  cpDiscountDurationType: 2
+  cpDiscountDuration: 2
+  nextPriorityBonus: 0
+  nextBasePowerBonus: 0
+  selfHealPercent: 0
+  clearsOwnDebuffs: 0
