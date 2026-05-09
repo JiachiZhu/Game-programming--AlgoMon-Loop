@@ -97,3 +97,16 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# Per-subproject Unity ignores (the rules above are anchored to repo root and
+# do not match Unity projects nested in subfolders).
+My project 2D/[Ll]ibrary/
+My project 2D/[Tt]emp/
+My project 2D/[Oo]bj/
+My project 2D/[Bb]uild/
+My project 2D/[Bb]uilds/
+My project 2D/[Ll]ogs/
+My project 2D/[Uu]ser[Ss]ettings/
+My project 2D/.plastic/
+My project 2D/.vs/
+
