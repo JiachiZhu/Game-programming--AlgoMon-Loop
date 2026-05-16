@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   subroutineName: Thread Lock
   description: When Cachelon wins an ASD counter, it pins the opponent's execution
-    path. Apply 1 Freeze stack for 1 turn.
+    path. Apply 1 Freeze stack.
   trigger: 2
   drainOpponentCP: 0
   shredOpponentFirewall: 0
@@ -22,8 +22,8 @@ MonoBehaviour:
   firewallShredDuration: 1
   applyToOpponent: 1
   opponentStatusStacks: 1
-  opponentStatusDurationType: 2
-  opponentStatusDuration: 1
+  opponentStatusDurationType: 1
+  opponentStatusDuration: 0
   forceOpponentLast: 0
   applyToSelf: 0
   selfStatusStacks: 0

@@ -22,7 +22,7 @@ The originally planned window was Apr 26 – May 2 (one week). Two factors stret
 | #10 | [Data] Complete skill pool — LearnsetEntry, knownSkills, 34 + 1 assets, learnsets, SkillPool.md | ✅ Done |
 | #13 | [Data] Create 6 SubroutineData assets (one per species) | ✅ Done |
 | #14 | [Arena] Create TheArena scene and battle UI layout | ✅ Done |
-| #15 | [Battle] Implement BattleManager — turn loop, ASD check, CP management, damage | ⬜ Pending |
+| #15 | [Battle] Implement BattleManager — turn loop, ASD check, CP management, damage | ✅ Done |
 | #16 | [Battle] Implement status effect tick system | ⬜ Pending |
 | #17 | [Battle] Implement defense cooldown and Subroutine basic triggers | ⬜ Pending |
 
@@ -33,7 +33,7 @@ The originally planned window was Apr 26 – May 2 (one week). Two factors stret
 | AC | Status | Evidence |
 |---|---|---|
 | 1. Create a new Unity scene named `TheArena` | ✅ | `Assets/_AlgoMon/Scenes/TheArena.unity` |
-| 2. Build the base Canvas layout including placeholder UI elements for Player/Enemy HP, CP, and basic combat status | ✅ | `BattleHudPreviewBuilder.cs` produces both combatant panels with Battery bar, 10-dot CP row, status text + 4 skill buttons + Recharge / Bag / Switch / Flee + Skill Details panel |
+| 2. Build the base Canvas layout including placeholder UI elements for Player/Enemy HP, CP, and basic combat status | ✅ | `BattleHud.prefab` provides both combatant panels with Battery bar, 10-dot CP row, status text + 4 skill buttons + Recharge / Bag / Switch / Flee + Skill Details panel |
 | 3. Ensure UI elements are correctly exposed for BattleManager script references | ✅ | `BattleHudController.cs` — MonoBehaviour on `Canvas_Arena` exposing `SetCombatant / SetBattery / SetCP / SetStatus / SetSkillSlot / SetRound / SetBattleState / SetSkillDetail` plus `SkillSlotClicked` and `ActionClicked` events |
 
 ---
@@ -63,7 +63,7 @@ could not cleanly express several SkillPool entries. Documented in `BattleDesign
 - **TheGrid DAG generator** is deliberately deferred to Sprint 3. Arena battle loop is the critical path; Grid depends on a working battle to be meaningful.
 - **Full animation system** (coroutine-based sprite tweens) is a stretch goal for this sprint — basic functional battle takes priority over visual polish.
 - **SubroutineData logic** (BattleManager reading and applying subroutine effects) is included in #17 for `OnBattleStart` and `OnCounterWin` triggers only; remaining triggers deferred.
-- **Six "special case" skills** (Ignite Loop, Short Circuit, Spore Script, Absolute Zero Crash, Safe Mode, Sleep Thread) listed in `BattleDesign.md §3` require custom BattleManager branches; they are part of #15 scope but may slip to a Sprint 2.5 hotfix if time-boxed.
+- **Six "special case" skills** (Ignite Loop, Short Circuit, Spore Script, Absolute Zero Crash, Safe Mode, Sleep Thread) listed in `BattleDesign.md §3` require effect-specific handling in #16 / #17. #15 only consumes their shared `SkillData` fields for turn order, CP, damage, and counter timing.
 
 ## Issue Dependency Order
 
@@ -90,10 +90,10 @@ could not cleanly express several SkillPool entries. Documented in `BattleDesign
 
 - **Layout target:** 1920×1080 reference; `CanvasScaler.MatchWidthOrHeight = 0.5` for balanced scaling.
 - **Three-zone UI:** TopBar (round + state) / CombatLayer (both combatant panels + center message) / CommandPanel (4-skill grid + Recharge / Bag / Switch / Flee + Skill Details panel). Matches BattleDesign §1 flow.
-- **HUD source-of-truth: prefab (migration complete).** Originally the HUD was generated at runtime by two coexisting builders (`ArenaSceneScaffoldBuilder.cs` and `BattleHudPreviewBuilder.cs`). The scaffold was deleted; `BattleHudPreviewBuilder.cs` survives only as a one-shot generator. The HUD has been migrated to `Assets/_AlgoMon/Prefabs/UI/Arena/BattleHud.prefab` (8 buttons, 31 text components, 94 transforms), and `Canvas_Arena` in `TheArena.unity` is now a prefab instance at scene root. All visual edits should happen in prefab edit mode — they persist across plays. `RebuildHud` now refuses to silently overwrite a prefab instance.
-- **Stable scripting surface: `BattleHudController.cs`.** Lives on the HUD prefab root. Self-binds at runtime by walking the canvas hierarchy by name. BattleManager (#15) drives the HUD through its API (`SetCombatant / SetBattery / SetCP / SetStatus / SetSkillSlot / SetRound / SetBattleState / SetSkillDetail`) and events (`SkillSlotClicked`, `ActionClicked`). The Find-by-name binding will tolerate cosmetic prefab edits but breaks silently if a designer renames a node — node-name list documented in `BattleHudController.Bind()`.
-- **HUD lifecycle plan (PvP / online ready):** Because future PvP / online battles need fresh HUD state per match, the long-term plan is **BattleManager owns the HUD prefab via `[SerializeField]` and instantiates it on battle start, destroys on battle end** (rather than relying on a scene-resident instance). The current scene-resident instance in `TheArena.unity` is convenient for #14 verification but will be replaced by Instantiate semantics in #15.
-- **Known limitation:** `SetSkillSlot` only updates tags that already exist on a given button (the preview builder creates PWR / Counter tags conditionally). Adding new tags requires either editing the prefab or extending the controller.
+- **HUD source-of-truth: prefab (migration complete).** Originally the HUD was generated by builder scripts; that path has been retired. The HUD now lives in `Assets/_AlgoMon/Prefabs/UI/Arena/BattleHud.prefab`, and `Canvas_Arena` in `TheArena.unity` is a connected prefab instance at scene root. All visual edits should happen in prefab edit mode - they persist across plays.
+- **Stable scripting surface: `BattleHudController.cs`.** Lives on the HUD prefab root. Self-binds at runtime by walking the canvas hierarchy by name. BattleManager (#15) drives the HUD through its API (`SetCombatant / SetBattery / SetCP / SetStatus / SetSkillSlot / SetSkillSlotAvailable / SetActionButtonAvailable / SetRound / SetBattleState / SetSkillDetail`) and events (`SkillSlotClicked`, `ActionClicked`). The Find-by-name binding will tolerate cosmetic prefab edits but breaks silently if a designer renames a node — node-name list documented in `BattleHudController.Bind()`.
+- **HUD lifecycle decision for #15-#17:** keep the connected scene instance `Canvas_Arena` in `TheArena.unity` as the runtime HUD. This keeps the BattleManager / status tick / subroutine work deterministic while the battle loop is still being built. Dynamic HUD instantiation per match remains the long-term direction for multi-battle, PvP, or online flows, but it is explicitly deferred and is not a blocker for #16 / #17.
+- **Skill tag placeholders:** Every skill slot has CP / PWR / Counter roots. `SetSkillSlot` fills CP, toggles PWR when `basePower > 0`, and toggles Counter for Defense counter skills, so #15 can place any skill in any slot without prefab edits.
 
 ### Documentation
 
@@ -103,7 +103,9 @@ could not cleanly express several SkillPool entries. Documented in `BattleDesign
 
 ## Outcome
 
-*(To be filled at sprint close — target May 18)*
+- `BattleManager` now runs the core battle loop in `TheArena`: player action selection, simple enemy action selection, ASD counter ordering, skill priority / ClockSpeed ordering, CP spend / Recharge recovery, damage resolution, rolling battle log, and battle end events.
+- `BattleHudController` is the stable bridge between the prefab HUD and battle runtime. It supports live Battery / CP / status updates, skill tags, skill availability, action-button availability, and persistent battle-log text with hover previews.
+- Status ticking, defense cooldowns, Subroutine triggers, and effect-specific special-case skill branches are intentionally left to #16 / #17.
 
 ---
 
@@ -114,8 +116,7 @@ TheGrid DAG generator → Sprint 3 regardless;
 remaining 5 Subroutine triggers beyond `OnBattleStart` / `OnCounterWin` → Sprint 3;
 6 special-case skill branches → Sprint 2.5 hotfix.)*
 
-### Confirmed Sprint 3 cleanup items
+### Pre-#15 cleanup / decisions
 
-- **Delete `BattleHudPreviewBuilder.cs`** once the prefab migration is verified working end-to-end in play mode (controller binds, click events fire, no missing children). The migration itself is already done — the prefab exists on disk and the scene instance is connected. The preview builder script is retained only as the "regenerate the prefab from scratch" escape hatch.
-- **Delete the empty `ArenaHUDPreviewBuilder` GameObject** from `TheArena.unity`. After migration its only child (`Canvas_Arena`) was unparented to scene root, leaving the builder as an empty container holding only the `BattleHudPreviewBuilder` MonoBehaviour. If kept, its `[ExecuteAlways] OnEnable` will still fire `EnsurePreviewExtras` each scene load, which can quietly override the HUD prefab instance (it calls `EnsureVoltArrayPowerTag` on `SkillButton_1`). Either delete the GameObject or strip `[ExecuteAlways]` from the builder before #15.
-- **#15 BattleManager wiring decision:** revisit whether to keep the scene-resident HUD instance or switch to `BattleManager.Instantiate(hudPrefab)` per match. The PvP / online roadmap pushes toward instantiation; #14's scene-resident instance is a verification convenience, not a final architectural choice.
+- **HUD builder cleanup:** Resolved. The runtime HUD path is the connected `BattleHud.prefab` instance in `TheArena.unity`.
+- **#15 BattleManager wiring decision:** Resolved. Keep the scene-resident connected `Canvas_Arena` HUD instance for #15-#17. Revisit `BattleManager.Instantiate(hudPrefab)` later when the project needs multiple battle sessions, PvP, or online match lifecycle isolation.

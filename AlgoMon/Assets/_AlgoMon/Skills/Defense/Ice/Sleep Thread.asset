@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6dbb5f173bb8f8543b06a6523882e793, type: 3}
-  m_Name: "Sleep Thread\uFF1F"
+  m_Name: Sleep Thread
   m_EditorClassIdentifier: 
   skillName: Sleep Thread
   description: Instantly initiating absolute defense. Forcefully suspends the main

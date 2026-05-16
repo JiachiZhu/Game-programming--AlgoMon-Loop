@@ -80,7 +80,16 @@ public class TurnQueue
     /// </summary>
     public void ForceAfter(AlgoMonInstance countered, AlgoMonInstance counter)
     {
-        float overridePriority = counter.ClockSpeed - 0.5f;
+        ForceAfter(countered, counter, counter.ClockSpeed);
+    }
+
+    /// <summary>
+    /// ASD counter override for callers that already computed the countering
+    /// unit's effective priority for this round.
+    /// </summary>
+    public void ForceAfter(AlgoMonInstance countered, AlgoMonInstance counter, float counterPriority)
+    {
+        float overridePriority = counterPriority - 0.5f;
         _queue.Enqueue(countered, overridePriority);
     }
 }

@@ -7,9 +7,9 @@ using UnityEngine;
 ///
 ///   1. ASD Counter Check (RPS layer)
 ///      Attack > Status > Defense > Attack
-///      If a counter occurs: CounterEvent is published. The countered unit
-///      is forced to act after the countering unit regardless of ClockSpeed.
-///      Damage uses the skill's counterSelfDamageMultiplier if the attacker won.
+///      BattleManager owns the counter decision and passes whether the attacker
+///      won that check. The countered unit is forced after the countering unit
+///      there; this class only resolves final damage numbers and events.
 ///
 ///   2. Element Type Chart (matrix lookup, O(1))
 ///      6 types: Water / Fire / Grass / Ice / Electric / Ground
@@ -58,30 +58,22 @@ public static class CombatResolver
 
     /// <summary>
     /// Resolves damage dealt by attackerSkill from attacker to defender.
-    /// Publishes DamageEvent (and CounterEvent if applicable) via EventBus.
+    /// Publishes DamageEvent via EventBus. CounterEvent is published by
+    /// BattleManager when the ASD check is resolved.
     /// Returns 0 if the skill has DamageType.None (Defense / Status skills).
     /// </summary>
     public static int ResolveDamage(
         AlgoMonInstance attacker,
         AlgoMonInstance defender,
         SkillData       attackerSkill,
-        InstructionType defenderAction)
+        InstructionType defenderAction,
+        bool attackerWonCounter = false,
+        float finalDamageMultiplier = 1f)
     {
         if (attackerSkill.damageType == DamageType.None)
             return 0;
 
-        bool counter = IsCounter(attackerSkill.instructionType, defenderAction);
-
-        if (counter)
-        {
-            EventBus.Publish(new CounterEvent
-            {
-                CounterId   = attacker.nickname,
-                CounteredId = defender.nickname
-            });
-        }
-
-        float counterMult  = counter ? attackerSkill.counterSelfDamageMultiplier : 1f;
+        float counterMult  = attackerWonCounter ? attackerSkill.counterSelfDamageMultiplier : 1f;
         float elementMult  = GetElementMultiplier(attackerSkill.elementType, defender.data.elementType);
 
         int rawAttack = attackerSkill.damageType == DamageType.Computing
@@ -95,6 +87,7 @@ public static class CombatResolver
         float baseMult = attackerSkill.basePower / 100f;
         float raw      = rawAttack * baseMult * elementMult * counterMult;
         int damage     = Mathf.Max(1, Mathf.FloorToInt(raw * 50f / (50f + defence)));
+        damage          = Mathf.Max(0, Mathf.FloorToInt(damage * Mathf.Max(0f, finalDamageMultiplier)));
 
         EventBus.Publish(new DamageEvent
         {
