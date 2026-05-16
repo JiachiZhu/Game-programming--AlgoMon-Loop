@@ -107,6 +107,12 @@ could not cleanly express several SkillPool entries. Documented in `BattleDesign
 - `BattleHudController` is the stable bridge between the prefab HUD and battle runtime. It supports live Battery / CP / status updates, skill tags, skill availability, action-button availability, and persistent battle-log text with hover previews.
 - Status ticking, defense cooldowns, Subroutine triggers, and effect-specific special-case skill branches are intentionally left to #16 / #17.
 
+### Issue #15 closure note
+
+- Implementation landed in commit `6d0bb61` (`Implement core BattleManager loop`).
+- Verified in the Unity editor on 2026-05-16: compile clean, a smoke battle advances from Round 1 to Round 2, both Sortex and Cachelon act, CP / Battery values change, and the HUD remains bound through the scene-resident `Canvas_Arena` prefab instance.
+- #15 is considered complete and ready to close. The remaining battle-loop extensions stay scoped to #16 / #17: status ticks, defense cooldowns, Subroutine triggers, and special-case skill branches.
+
 ---
 
 ## Carry-over
