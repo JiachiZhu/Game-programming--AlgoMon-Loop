@@ -1,4 +1,4 @@
-# Sprint 3 — May 18 to TBD
+# Sprint 3 — May 18 to May 24
 
 ## Goal
 Deliver the **first playable roguelite loop**: a run starts from MainTerminal,
@@ -18,9 +18,10 @@ ticks, defense cooldown, scoped Subroutine triggers, generic presentation
 template). The single biggest gap between the project today and a real
 roguelite is that **battles do not chain into a run**. Sprint 3 fills that gap.
 
-End date is provisional. Target window is 1 weeks (`May 18 – May 24`) but
-TheGrid DAG generator is unknown-territory work, so the window will be
-confirmed after issue-level scoping on Day 1.
+Sprint 3 runs for one week (`May 18 – May 24`). TheGrid DAG generator is the
+biggest unknown; if it overruns, scope cuts (stretch goals first, then
+deferable items like the 5 remaining Subroutine triggers) will absorb the
+slip rather than extending the window.
 
 ---
 
