@@ -142,7 +142,7 @@ public class SkillData : ScriptableObject
     [Tooltip("Only used when counterCPDiscountDurationType = Turns.")]
     public int counterCPDiscountDuration = 2;
 
-    [Tooltip("Permanently reduce THIS skill's cpCost by this amount (min 0) on counter win.\n(e.g. Deep Web Tsunami — cpCost −2 permanently)")]
+    [Tooltip("Permanently reduce future uses of THIS skill's runtime CP cost by this amount (min 0) on counter win.\n(e.g. Deep Web Tsunami gets cheaper after it resolves)")]
     public int counterPermanentCPReduce = 0;
 
     [Tooltip("Add this value to the NEXT action's skill priority after counter win.\n(e.g. Short Circuit — next attack gets priority +1)")]

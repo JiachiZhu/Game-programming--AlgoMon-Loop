@@ -135,8 +135,6 @@ public enum InstructionType { Attack, Status, Defense }
 /// </summary>
 public enum ElementType    { Normal, Water, Fire, Grass, Ice, Electric, Ground }
 
-public enum CounterSuccessType { None, Nullify, Block, SelfBuff }
-
 /// <summary>
 /// Conditions that activate a species' built-in Subroutine (passive ability).
 /// BattleManager checks these each time the relevant moment occurs.

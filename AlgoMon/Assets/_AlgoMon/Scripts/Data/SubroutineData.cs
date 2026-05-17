@@ -39,7 +39,7 @@ public class SubroutineData : ScriptableObject
     [Tooltip("Only used when firewallShredDurationType = Turns.")]
     public int firewallShredDuration = 1;
 
-    [Tooltip("Status applied to the OPPONENT when this subroutine triggers. Stacks = 0 = no effect.")]
+    [Tooltip("Status applied to the OPPONENT when this subroutine triggers. Stacks = 0 = no effect; the StatusType value is ignored.")]
     public StatusType applyToOpponent;
     public int opponentStatusStacks = 0;
     public StatusDurationType opponentStatusDurationType = StatusDurationType.Turns;
@@ -56,7 +56,7 @@ public class SubroutineData : ScriptableObject
 
     [Header("Triggered Effect -> SELF")]
 
-    [Tooltip("Status applied to SELF when this subroutine triggers. Stacks = 0 = no effect.")]
+    [Tooltip("Status applied to SELF when this subroutine triggers. Stacks = 0 = no effect; the StatusType value is ignored.")]
     public StatusType applyToSelf;
     public int selfStatusStacks = 0;
     public StatusDurationType selfStatusDurationType = StatusDurationType.Turns;

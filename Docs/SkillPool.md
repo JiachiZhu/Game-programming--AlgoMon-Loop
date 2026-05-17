@@ -23,7 +23,7 @@
 | Name | Type | DmgType | basePower | cpCost | priority | canCounter | counterSuccessType | Effects |
 |------|------|---------|-----------|--------|----------|------------|--------------------|---------|
 | 热能探测 Thermal Ping | Attack | Computing | 30 | 1 | +1 | false | None | — |
-| 点火循环 Ignite Loop | Attack | Computing | 35 | 3 | 0 | true | None | **Special**: counter success re-casts Ignite Loop once at 0 CP cost this turn. No existing field covers this — BattleManager custom handling required. |
+| 点火循环 Ignite Loop | Attack | Computing | 35 | 3 | 0 | true | None | Counter win: `counterRecast = true`, re-casting Ignite Loop once at 0 CP after the first cast resolves. |
 | 熔毁指令 Meltdown Override | Attack | Computing | 80 | 6 | −1 | false | None | — |
 
 ### 💧 Water — Throughput (Magical)
@@ -32,7 +32,7 @@
 |------|------|---------|-----------|--------|----------|------------|--------------------|---------|
 | 液冷飞溅 Coolant Splash | Attack | Throughput | 40 | 2 | +1 | false | None | — |
 | 洪泛攻击 Flood Attack | Attack | Throughput | 55 | 4 | 0 | true | Nullify | Counter win: opponent's skill cancelled, CP not consumed. |
-| 深网海啸 Deep Web Tsunami | Attack | Throughput | 60 | 7 | 0 | true | None | Counter win: `counterPermanentCPCostReduce = 2` (this skill's cpCost permanently −2, min 0). |
+| 深网海啸 Deep Web Tsunami | Attack | Throughput | 60 | 7 | 0 | true | None | Counter win: `counterPermanentCPReduce = 2` (future uses of this skill cost 2 less CP for this battle, min 0). |
 
 ### 🌿 Grass — Throughput (Magical)
 
@@ -46,7 +46,7 @@
 
 | Name | Type | DmgType | basePower | cpCost | priority | canCounter | counterSuccessType | Effects |
 |------|------|---------|-----------|--------|----------|------------|--------------------|---------|
-| 短路火花 Short Circuit | Attack | Computing | 20 | 2 | +1 | true | None | Counter win: self gains "next attack priority +1 AND The damage of this skill has increased by 1.5 times.". |
+| 短路火花 Short Circuit | Attack | Computing | 20 | 2 | +1 | true | None | Counter win: current hit uses `counterSelfDamageMultiplier = 1.5`; self gains Overclock for next-action priority pressure. |
 | 伏特阵列 Volt Array | Attack | Computing | 50 | 4 | 0 | false | None | — |
 | 千兆瓦释放 Gigawatt Discharge | Attack | Computing | 80 | 7 | 0 | false | None | — |
 
@@ -56,7 +56,7 @@
 |------|------|---------|-----------|--------|----------|------------|--------------------|---------|
 | 冰霜字节 Frost Byte | Attack | Throughput | 30 | 1 | +1 | false | None | — |
 | 系统冻结 System Freeze | Attack | Throughput | 40 | 3 | 0 | true | None | Counter win: apply 1 stack Freeze to opponent. `onHitStatusStacks = 1` on counter. |
-| 绝对零度宕机 Absolute Zero Crash | Attack | Throughput | 70 | 6 | −1 | true | None | Counter win: opponent must act last next turn (forced priority −2). **Special**: custom BattleManager handling. |
+| 绝对零度宕机 Absolute Zero Crash | Attack | Throughput | 70 | 6 | −1 | true | None | Counter win: `counterForceOpponentLast = true`, forcing opponent's next action to resolve last. |
 
 ### 🪨 Ground — Computing (Physical)
 
@@ -182,13 +182,11 @@
 
 ---
 
-## Special Cases — Require Custom BattleManager Handling
+## Former Special Cases
 
-| Skill | Issue |
-|-------|-------|
-| 点火循环 Ignite Loop | Counter success re-casts itself once at 0 CP. Not representable by current fields. |
-| 短路火花 Short Circuit | Counter success grants self "next attack priority+1 AND basePower+10". Compound buff. |
-| 绝对零度宕机 Absolute Zero Crash | Counter success forces opponent to act last next turn (priority −2 injection). |
+The previous custom-handling list has been retired. Ignite Loop, Short Circuit,
+Absolute Zero Crash, Safe Mode, Sleep Thread, and Spore Script now resolve through
+data fields read by BattleManager instead of skill-name-specific branches.
 
 ---
 

@@ -7,7 +7,7 @@ using UnityEngine;
 /// <summary>
 /// Core battle loop for TheArena.
 ///
-/// Scope through issue #16:
+/// Scope through issue #17:
 /// - player chooses an action through BattleHudController
 /// - enemy chooses a simple deterministic skill
 /// - ASD counter check determines hard turn-order overrides
@@ -15,9 +15,12 @@ using UnityEngine;
 /// - CP is spent / restored
 /// - basic damage is resolved and Battery is reduced until one side is offline
 /// - status effects are applied, modify runtime stats / CP costs, and tick at round end
+/// - Defense skills enter a one-round cooldown after successful execution
+/// - SubroutineData OnBattleStart and OnCounterWin triggers are applied
+/// - former special counter skills use generic SkillData fields
 ///
-/// Defense cooldowns, party switching, bag items, and Subroutine triggers are
-/// intentionally left for follow-up battle issues.
+/// Party switching, bag items, and additional Subroutine triggers are intentionally
+/// left for follow-up battle issues.
 /// </summary>
 [DisallowMultipleComponent]
 public class BattleManager : MonoBehaviour
@@ -25,6 +28,7 @@ public class BattleManager : MonoBehaviour
     private const int MaxCP = 10;
     private const int MaxSkillSlots = 4;
     private const float CounterPriorityBase = 1000000f;
+    private const int ForceLastPriorityPenalty = -10000;
 
     private enum BattlePhase
     {
@@ -49,6 +53,9 @@ public class BattleManager : MonoBehaviour
         [Min(1)] public int encryption = 50;
         [Range(0, MaxCP)] public int startingCP = 5;
 
+        [Header("Passive")]
+        public SubroutineData subroutine;
+
         [Header("Active Skills")]
         public SkillData[] skills = new SkillData[MaxSkillSlots];
     }
@@ -69,7 +76,16 @@ public class BattleManager : MonoBehaviour
         public int CurrentBattery { get; set; }
         public int CurrentCP { get; set; }
         public string StatusText { get; set; }
+        public int LastDefenseRound { get; set; } = int.MinValue;
         public BattleStatusSet Statuses { get; } = new BattleStatusSet();
+        private struct PermanentCostReduction
+        {
+            public int Amount;
+            public int AppliedRound;
+        }
+
+        private readonly Dictionary<SkillData, PermanentCostReduction> permanentCostReductions =
+            new Dictionary<SkillData, PermanentCostReduction>();
 
         public string Name => Config.displayName;
         public int DisplayLevel => Mathf.Clamp(Config.displayLevel, 1, AlgoMonInstance.MAX_LEVEL);
@@ -80,6 +96,32 @@ public class BattleManager : MonoBehaviour
             if (Config.skills == null) return null;
             if (index < 0 || index >= Config.skills.Length) return null;
             return Config.skills[index];
+        }
+
+        public int CostReductionFor(SkillData skill, int currentRound)
+        {
+            if (skill == null)
+                return 0;
+            if (!permanentCostReductions.TryGetValue(skill, out PermanentCostReduction reduction))
+                return 0;
+            return reduction.AppliedRound < currentRound ? reduction.Amount : 0;
+        }
+
+        public int ApplyPermanentCostReduction(SkillData skill, int amount, int currentRound)
+        {
+            if (skill == null || amount <= 0)
+                return 0;
+
+            int before = permanentCostReductions.TryGetValue(skill, out PermanentCostReduction reduction)
+                ? reduction.Amount
+                : 0;
+            int after = Mathf.Min(Mathf.Max(0, skill.cpCost), before + amount);
+            permanentCostReductions[skill] = new PermanentCostReduction
+            {
+                Amount = after,
+                AppliedRound = currentRound
+            };
+            return after - before;
         }
     }
 
@@ -99,7 +141,96 @@ public class BattleManager : MonoBehaviour
         public bool WasCountered { get; set; }
         public bool Cancelled { get; set; }
         public float FinalDamageMultiplier { get; set; } = 1f;
+        public int BasePowerBonus { get; set; }
         public InstructionType DefenderInstructionType { get; set; } = InstructionType.Attack;
+    }
+
+    private struct BattleEffectBundle
+    {
+        public int DrainOpponentCP;
+        public float ShredOpponentFirewall;
+        public StatusDurationType FirewallShredDurationType;
+        public int FirewallShredDuration;
+        public StatusType ApplyToOpponent;
+        public int OpponentStatusStacks;
+        public StatusDurationType OpponentStatusDurationType;
+        public int OpponentStatusDuration;
+        public bool ForceOpponentLast;
+        public StatusType ApplyToSelf;
+        public int SelfStatusStacks;
+        public StatusDurationType SelfStatusDurationType;
+        public int SelfStatusDuration;
+        public int SelfCPDiscount;
+        public StatusDurationType CPDiscountDurationType;
+        public int CPDiscountDuration;
+        public SkillData PermanentCPReduceSkill;
+        public int PermanentCPReduce;
+        public int NextPriorityBonus;
+        public int NextBasePowerBonus;
+        public float SelfHealPercent;
+        public bool ClearsOwnDebuffs;
+
+        public static BattleEffectBundle FromCounterSkill(SkillData skill)
+        {
+            if (skill == null)
+                return default;
+
+            return new BattleEffectBundle
+            {
+                DrainOpponentCP = skill.counterDrainOpponentCP,
+                ShredOpponentFirewall = skill.counterShredOpponentFirewall,
+                FirewallShredDurationType = skill.counterFirewallShredDurationType,
+                FirewallShredDuration = skill.counterFirewallShredDuration,
+                ApplyToOpponent = skill.counterApplyToOpponent,
+                OpponentStatusStacks = skill.counterOpponentStatusStacks,
+                OpponentStatusDurationType = skill.counterOpponentStatusDurationType,
+                OpponentStatusDuration = skill.counterOpponentStatusDuration,
+                ForceOpponentLast = skill.counterForceOpponentLast,
+                ApplyToSelf = skill.counterApplyToSelf,
+                SelfStatusStacks = skill.counterSelfStatusStacks,
+                SelfStatusDurationType = skill.counterSelfStatusDurationType,
+                SelfStatusDuration = skill.counterSelfStatusDuration,
+                SelfCPDiscount = skill.counterSelfCPDiscount,
+                CPDiscountDurationType = skill.counterCPDiscountDurationType,
+                CPDiscountDuration = skill.counterCPDiscountDuration,
+                PermanentCPReduceSkill = skill,
+                PermanentCPReduce = skill.counterPermanentCPReduce,
+                NextPriorityBonus = skill.counterNextPriorityBonus,
+                NextBasePowerBonus = skill.counterNextBasePowerBonus,
+                SelfHealPercent = skill.counterSelfHealPercent,
+                ClearsOwnDebuffs = skill.counterClearsOwnDebuffs
+            };
+        }
+
+        public static BattleEffectBundle FromSubroutine(SubroutineData subroutine)
+        {
+            if (subroutine == null)
+                return default;
+
+            return new BattleEffectBundle
+            {
+                DrainOpponentCP = subroutine.drainOpponentCP,
+                ShredOpponentFirewall = subroutine.shredOpponentFirewall,
+                FirewallShredDurationType = subroutine.firewallShredDurationType,
+                FirewallShredDuration = subroutine.firewallShredDuration,
+                ApplyToOpponent = subroutine.applyToOpponent,
+                OpponentStatusStacks = subroutine.opponentStatusStacks,
+                OpponentStatusDurationType = subroutine.opponentStatusDurationType,
+                OpponentStatusDuration = subroutine.opponentStatusDuration,
+                ForceOpponentLast = subroutine.forceOpponentLast,
+                ApplyToSelf = subroutine.applyToSelf,
+                SelfStatusStacks = subroutine.selfStatusStacks,
+                SelfStatusDurationType = subroutine.selfStatusDurationType,
+                SelfStatusDuration = subroutine.selfStatusDuration,
+                SelfCPDiscount = subroutine.selfCPDiscount,
+                CPDiscountDurationType = subroutine.cpDiscountDurationType,
+                CPDiscountDuration = subroutine.cpDiscountDuration,
+                NextPriorityBonus = subroutine.nextPriorityBonus,
+                NextBasePowerBonus = subroutine.nextBasePowerBonus,
+                SelfHealPercent = subroutine.selfHealPercent,
+                ClearsOwnDebuffs = subroutine.clearsOwnDebuffs
+            };
+        }
     }
 
     [SerializeField] private BattleHudController hud;
@@ -204,6 +335,21 @@ public class BattleManager : MonoBehaviour
     public void StartBattle()
     {
         StopActiveResolution();
+
+        IEnumerator battleStart = StartBattleCoroutine();
+        if (UsesInstantResolution)
+        {
+            RunImmediate(battleStart);
+            activeResolution = null;
+            return;
+        }
+
+        activeResolution = StartCoroutine(battleStart);
+    }
+
+    private IEnumerator StartBattleCoroutine()
+    {
+        StopActiveResolution();
         DestroyTransientData();
         battleLogLines.Clear();
 
@@ -211,11 +357,20 @@ public class BattleManager : MonoBehaviour
         enemy = CreateUnit(enemyConfig);
         currentRound = 1;
         battleEndPublished = false;
-        phase = BattlePhase.WaitingForPlayer;
+        phase = BattlePhase.Resolving;
 
-        RefreshHud();
         EmitLog("Battle started.");
+        RefreshHud();
+        if (logLineDelay > 0f)
+            yield return new WaitForSeconds(logLineDelay);
+
+        yield return ApplySubroutineTriggerCoroutine(player, enemy, SubroutineTrigger.OnBattleStart);
+        yield return ApplySubroutineTriggerCoroutine(enemy, player, SubroutineTrigger.OnBattleStart);
+
+        phase = BattlePhase.WaitingForPlayer;
         EmitLog("Choose a skill.");
+        RefreshHud();
+        activeResolution = null;
     }
 
     public void ResolvePlayerSkill(int slotIndex)
@@ -227,6 +382,12 @@ public class BattleManager : MonoBehaviour
         if (playerSkill == null)
         {
             SetDetail("Skill Details", "No skill is loaded in this slot.");
+            return;
+        }
+
+        if (IsDefenseOnCooldown(player, playerSkill))
+        {
+            SetDetail(SkillName(playerSkill), "Defense is cooling down this round.");
             return;
         }
 
@@ -318,6 +479,7 @@ public class BattleManager : MonoBehaviour
         AlgoMonData data = ScriptableObject.CreateInstance<AlgoMonData>();
         data.codeName = config.displayName;
         data.elementType = config.elementType;
+        data.subroutine = config.subroutine;
         transientData.Add(data);
 
         var instance = new AlgoMonInstance
@@ -386,7 +548,7 @@ public class BattleManager : MonoBehaviour
         for (int i = 0; i < MaxSkillSlots; i++)
         {
             SkillData skill = enemy.GetSkill(i);
-            if (skill == null || !CanPay(enemy, skill))
+            if (skill == null || !CanUseSkill(enemy, skill))
                 continue;
 
             if (bestFallback == null)
@@ -440,6 +602,8 @@ public class BattleManager : MonoBehaviour
             AlgoMonInstance next = turnQueue.Dequeue();
             BattleAction action = ActionFor(next, playerAction, enemyAction);
             yield return ExecuteActionCoroutine(action);
+            if (phase != BattlePhase.BattleOver && action.WonCounter)
+                yield return ApplySubroutineTriggerCoroutine(action.Actor, action.Target, SubroutineTrigger.OnCounterWin);
             TryFinishBattle();
         }
 
@@ -520,81 +684,154 @@ public class BattleManager : MonoBehaviour
 
     private IEnumerator ApplyCounterEffectsCoroutine(BattleAction winner, BattleAction loser)
     {
-        if (winner.Skill.counterDrainOpponentCP > 0)
-        {
-            int drained = DrainCP(loser.Actor, winner.Actor, winner.Skill.counterDrainOpponentCP);
-            if (drained > 0)
-            {
-                EmitLog($"{winner.Actor.Name} drains {drained} CP.");
-                RefreshHud();
-                if (logLineDelay > 0f)
-                    yield return new WaitForSeconds(logLineDelay);
-            }
-        }
-
-        if (winner.Skill.counterSelfHealPercent > 0f)
-        {
-            int heal = Mathf.Max(1, Mathf.RoundToInt(winner.Actor.MaxBattery * winner.Skill.counterSelfHealPercent));
-            int restored = HealBattery(winner.Actor, heal);
-            if (restored > 0)
-            {
-                EmitLog($"{winner.Actor.Name} restores {restored} Battery.");
-                RefreshHud();
-                if (logLineDelay > 0f)
-                    yield return new WaitForSeconds(logLineDelay);
-            }
-        }
-
-        if (winner.Skill.counterShredOpponentFirewall > 0f)
-        {
-            loser.Actor.Statuses.ApplyFirewallShred(
-                winner.Skill.counterShredOpponentFirewall,
-                winner.Skill.counterFirewallShredDurationType,
-                winner.Skill.counterFirewallShredDuration,
-                currentRound);
-
-            EmitLog($"{loser.Actor.Name}'s Firewall is shredded by {Mathf.RoundToInt(winner.Skill.counterShredOpponentFirewall * 100f)}%.");
-            RefreshHud();
-            if (logLineDelay > 0f)
-                yield return new WaitForSeconds(logLineDelay);
-        }
-
-        if (winner.Skill.counterSelfCPDiscount > 0)
-        {
-            winner.Actor.Statuses.ApplyCPDiscount(
-                winner.Skill.counterSelfCPDiscount,
-                winner.Skill.counterCPDiscountDurationType,
-                winner.Skill.counterCPDiscountDuration,
-                currentRound);
-
-            EmitLog($"{winner.Actor.Name}'s skill CP costs fall by {winner.Skill.counterSelfCPDiscount}.");
-            RefreshHud();
-            if (logLineDelay > 0f)
-                yield return new WaitForSeconds(logLineDelay);
-        }
-
-        yield return ApplyStatusCoroutine(
+        yield return ApplyBattleEffectBundleCoroutine(
             winner.Actor,
             loser.Actor,
-            winner.Skill.counterApplyToOpponent,
-            winner.Skill.counterOpponentStatusStacks,
-            winner.Skill.counterOpponentStatusDurationType,
-            winner.Skill.counterOpponentStatusDuration);
+            BattleEffectBundle.FromCounterSkill(winner.Skill));
+    }
+
+    private IEnumerator ApplySubroutineTriggerCoroutine(
+        BattleUnit owner,
+        BattleUnit opponent,
+        SubroutineTrigger trigger)
+    {
+        SubroutineData subroutine = owner?.Instance?.data?.subroutine;
+        if (subroutine == null || subroutine.trigger != trigger)
+            yield break;
+
+        EmitLog($"{owner.Name}'s {SubroutineName(subroutine)} activates.");
+        RefreshHud();
+        if (logLineDelay > 0f)
+            yield return new WaitForSeconds(logLineDelay);
+
+        yield return ApplyBattleEffectBundleCoroutine(
+            owner,
+            opponent,
+            BattleEffectBundle.FromSubroutine(subroutine));
+    }
+
+    private IEnumerator ApplyBattleEffectBundleCoroutine(
+        BattleUnit owner,
+        BattleUnit opponent,
+        BattleEffectBundle effects)
+    {
+        if (effects.DrainOpponentCP > 0)
+        {
+            int drained = DrainCP(opponent, owner, effects.DrainOpponentCP);
+            if (drained > 0)
+            {
+                EmitLog($"{owner.Name} drains {drained} CP.");
+                RefreshHud();
+                if (logLineDelay > 0f)
+                    yield return new WaitForSeconds(logLineDelay);
+            }
+        }
+
+        if (effects.ShredOpponentFirewall > 0f)
+        {
+            opponent.Statuses.ApplyFirewallShred(
+                effects.ShredOpponentFirewall,
+                effects.FirewallShredDurationType,
+                effects.FirewallShredDuration,
+                currentRound);
+
+            EmitLog($"{opponent.Name}'s Firewall is shredded by {Mathf.RoundToInt(effects.ShredOpponentFirewall * 100f)}%.");
+            RefreshHud();
+            if (logLineDelay > 0f)
+                yield return new WaitForSeconds(logLineDelay);
+        }
 
         yield return ApplyStatusCoroutine(
-            winner.Actor,
-            winner.Actor,
-            winner.Skill.counterApplyToSelf,
-            winner.Skill.counterSelfStatusStacks,
-            winner.Skill.counterSelfStatusDurationType,
-            winner.Skill.counterSelfStatusDuration);
+            owner,
+            opponent,
+            effects.ApplyToOpponent,
+            effects.OpponentStatusStacks,
+            effects.OpponentStatusDurationType,
+            effects.OpponentStatusDuration);
 
-        if (winner.Skill.counterClearsOwnDebuffs)
+        if (effects.ForceOpponentLast)
         {
-            int removed = winner.Actor.Statuses.ClearTemporaryDebuffs();
+            opponent.Statuses.ApplyNextPriorityBonus(ForceLastPriorityPenalty, currentRound);
+            EmitLog($"{opponent.Name} is forced to act last next round.");
+            RefreshHud();
+            if (logLineDelay > 0f)
+                yield return new WaitForSeconds(logLineDelay);
+        }
+
+        yield return ApplyStatusCoroutine(
+            owner,
+            owner,
+            effects.ApplyToSelf,
+            effects.SelfStatusStacks,
+            effects.SelfStatusDurationType,
+            effects.SelfStatusDuration);
+
+        if (effects.SelfCPDiscount > 0)
+        {
+            owner.Statuses.ApplyCPDiscount(
+                effects.SelfCPDiscount,
+                effects.CPDiscountDurationType,
+                effects.CPDiscountDuration,
+                currentRound);
+
+            EmitLog($"{owner.Name}'s skill CP costs fall by {effects.SelfCPDiscount}.");
+            RefreshHud();
+            if (logLineDelay > 0f)
+                yield return new WaitForSeconds(logLineDelay);
+        }
+
+        if (effects.PermanentCPReduceSkill != null && effects.PermanentCPReduce > 0)
+        {
+            int reduced = owner.ApplyPermanentCostReduction(
+                effects.PermanentCPReduceSkill,
+                effects.PermanentCPReduce,
+                currentRound);
+            if (reduced > 0)
+            {
+                EmitLog($"Future {SkillName(effects.PermanentCPReduceSkill)} casts cost {reduced} less CP for {owner.Name}.");
+                RefreshHud();
+                if (logLineDelay > 0f)
+                    yield return new WaitForSeconds(logLineDelay);
+            }
+        }
+
+        if (effects.NextPriorityBonus != 0)
+        {
+            owner.Statuses.ApplyNextPriorityBonus(effects.NextPriorityBonus, currentRound);
+            EmitLog($"{owner.Name}'s next action priority changes by {FormatSigned(effects.NextPriorityBonus)}.");
+            RefreshHud();
+            if (logLineDelay > 0f)
+                yield return new WaitForSeconds(logLineDelay);
+        }
+
+        if (effects.NextBasePowerBonus != 0)
+        {
+            owner.Statuses.ApplyNextBasePowerBonus(effects.NextBasePowerBonus, currentRound);
+            EmitLog($"{owner.Name}'s next action gains {FormatSigned(effects.NextBasePowerBonus)} base power.");
+            RefreshHud();
+            if (logLineDelay > 0f)
+                yield return new WaitForSeconds(logLineDelay);
+        }
+
+        if (effects.SelfHealPercent > 0f)
+        {
+            int heal = Mathf.Max(1, Mathf.RoundToInt(owner.MaxBattery * effects.SelfHealPercent));
+            int restored = HealBattery(owner, heal);
+            if (restored > 0)
+            {
+                EmitLog($"{owner.Name} restores {restored} Battery.");
+                RefreshHud();
+                if (logLineDelay > 0f)
+                    yield return new WaitForSeconds(logLineDelay);
+            }
+        }
+
+        if (effects.ClearsOwnDebuffs)
+        {
+            int removed = owner.Statuses.ClearTemporaryDebuffs();
             if (removed > 0)
             {
-                EmitLog($"{winner.Actor.Name} clears {removed} temporary debuff(s).");
+                EmitLog($"{owner.Name} clears {removed} temporary debuff(s).");
                 RefreshHud();
                 if (logLineDelay > 0f)
                     yield return new WaitForSeconds(logLineDelay);
@@ -669,6 +906,10 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
+        if (action.Skill.instructionType == InstructionType.Defense)
+            action.Actor.LastDefenseRound = currentRound;
+
+        action.BasePowerBonus = action.Actor.Statuses.BasePowerBonus(currentRound);
         int repeatCount = action.Actor.Statuses.SkillRepeatCount(currentRound);
         action.Actor.Statuses.ConsumeSkillUseModifiers(currentRound);
 
@@ -691,6 +932,17 @@ public class BattleManager : MonoBehaviour
             TryFinishBattle();
             if (action.Target.CurrentBattery <= 0)
                 yield break;
+        }
+
+        if (action.WonCounter && action.Skill.counterRecast && phase != BattlePhase.BattleOver && action.Target.CurrentBattery > 0)
+        {
+            EmitLog($"{SkillName(action.Skill)} recasts from counter momentum.");
+            RefreshHud();
+            if (logLineDelay > 0f)
+                yield return new WaitForSeconds(logLineDelay);
+
+            yield return ResolveSkillEffectCoroutine(action);
+            TryFinishBattle();
         }
     }
 
@@ -720,7 +972,8 @@ public class BattleManager : MonoBehaviour
                 action.Skill,
                 action.DefenderInstructionType,
                 action.WonCounter,
-                action.FinalDamageMultiplier);
+                action.FinalDamageMultiplier,
+                action.BasePowerBonus);
 
             action.Target.CurrentBattery = Mathf.Max(0, action.Target.CurrentBattery - damage);
             if (damage > 0)
@@ -774,7 +1027,7 @@ public class BattleManager : MonoBehaviour
     }
 
     /// <summary>
-    /// Emits narration for a Status / Defense skill after its issue #16 status
+    /// Emits narration for a Status / Defense skill after its runtime status
     /// effects have already been applied.
     /// </summary>
     private IEnumerator NarrateNonDamageSkill(BattleAction action)
@@ -928,7 +1181,8 @@ public class BattleManager : MonoBehaviour
     {
         if (unit == null || skill == null)
             return 0;
-        return unit.Statuses.EffectiveSkillCost(skill.cpCost, currentRound);
+        int reducedBaseCost = Mathf.Max(0, skill.cpCost - unit.CostReductionFor(skill, currentRound));
+        return unit.Statuses.EffectiveSkillCost(reducedBaseCost, currentRound);
     }
 
     private bool CanPay(BattleUnit unit, SkillData skill)
@@ -936,6 +1190,21 @@ public class BattleManager : MonoBehaviour
         if (unit == null || skill == null)
             return false;
         return unit.CurrentCP >= EffectiveSkillCost(unit, skill);
+    }
+
+    private bool CanUseSkill(BattleUnit unit, SkillData skill)
+    {
+        return unit != null &&
+               skill != null &&
+               !IsDefenseOnCooldown(unit, skill) &&
+               CanPay(unit, skill);
+    }
+
+    private bool IsDefenseOnCooldown(BattleUnit unit, SkillData skill)
+    {
+        if (unit == null || skill == null || skill.instructionType != InstructionType.Defense)
+            return false;
+        return unit.LastDefenseRound == currentRound - 1;
     }
 
     private static bool SpendCP(BattleUnit unit, int amount)
@@ -1051,7 +1320,7 @@ public class BattleManager : MonoBehaviour
 
             hud.SetSkillSlot(i, skill);
             hud.SetSkillHover(i, SkillName(skill), BuildSkillHover(player, skill));
-            hud.SetSkillSlotAvailable(i, phase == BattlePhase.WaitingForPlayer && CanPay(player, skill));
+            hud.SetSkillSlotAvailable(i, phase == BattlePhase.WaitingForPlayer && CanUseSkill(player, skill));
         }
 
         bool canAct = phase == BattlePhase.WaitingForPlayer;
@@ -1102,6 +1371,9 @@ public class BattleManager : MonoBehaviour
             ? string.Empty
             : skill.description.Trim();
 
+        if (IsDefenseOnCooldown(unit, skill))
+            return $"{line}\nDefense is cooling down this round.\n{body}".Trim();
+
         if (unit.CurrentCP < cost)
         {
             int missing = cost - unit.CurrentCP;
@@ -1118,6 +1390,18 @@ public class BattleManager : MonoBehaviour
         if (skill == null || string.IsNullOrWhiteSpace(skill.skillName))
             return "Skill";
         return skill.skillName.Trim();
+    }
+
+    private static string SubroutineName(SubroutineData subroutine)
+    {
+        if (subroutine == null || string.IsNullOrWhiteSpace(subroutine.subroutineName))
+            return "Subroutine";
+        return subroutine.subroutineName.Trim();
+    }
+
+    private static string FormatSigned(int value)
+    {
+        return value > 0 ? $"+{value}" : value.ToString();
     }
 
     private static string FormatUnitStatus(BattleUnit unit)

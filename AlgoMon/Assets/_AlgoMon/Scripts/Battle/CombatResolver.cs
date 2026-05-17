@@ -70,7 +70,8 @@ public static class CombatResolver
         SkillData       attackerSkill,
         InstructionType defenderAction,
         bool attackerWonCounter = false,
-        float finalDamageMultiplier = 1f)
+        float finalDamageMultiplier = 1f,
+        int basePowerBonus = 0)
     {
         if (attackerSkill.damageType == DamageType.None)
             return 0;
@@ -86,7 +87,8 @@ public static class CombatResolver
             ? defenderStats.Firewall
             : defenderStats.Encryption;
 
-        float baseMult = attackerSkill.basePower / 100f;
+        int effectiveBasePower = Mathf.Max(0, attackerSkill.basePower + basePowerBonus);
+        float baseMult = effectiveBasePower / 100f;
         float raw      = rawAttack * baseMult * elementMult * counterMult;
         int damage     = Mathf.Max(1, Mathf.FloorToInt(raw * 50f / (50f + defence)));
         damage          = Mathf.Max(0, Mathf.FloorToInt(damage * Mathf.Max(0f, finalDamageMultiplier)));

@@ -39,9 +39,9 @@ Establish the complete project foundation: data models, messaging system, and co
 ### Battle System
 - **Damage formula:** Replaced flat subtraction with ratio-based defence: `damage = Floor(raw × 50 / (50 + defence))`. Softcap at defence=50 halves incoming damage without hard-zeroing. Validated: basePower ≈ 45 gives 5-round neutral / 3-round advantage at BST=600 lv50.
 - **ASD system redesign:** Counter check is opt-in per skill via `canCounter` flag — skills without it resolve by speed/priority only. All Defense skills must set `canCounter = true`. Defense has a 1-turn cooldown to prevent passive looping.
-- **CounterSuccessType:** Four types defined — `None` (delayed), `Nullify` (cancel + no CP cost), `Block` (damage reduced by `counterBlockPercent`), `SelfBuff` (extra buff stacks on self). Effects are per-skill, not tied to instruction type.
+- **CounterSuccessType:** Historical design note. Sprint 2 replaced this enum with explicit `SkillData` counter fields (`counterNullifies`, `counterBlockPercent`, status targets, heal / cleanse / next-action hooks).
 - **Skill priority tier:** `skill.priority × 10000 + ClockSpeed` as effective heap key. +1 first-strike always beats normal; ASD counter winner still overrides all priority tiers via `ForceAfter()`.
-- **CP system:** Max 10 CP per AlgoMon. Recharge is a universal Status skill (0 CP, +5 CP, `canCounter = true`). High-cost skills (5–6 CP) are high-risk; if countered, CP depends on counterSuccessType.
+- **CP system:** Max 10 CP per AlgoMon. Recharge is a universal Status skill (0 CP, +5 CP, `canCounter = true`). High-cost skills (5–6 CP) are high-risk; if countered, CP follows the explicit counter fields on the winning skill.
 
 ### Species & Skills
 - **BST = 600** for all 6 species; average IV = 100 per stat dimension.

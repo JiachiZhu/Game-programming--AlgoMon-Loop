@@ -65,6 +65,8 @@ public sealed class BattleStatusSet
         new Dictionary<StatusType, StatusState>();
 
     private TimedIntModifier cpDiscount;
+    private TimedIntModifier nextPriorityBonus;
+    private TimedIntModifier nextBasePowerBonus;
     private TimedFloatModifier firewallShred;
 
     public float BurnDamagePerLayer => BurnDamagePerStack;
@@ -74,6 +76,8 @@ public sealed class BattleStatusSet
     {
         states.Clear();
         cpDiscount = default;
+        nextPriorityBonus = default;
+        nextBasePowerBonus = default;
         firewallShred = default;
     }
 
@@ -222,8 +226,20 @@ public sealed class BattleStatusSet
 
     public int PriorityBonus(int currentRound)
     {
-        return IsActiveForSkillUse(StatusType.Overclock, currentRound)
+        int bonus = IsActiveForSkillUse(StatusType.Overclock, currentRound)
             ? Mathf.Max(1, GetStacks(StatusType.Overclock))
+            : 0;
+
+        if (IsOneShotModifierActive(nextPriorityBonus, currentRound))
+            bonus += nextPriorityBonus.Amount;
+
+        return bonus;
+    }
+
+    public int BasePowerBonus(int currentRound)
+    {
+        return IsOneShotModifierActive(nextBasePowerBonus, currentRound)
+            ? nextBasePowerBonus.Amount
             : 0;
     }
 
@@ -235,6 +251,10 @@ public sealed class BattleStatusSet
             states.Remove(StatusType.Concurrent);
         if (IsActiveForSkillUse(StatusType.Overclock, currentRound))
             states.Remove(StatusType.Overclock);
+        if (IsOneShotModifierActive(nextPriorityBonus, currentRound))
+            nextPriorityBonus = default;
+        if (IsOneShotModifierActive(nextBasePowerBonus, currentRound))
+            nextBasePowerBonus = default;
     }
 
     public void ApplyCPDiscount(
@@ -275,6 +295,28 @@ public sealed class BattleStatusSet
             : StrongerDuration(firewallShred.DurationType, durationType);
         firewallShred.RemainingTurns = Mathf.Max(firewallShred.RemainingTurns, duration);
         firewallShred.AppliedRound = currentRound;
+    }
+
+    public void ApplyNextPriorityBonus(int amount, int currentRound)
+    {
+        if (amount == 0)
+            return;
+
+        nextPriorityBonus.Amount += amount;
+        nextPriorityBonus.DurationType = StatusDurationType.WhileOnField;
+        nextPriorityBonus.RemainingTurns = 0;
+        nextPriorityBonus.AppliedRound = currentRound;
+    }
+
+    public void ApplyNextBasePowerBonus(int amount, int currentRound)
+    {
+        if (amount == 0)
+            return;
+
+        nextBasePowerBonus.Amount += amount;
+        nextBasePowerBonus.DurationType = StatusDurationType.WhileOnField;
+        nextBasePowerBonus.RemainingTurns = 0;
+        nextBasePowerBonus.AppliedRound = currentRound;
     }
 
     public List<string> TickDurations(int currentRound)
@@ -327,6 +369,10 @@ public sealed class BattleStatusSet
             Append(builder, $"CP-{cpDiscount.Amount}");
         if (firewallShred.Amount > 0f)
             Append(builder, $"FW-{Mathf.RoundToInt(firewallShred.Amount * 100f)}%");
+        if (nextPriorityBonus.Amount != 0)
+            Append(builder, $"Next Priority {FormatSigned(nextPriorityBonus.Amount)}");
+        if (nextBasePowerBonus.Amount != 0)
+            Append(builder, $"Next PWR {FormatSigned(nextBasePowerBonus.Amount)}");
 
         return builder.ToString();
     }
@@ -347,6 +393,11 @@ public sealed class BattleStatusSet
         return state.AppliedRound < currentRound;
     }
 
+    private static bool IsOneShotModifierActive(TimedIntModifier modifier, int currentRound)
+    {
+        return modifier.Amount != 0 && modifier.AppliedRound < currentRound;
+    }
+
     private void AppendStatus(StringBuilder builder, StatusType status, string label)
     {
         int stacks = GetStacks(status);
@@ -359,6 +410,11 @@ public sealed class BattleStatusSet
         if (builder.Length > 0)
             builder.Append(", ");
         builder.Append(text);
+    }
+
+    private static string FormatSigned(int value)
+    {
+        return value > 0 ? $"+{value}" : value.ToString();
     }
 
     private static int MaxStacks(StatusType status)

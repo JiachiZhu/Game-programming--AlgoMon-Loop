@@ -62,24 +62,29 @@ If `canCounter = false`, there is no RPS interaction — turn order is speed/pri
 
 | Type | Opponent's skill | Opponent's CP | Extra effect on winner |
 |------|-----------------|--------------|----------------------|
-| **None** | Delayed via ForceAfter, still executes | Consumed | `counterSuccessMultiplier` applied to damage |
-| **Nullify** | Fully cancelled | **Not consumed** | `counterSuccessMultiplier` applied to damage |
+| **None** | Delayed via ForceAfter, still executes | Consumed | `counterSelfDamageMultiplier` applied to damage |
+| **Nullify** | Fully cancelled | **Not consumed** | `counterSelfDamageMultiplier` applied to damage |
 | **Block** | Still executes | Consumed | Opponent's damage × `(1 − counterBlockPercent)` |
 | **SelfBuff** | Delayed via ForceAfter | Consumed | Apply `counterSelfStatus × counterBonusValue` to self |
 
 **Additional counter win effects** (checked regardless of counterSuccessType):
-- `counterCPDrain > 0` → drain that many CP from opponent
-- `counterCPDiscount > 0` → reduce all own skill CP costs by that amount for `counterStatusDuration` turns
-- `counterPermanentCPCostReduce > 0` → permanently reduce this skill's `cpCost` (min 0)
+- `counterDrainOpponentCP > 0` → drain that many CP from opponent
+- `counterSelfCPDiscount > 0` → reduce all own skill CP costs by that amount for its configured duration
+- `counterPermanentCPReduce > 0` → permanently reduce this skill's future runtime CP cost for this battle (min 0)
+- `counterRecast = true` → re-cast this skill once at 0 CP after the first cast resolves
+- `counterNextPriorityBonus != 0` → modify this unit's next action priority
+- `counterNextBasePowerBonus != 0` → modify this unit's next action basePower
+- `counterForceOpponentLast = true` → force the opponent's next action to resolve last
+- `counterSelfHealPercent > 0` and `counterClearsOwnDebuffs = true` → generic heal / cleanse hooks
 - Explicit counter target fields apply status effects to either self or opponent, so reversed-target effects do not need custom BattleManager branches.
 
-### Special Case skills (custom BattleManager logic required)
+These hooks intentionally keep former special-case skills data-driven: Ignite Loop uses `counterRecast`, Short Circuit uses `counterSelfDamageMultiplier` plus a next-priority buff, and Absolute Zero Crash uses `counterForceOpponentLast`.
 
-| Skill | Required custom logic |
-|-------|-----------------------|
-| 点火循环 Ignite Loop | Counter win: re-cast this skill once at 0 CP |
-| 短路火花 Short Circuit | Counter win: self gains "next attack priority +1 AND basePower +10" |
-| 绝对零度宕机 Absolute Zero Crash | Counter win: force opponent to act last next turn (inject priority −2) |
+Counter-win and Subroutine-trigger effects both resolve through BattleManager's
+shared `BattleEffectBundle` path. The standard order is:
+drain CP -> shred Firewall -> apply opponent status -> force opponent last ->
+apply self status -> CP discount / permanent CP reduction -> next priority /
+next basePower -> heal -> clear temporary debuffs.
 
 ---
 
@@ -98,7 +103,7 @@ If `canCounter = false`, there is no RPS interaction — turn order is speed/pri
 | Skill delayed (None/SelfBuff) | **Consumed** — skill still executes after delay |
 
 ### Defense cooldown
-Defense skills have a **1-turn cooldown** after use. A unit that used a Defense skill last turn cannot use a Defense skill this turn. This prevents passive looping.
+Defense skills have a **1-turn cooldown** after successful execution. A unit that used a Defense skill last turn cannot use a Defense skill this turn. If a Defense skill never executes, it does not enter cooldown. This prevents passive looping.
 
 ---
 
@@ -112,7 +117,7 @@ damage = Max(1, Floor(raw × 50 / (50 + defence)))
 - **rawAttack**: `AlgoMon.ComputingPower` if `skill.damageType == Computing`; `AlgoMon.Throughput` if Throughput.
 - **defence**: `AlgoMon.Firewall` for Computing skills; `AlgoMon.Encryption` for Throughput skills.
 - **elementMult**: from 6×6 `ElementChart` in `CombatResolver`. Normal type always returns 1.0.
-- **counterMult**: `skill.counterSuccessMultiplier` if this skill won the ASD check; else 1.0.
+- **counterMult**: `skill.counterSelfDamageMultiplier` if this skill won the ASD check; else 1.0.
 - Skills with `damageType == None` (Defense / Status) return 0 from `ResolveDamage()`.
 
 ---
@@ -188,6 +193,10 @@ Each species has one `SubroutineData` asset. BattleManager checks triggers each 
 | `OnDamageTaken` | After this unit's Battery is reduced |
 | `OnAllyFainted` | When any party ally reaches 0 Battery |
 | `OnLowBattery` | When Battery drops below 25% of max |
+
+Issue #17 implements only `OnBattleStart` and `OnCounterWin`; the other triggers remain data-only until later battle issues.
+
+`OnBattleStart` fires once after both combatants are initialized and before the first player instruction. `OnCounterWin` fires after the winning unit's current counter action resolves. Direct skill counter damage modifiers still affect the current action, while Subroutine stat/status rewards create pressure for later actions rather than retroactively changing the just-resolved hit.
 
 ---
 

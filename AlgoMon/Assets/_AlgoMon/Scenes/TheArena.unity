@@ -929,6 +929,7 @@ MonoBehaviour:
     firewall: 52
     encryption: 42
     startingCP: 6
+    subroutine: {fileID: 11400000, guid: 64a8f151104d48bfbd0bebfb613a5ee8, type: 2}
     skills:
     - {fileID: 11400000, guid: 3ebae1e5616cd334698ffac208b9a25c, type: 2}
     - {fileID: 11400000, guid: 26ad67cd39d198d47aba3473762e8afc, type: 2}
@@ -945,6 +946,7 @@ MonoBehaviour:
     firewall: 48
     encryption: 72
     startingCP: 8
+    subroutine: {fileID: 11400000, guid: 46913262e27b48b3a079228055fc0923, type: 2}
     skills:
     - {fileID: 11400000, guid: f10e08126042a27459fb6bf08051bbf5, type: 2}
     - {fileID: 11400000, guid: 013381306a00c6649b6d6fdbff59e889, type: 2}

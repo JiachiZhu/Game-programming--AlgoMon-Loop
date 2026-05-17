@@ -24,7 +24,7 @@ The originally planned window was Apr 26 – May 2 (one week). Two factors stret
 | #14 | [Arena] Create TheArena scene and battle UI layout | ✅ Done |
 | #15 | [Battle] Implement BattleManager — turn loop, ASD check, CP management, damage | ✅ Done |
 | #16 | [Battle] Implement status effect tick system | ✅ Done |
-| #17 | [Battle] Implement defense cooldown and Subroutine basic triggers | ⬜ Pending |
+| #17 | [Battle] Implement defense cooldown and Subroutine basic triggers | Done |
 
 ### #14 — Acceptance criteria (from issue tracker)
 
@@ -63,7 +63,7 @@ could not cleanly express several SkillPool entries. Documented in `BattleDesign
 - **TheGrid DAG generator** is deliberately deferred to Sprint 3. Arena battle loop is the critical path; Grid depends on a working battle to be meaningful.
 - **Full animation system** (coroutine-based sprite tweens) is a stretch goal for this sprint — basic functional battle takes priority over visual polish.
 - **SubroutineData logic** (BattleManager reading and applying subroutine effects) is included in #17 for `OnBattleStart` and `OnCounterWin` triggers only; remaining triggers deferred.
-- **Six "special case" skills** (Ignite Loop, Short Circuit, Spore Script, Absolute Zero Crash, Safe Mode, Sleep Thread) listed in `BattleDesign.md §3` require effect-specific handling in #16 / #17. #15 only consumes their shared `SkillData` fields for turn order, CP, damage, and counter timing.
+- Former "special case" skills now resolve through generic `SkillData` fields read by BattleManager. No skill-name-specific BattleManager branches are expected for Ignite Loop, Short Circuit, Absolute Zero Crash, Safe Mode, Sleep Thread, or Spore Script.
 
 ## Issue Dependency Order
 
@@ -105,13 +105,13 @@ could not cleanly express several SkillPool entries. Documented in `BattleDesign
 
 - `BattleManager` now runs the core battle loop in `TheArena`: player action selection, simple enemy action selection, ASD counter ordering, skill priority / ClockSpeed ordering, CP spend / Recharge recovery, damage resolution, rolling battle log, and battle end events.
 - `BattleHudController` is the stable bridge between the prefab HUD and battle runtime. It supports live Battery / CP / status updates, skill tags, skill availability, action-button availability, and persistent battle-log text with hover previews.
-- Status ticking landed in #16. Defense cooldowns, Subroutine triggers, and remaining effect-specific special-case skill branches are intentionally left to #17.
+- Status ticking landed in #16. Defense cooldowns, the scoped Subroutine triggers, and the former special counter hooks landed in #17.
 
 ### Issue #15 closure note
 
 - Implementation landed in commit `6d0bb61` (`Implement core BattleManager loop`).
 - Verified in the Unity editor on 2026-05-16: compile clean, a smoke battle advances from Round 1 to Round 2, both Sortex and Cachelon act, CP / Battery values change, and the HUD remains bound through the scene-resident `Canvas_Arena` prefab instance.
-- #15 is considered complete and ready to close. Status ticks are now handled by #16; the remaining battle-loop extensions stay scoped to #17: defense cooldowns, Subroutine triggers, and special-case skill branches.
+- #15 is considered complete and ready to close. Status ticks are handled by #16; defense cooldowns, scoped Subroutine triggers, and data-driven former special counter hooks are handled by #17.
 
 ### Issue #16 closure note
 
@@ -120,14 +120,21 @@ could not cleanly express several SkillPool entries. Documented in `BattleDesign
 - Freeze immediately affects future stat / CP calculations (`-15% ClockSpeed`, `+1 CP cost` per layer), but the current action queue is not re-sorted mid-round.
 - Verified in the Unity editor on 2026-05-17: compile clean, Play Mode smoke advanced TheArena from Round 1 to Round 2 with CP / Battery changes and no runtime console errors.
 
+### Issue #17 completion note
+
+- Defense skills now enter a one-round cooldown only after successful CP spend and execution; failed or unpaid Defense attempts do not start cooldown.
+- BattleManager applies `SubroutineData` for the scoped `OnBattleStart` and `OnCounterWin` triggers. `OnCounterWin` Subroutine rewards are applied after the winning action resolves, so they do not retroactively buff that hit.
+- Counter-win and Subroutine-trigger effects share `BattleEffectBundle`, so future Subroutine triggers can reuse one effect application path instead of copying field-by-field logic.
+- Former special counter skills are data-driven: `counterRecast`, `counterPermanentCPReduce`, `counterNextPriorityBonus`, `counterNextBasePowerBonus`, `counterForceOpponentLast`, heal, cleanse, and status-apply hooks are all read through generic fields.
+- Verified in the Unity editor on 2026-05-17: compile clean, 20/20 issue #17 runtime checks passed, with #16 smoke coverage for Burn, Freeze, BufferLoad, and Concurrent.
+
 ---
 
 ## Carry-over
 
-*(To be filled at sprint close. Likely candidates if #15–#17 partially slip:
-TheGrid DAG generator → Sprint 3 regardless;
-remaining 5 Subroutine triggers beyond `OnBattleStart` / `OnCounterWin` → Sprint 3;
-6 special-case skill branches → Sprint 2.5 hotfix.)*
+*(To be filled at sprint close. Likely candidates:
+TheGrid DAG generator -> Sprint 3;
+remaining 5 Subroutine triggers beyond `OnBattleStart` / `OnCounterWin` -> Sprint 3.)*
 
 ### Pre-#15 cleanup / decisions
 
