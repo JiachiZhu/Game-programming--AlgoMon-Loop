@@ -18,6 +18,8 @@ public struct CounterEvent
 {
     public string CounterId;    // unit that won the ASD counter
     public string CounteredId;  // unit that lost
+    public bool CounterHasDamage;
+    public bool CounteredHasDamage;
 }
 
 public struct BattleEndEvent
@@ -33,6 +35,14 @@ public struct StatusAppliedEvent
     public int Stacks;
     public StatusDurationType DurationType;
     public int Duration;
+}
+
+public struct BattleFeedbackEvent
+{
+    public string TargetId;
+    public BattleFeedbackType Type;
+    public int Amount;
+    public string Label;
 }
 
 // --- Navigation Events ---
@@ -51,6 +61,8 @@ public struct SceneTransitionEvent
 // --- Enums ---
 
 public enum DamageType { None, Computing, Throughput }
+
+public enum BattleFeedbackType { Damage, Heal, CPGain, CPDrain, Status, Counter }
 
 /// <summary>
 /// Who receives a status effect — the user (Self) or the opponent.

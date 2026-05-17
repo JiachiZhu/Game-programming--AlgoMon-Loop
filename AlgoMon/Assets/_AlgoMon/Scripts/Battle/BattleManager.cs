@@ -644,7 +644,9 @@ public class BattleManager : MonoBehaviour
         EventBus.Publish(new CounterEvent
         {
             CounterId = winner.Actor.Instance.nickname,
-            CounteredId = loser.Actor.Instance.nickname
+            CounteredId = loser.Actor.Instance.nickname,
+            CounterHasDamage = winner.Skill.damageType != DamageType.None,
+            CounteredHasDamage = loser.Skill.damageType != DamageType.None && !winner.Skill.counterNullifies
         });
 
         EmitLog($"{winner.Actor.Name}'s {SkillName(winner.Skill)} wins the ASD check.");
@@ -1215,6 +1217,13 @@ public class BattleManager : MonoBehaviour
             return false;
 
         unit.CurrentCP -= amount;
+        EventBus.Publish(new BattleFeedbackEvent
+        {
+            TargetId = unit.Instance.nickname,
+            Type = BattleFeedbackType.CPDrain,
+            Amount = amount,
+            Label = $"-{amount} CP"
+        });
         return true;
     }
 
@@ -1222,7 +1231,18 @@ public class BattleManager : MonoBehaviour
     {
         int before = unit.CurrentCP;
         unit.CurrentCP = Mathf.Clamp(unit.CurrentCP + Mathf.Max(0, amount), 0, MaxCP);
-        return unit.CurrentCP - before;
+        int restored = unit.CurrentCP - before;
+        if (restored > 0)
+        {
+            EventBus.Publish(new BattleFeedbackEvent
+            {
+                TargetId = unit.Instance.nickname,
+                Type = BattleFeedbackType.CPGain,
+                Amount = restored,
+                Label = $"+{restored} CP"
+            });
+        }
+        return restored;
     }
 
     private static int DrainCP(BattleUnit from, BattleUnit to, int amount)
@@ -1230,6 +1250,23 @@ public class BattleManager : MonoBehaviour
         int drained = Mathf.Min(from.CurrentCP, Mathf.Max(0, amount));
         from.CurrentCP -= drained;
         to.CurrentCP = Mathf.Clamp(to.CurrentCP + drained, 0, MaxCP);
+        if (drained > 0)
+        {
+            EventBus.Publish(new BattleFeedbackEvent
+            {
+                TargetId = from.Instance.nickname,
+                Type = BattleFeedbackType.CPDrain,
+                Amount = drained,
+                Label = $"-{drained} CP"
+            });
+            EventBus.Publish(new BattleFeedbackEvent
+            {
+                TargetId = to.Instance.nickname,
+                Type = BattleFeedbackType.CPGain,
+                Amount = drained,
+                Label = $"+{drained} CP"
+            });
+        }
         return drained;
     }
 
@@ -1237,6 +1274,16 @@ public class BattleManager : MonoBehaviour
     {
         int actual = Mathf.Min(unit.CurrentBattery, Mathf.Max(0, amount));
         unit.CurrentBattery = Mathf.Max(0, unit.CurrentBattery - actual);
+        if (actual > 0)
+        {
+            EventBus.Publish(new BattleFeedbackEvent
+            {
+                TargetId = unit.Instance.nickname,
+                Type = BattleFeedbackType.Damage,
+                Amount = actual,
+                Label = $"-{actual}"
+            });
+        }
         return actual;
     }
 
@@ -1244,7 +1291,18 @@ public class BattleManager : MonoBehaviour
     {
         int before = unit.CurrentBattery;
         unit.CurrentBattery = Mathf.Clamp(unit.CurrentBattery + Mathf.Max(0, amount), 0, unit.MaxBattery);
-        return unit.CurrentBattery - before;
+        int restored = unit.CurrentBattery - before;
+        if (restored > 0)
+        {
+            EventBus.Publish(new BattleFeedbackEvent
+            {
+                TargetId = unit.Instance.nickname,
+                Type = BattleFeedbackType.Heal,
+                Amount = restored,
+                Label = $"+{restored}"
+            });
+        }
+        return restored;
     }
 
     private BattleUnit UnitFor(AlgoMonInstance instance)

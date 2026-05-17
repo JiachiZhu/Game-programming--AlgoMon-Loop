@@ -36,6 +36,10 @@ public class BattleHudController : MonoBehaviour
     private static readonly Color32 CPDotActive   = new Color32( 73, 181, 255, 255);
     private static readonly Color32 CPDotInactive = new Color32( 48,  57,  66, 255);
 
+    [Header("Resource Animation")]
+    [SerializeField, Min(0f)] private float batteryLerpSpeed = 8f;
+    [SerializeField, Min(0f)] private float cpLerpSpeed = 12f;
+
     // Placeholder hover bodies for the default Sortex loadout baked into the
     // prefab. Keyed by skill name so layout edits that change slot order still
     // pick up the right description. BattleManager replaces these via
@@ -65,6 +69,21 @@ public class BattleHudController : MonoBehaviour
     }
     private CombatantRefs player;
     private CombatantRefs enemy;
+
+    private struct CombatantDisplayState
+    {
+        public bool BatteryInitialized;
+        public int TargetBattery;
+        public int TargetBatteryMax;
+        public float DisplayBattery;
+
+        public bool CPInitialized;
+        public int TargetCP;
+        public int TargetCPMax;
+        public float DisplayCP;
+    }
+    private CombatantDisplayState playerDisplay;
+    private CombatantDisplayState enemyDisplay;
 
     // --- Skill button refs (index 0..3) ---
     private readonly Button[] skillButtons     = new Button[MaxSkillSlots];
@@ -102,6 +121,11 @@ public class BattleHudController : MonoBehaviour
             Bind();
     }
 
+    private void Update()
+    {
+        UpdateResourceDisplays();
+    }
+
     private void OnDestroy()
     {
         UnhookButtons();
@@ -123,6 +147,8 @@ public class BattleHudController : MonoBehaviour
 
         player = BindCombatant("SafeArea/CombatLayer/PlayerCombatantPanel");
         enemy  = BindCombatant("SafeArea/CombatLayer/EnemyCombatantPanel");
+        playerDisplay = default;
+        enemyDisplay = default;
 
         for (int i = 0; i < MaxSkillSlots; i++)
         {
@@ -247,31 +273,43 @@ public class BattleHudController : MonoBehaviour
     public void SetBattery(Side side, int current, int max)
     {
         ref CombatantRefs refs = ref RefsFor(side);
-        if (refs.BatteryValueText != null)
-            refs.BatteryValueText.text = $"{current} / {max}";
+        ref CombatantDisplayState display = ref DisplayFor(side);
+        int safeMax = Mathf.Max(0, max);
+        int safeCurrent = safeMax <= 0 ? 0 : Mathf.Clamp(current, 0, safeMax);
 
-        if (refs.BatteryFill != null)
+        if (refs.BatteryValueText != null)
+            refs.BatteryValueText.text = $"{safeCurrent} / {safeMax}";
+
+        if (!display.BatteryInitialized)
         {
-            float ratio = max <= 0 ? 0f : Mathf.Clamp01((float)current / max);
-            RectTransform rt = refs.BatteryFill.rectTransform;
-            rt.anchorMin = new Vector2(0f, 0f);
-            rt.anchorMax = new Vector2(ratio, 1f);
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
+            display.DisplayBattery = safeCurrent;
+            display.BatteryInitialized = true;
         }
+
+        display.TargetBattery = safeCurrent;
+        display.TargetBatteryMax = safeMax;
+        display.DisplayBattery = Mathf.Clamp(display.DisplayBattery, 0f, safeMax);
+        ApplyBatteryVisual(refs, display.DisplayBattery, safeMax);
     }
 
     public void SetCP(Side side, int current, int max)
     {
         ref CombatantRefs refs = ref RefsFor(side);
+        ref CombatantDisplayState display = ref DisplayFor(side);
         if (refs.CPDots == null) return;
 
-        int litCap = Mathf.Min(current, max);
-        for (int i = 0; i < refs.CPDots.Length; i++)
+        int safeMax = Mathf.Clamp(max, 0, MaxCP);
+        int safeCurrent = Mathf.Clamp(current, 0, safeMax);
+        if (!display.CPInitialized)
         {
-            if (refs.CPDots[i] == null) continue;
-            refs.CPDots[i].color = i < litCap ? CPDotActive : CPDotInactive;
+            display.DisplayCP = safeCurrent;
+            display.CPInitialized = true;
         }
+
+        display.TargetCP = safeCurrent;
+        display.TargetCPMax = safeMax;
+        display.DisplayCP = Mathf.Clamp(display.DisplayCP, 0f, safeMax);
+        ApplyCPVisual(refs, display.DisplayCP, safeMax);
     }
 
     public void SetStatus(Side side, string statusText)
@@ -407,6 +445,86 @@ public class BattleHudController : MonoBehaviour
     {
         if (side == Side.Player) return ref player;
         return ref enemy;
+    }
+
+    private ref CombatantDisplayState DisplayFor(Side side)
+    {
+        if (side == Side.Player) return ref playerDisplay;
+        return ref enemyDisplay;
+    }
+
+    private void UpdateResourceDisplays()
+    {
+        UpdateResourceDisplay(player, ref playerDisplay);
+        UpdateResourceDisplay(enemy, ref enemyDisplay);
+    }
+
+    private void UpdateResourceDisplay(CombatantRefs refs, ref CombatantDisplayState display)
+    {
+        if (display.BatteryInitialized)
+        {
+            display.DisplayBattery = SmoothTo(
+                display.DisplayBattery,
+                display.TargetBattery,
+                batteryLerpSpeed,
+                Time.deltaTime);
+            ApplyBatteryVisual(refs, display.DisplayBattery, display.TargetBatteryMax);
+        }
+
+        if (display.CPInitialized)
+        {
+            display.DisplayCP = SmoothTo(
+                display.DisplayCP,
+                display.TargetCP,
+                cpLerpSpeed,
+                Time.deltaTime);
+            ApplyCPVisual(refs, display.DisplayCP, display.TargetCPMax);
+        }
+    }
+
+    private static float SmoothTo(float current, float target, float speed, float deltaTime)
+    {
+        if (speed <= 0f)
+            return target;
+
+        float t = 1f - Mathf.Exp(-speed * deltaTime);
+        float value = Mathf.Lerp(current, target, t);
+        return Mathf.Abs(value - target) <= 0.01f ? target : value;
+    }
+
+    private static void ApplyBatteryVisual(CombatantRefs refs, float current, int max)
+    {
+        if (refs.BatteryFill == null)
+            return;
+
+        float ratio = max <= 0 ? 0f : Mathf.Clamp01(current / max);
+        RectTransform rt = refs.BatteryFill.rectTransform;
+        rt.anchorMin = new Vector2(0f, 0f);
+        rt.anchorMax = new Vector2(ratio, 1f);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+    }
+
+    private static void ApplyCPVisual(CombatantRefs refs, float current, int max)
+    {
+        if (refs.CPDots == null)
+            return;
+
+        for (int i = 0; i < refs.CPDots.Length; i++)
+        {
+            Image dot = refs.CPDots[i];
+            if (dot == null)
+                continue;
+
+            if (i >= max)
+            {
+                dot.color = CPDotInactive;
+                continue;
+            }
+
+            float fill = Mathf.Clamp01(current - i);
+            dot.color = Color.Lerp(CPDotInactive, CPDotActive, fill);
+        }
     }
 
     private CombatantRefs BindCombatant(string root)

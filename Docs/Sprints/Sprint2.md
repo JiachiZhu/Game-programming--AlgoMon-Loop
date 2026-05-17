@@ -24,8 +24,8 @@ The originally planned window was Apr 26 – May 2 (one week). Two factors stret
 | #14 | [Arena] Create TheArena scene and battle UI layout | ✅ Done |
 | #15 | [Battle] Implement BattleManager — turn loop, ASD check, CP management, damage | ✅ Done |
 | #16 | [Battle] Implement status effect tick system | ✅ Done |
-| #17 | [Battle] Implement defense cooldown and Subroutine basic triggers | Done |
-| #18 | [Polish] Add basic battle presentation feedback | Pending |
+| #17 | [Battle] Implement defense cooldown and Subroutine basic triggers | 鉁?Done |
+| #18 | [Polish] Add basic battle presentation feedback | 鉁?Done |
 
 ### #14 — Acceptance criteria (from issue tracker)
 
@@ -100,6 +100,7 @@ could not cleanly express several SkillPool entries. Documented in `BattleDesign
 ### Documentation
 
 - **`Docs/BattleDesign.md` is now the canonical reference** for BattleManager implementation. Section 3 (counter system) and Section 6 (status persistence on swap) are the two most likely places where #15/#16 implementation will need to verify against the doc rather than guess.
+- **`Docs/BattlePresentation.md` is the handoff for animation / VFX work.** Issue #18 establishes the generic presentation template; future per-species animation profiles and per-skill VFX profiles should start from that document instead of guessing from runtime code.
 
 ---
 
@@ -129,6 +130,13 @@ could not cleanly express several SkillPool entries. Documented in `BattleDesign
 - Counter-win and Subroutine-trigger effects share `BattleEffectBundle`, so future Subroutine triggers can reuse one effect application path instead of copying field-by-field logic.
 - Former special counter skills are data-driven: `counterRecast`, `counterPermanentCPReduce`, `counterNextPriorityBonus`, `counterNextBasePowerBonus`, `counterForceOpponentLast`, heal, cleanse, and status-apply hooks are all read through generic fields.
 - Verified in the Unity editor on 2026-05-17: compile clean, 20/20 issue #17 runtime checks passed, with #16 smoke coverage for Burn, Freeze, BufferLoad, and Concurrent.
+
+### Issue #18 completion note
+
+- TheArena now has a generic battle presentation template: idle sprite motion, action lunge, counter clash timing, hit flash/shake, status pulse, floating feedback text, Battery / CP interpolation, and camera-cover background fitting.
+- `BattlePresentationController` consumes battle events without owning battle logic; `BattleSpriteAnimator` owns reusable sprite motion; `BattleBackgroundFitter` keeps the arena background covering the camera.
+- The current animation is intentionally a fallback template. Per-species `BattleAnimationProfile` assets and per-skill `SkillVfxProfile` assets are deferred to a future polish issue and sketched in `Docs/BattlePresentation.md`.
+- Verified in the Unity editor on 2026-05-17: compile clean, Play Mode smoke covered background fit and a real Defense counter path with action suppression consumed after resolution.
 
 ---
 
