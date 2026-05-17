@@ -66,7 +66,7 @@ public class SkillData : ScriptableObject
 
     public StatusType baseStatus;
 
-    [Tooltip("Number of stacks to apply as the primary effect. 0 = no base status effect.")]
+    [Tooltip("Number of stacks to apply as the primary effect. 0 = no base status effect; the StatusType value is ignored.")]
     public int baseStatusStacks = 0;
 
     public StatusDurationType baseStatusDurationType = StatusDurationType.Turns;
@@ -102,7 +102,7 @@ public class SkillData : ScriptableObject
     [Tooltip("Only used when counterFirewallShredDurationType = Turns.")]
     public int counterFirewallShredDuration = 1;
 
-    [Tooltip("Status applied to the OPPONENT on counter win. Stacks = 0 = no effect.")]
+    [Tooltip("Status applied to the OPPONENT on counter win. Stacks = 0 = no effect; the StatusType value is ignored.")]
     public StatusType counterApplyToOpponent;
     public int counterOpponentStatusStacks = 0;
     public StatusDurationType counterOpponentStatusDurationType = StatusDurationType.Turns;
@@ -126,7 +126,7 @@ public class SkillData : ScriptableObject
     [Tooltip("Damage multiplier applied to THIS skill's output when it wins the counter.\n1 = no bonus. 1.5 = 50% more damage.")]
     public float counterSelfDamageMultiplier = 1f;
 
-    [Tooltip("Status applied to SELF on counter win. Stacks = 0 = no effect.")]
+    [Tooltip("Status applied to SELF on counter win. Stacks = 0 = no effect; the StatusType value is ignored.")]
     public StatusType counterApplyToSelf;
     public int counterSelfStatusStacks = 0;
     public StatusDurationType counterSelfStatusDurationType = StatusDurationType.Turns;
@@ -176,7 +176,7 @@ public class SkillData : ScriptableObject
     [Tooltip("Only used when onHitFirewallShredDurationType = Turns.")]
     public int onHitFirewallShredDuration = 1;
 
-    [Tooltip("Status applied to the OPPONENT on hit. Stacks = 0 = no effect.")]
+    [Tooltip("Status applied to the OPPONENT on hit. Stacks = 0 = no effect; the StatusType value is ignored.")]
     public StatusType onHitApplyToOpponent;
     public int onHitOpponentStatusStacks = 0;
     public StatusDurationType onHitOpponentStatusDurationType = StatusDurationType.Turns;

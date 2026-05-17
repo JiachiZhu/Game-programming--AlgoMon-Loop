@@ -27,8 +27,8 @@ MonoBehaviour:
   baseStatusTarget: 1
   baseStatus: 0
   baseStatusStacks: 5
-  baseStatusDurationType: 2
-  baseStatusDuration: 3
+  baseStatusDurationType: 1
+  baseStatusDuration: 0
   canCounter: 1
   counterNullifies: 0
   counterBlockPercent: 0
@@ -38,8 +38,8 @@ MonoBehaviour:
   counterFirewallShredDuration: 1
   counterApplyToOpponent: 0
   counterOpponentStatusStacks: 3
-  counterOpponentStatusDurationType: 2
-  counterOpponentStatusDuration: 3
+  counterOpponentStatusDurationType: 1
+  counterOpponentStatusDuration: 0
   counterForceOpponentLast: 0
   counterSelfDamageMultiplier: 1
   counterApplyToSelf: 0

@@ -23,9 +23,9 @@ MonoBehaviour:
   basePower: 0
   cpCost: 3
   priority: 0
-  baseStatusTarget: 0
+  baseStatusTarget: 1
   baseStatus: 2
-  baseStatusStacks: 1
+  baseStatusStacks: 3
   baseStatusDurationType: 2
   baseStatusDuration: 3
   canCounter: 1

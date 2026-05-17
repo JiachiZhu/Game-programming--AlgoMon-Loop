@@ -1,9 +1,10 @@
 # AlgoMon Skill Pool — Full Design Reference
 
 > **Total: 34 species skills + 1 universal (Recharge)**
-> Status values confirmed: Burn 5%/layer (max 4), Leech 5%/layer (max 3), Freeze −15% ClockSpeed/layer (max 3).
+> Status values confirmed: Burn 2%/layer with no stack cap and no turn duration; applying Burn only adds stacks during the round, then each round-end Burn tick deals damage and halves stacks with Floor(stacks / 2). Leech 3%/layer (max 3), healing the caster for the same amount the target loses. Freeze −15% ClockSpeed/layer and +1 CP cost/layer (max 3).
 > Stat-buff layers use ComputingUp / ThroughputUp / FirewallUp / EncryptionUp (each layer = +10%).
 > ⚠️ Normal-type skills have no ElementType in current enum — recommend adding `Normal` to ElementType before asset creation.
+> Authoring convention: status fields are disabled by their stack count. If stacks = 0, the paired StatusType enum value is ignored even when the Unity Inspector shows its default value.
 
 ---
 
@@ -37,7 +38,7 @@
 
 | Name | Type | DmgType | basePower | cpCost | priority | canCounter | counterSuccessType | Effects |
 |------|------|---------|-----------|--------|----------|------------|--------------------|---------|
-| 孢子脚本 Spore Script | Attack | Throughput | 35 | 2 | +1 | true | None | Counter win: apply Leech (3 stacks, 3 turns) to opponent. `counterBonusValue = 3`, `counterStatusDuration = 3`, `counterSelfStatus = Leech` — wait, this is an opponent debuff. **Special**: counter applies opponent Leech, not a self-buff. Custom handling. |
+| 孢子脚本 Spore Script | Attack | Throughput | 35 | 2 | +1 | true | None | Counter win: apply Leech (3 stacks, 3 turns) to opponent. Leech stores the caster as its source, so the opponent loses Battery and the caster heals without a self-side Leech buff. |
 | 根须权限 Root Access | Attack | Throughput | 45 | 3 | 0 | false | None | — |
 | 木马丛林 Trojan Forest | Attack | Throughput | 75 | 6 | −1 | false | None | — |
 
@@ -93,7 +94,7 @@
 
 | Name | Element | cpCost | counterSuccessType | counterBlockPercent | Other Counter Effects |
 |------|---------|--------|--------------------|--------------------|----------------------|
-| 安全模式 Safe Mode | Grass | 3 | Block | 0.70 | On counter win: heal self 8% max Battery + clear all negative statuses. **Special**: custom BattleManager handling. |
+| 安全模式 Safe Mode | Grass | 3 | Block | 0.70 | On counter win: heal self 8% max Battery via `counterSelfHealPercent` and clear temporary debuffs via `counterClearsOwnDebuffs`. |
 
 ### ⚡ Electric
 
@@ -105,7 +106,7 @@
 
 | Name | Element | cpCost | counterSuccessType | counterBlockPercent | Other Counter Effects |
 |------|---------|--------|--------------------|--------------------|----------------------|
-| 休眠线程 Sleep Thread | Ice | 2 | Block | 0.80 | On counter win: apply 1 stack Freeze to attacker. (`counterSelfStatus` repurposed as opponent debuff — special handling.) |
+| 休眠线程 Sleep Thread | Ice | 2 | Block | 0.80 | On counter win: apply 1 stack Freeze to opponent via `counterApplyToOpponent`. |
 
 ### 🪨 Ground
 
@@ -129,19 +130,19 @@
 
 | Name | Element | cpCost | canCounter | counterSuccessType | Effects |
 |------|---------|--------|------------|--------------------|---------|
-| 热阻尼降频 Thermal Throttling | Fire | 3 | true | None | Apply Burn (2 stacks, ongoing) to opponent. Counter win: apply 2 additional Burn stacks (total 4 = max). |
+| 热阻尼降频 Thermal Throttling | Fire | 3 | true | None | Apply Burn (5 stacks, no turn duration) to opponent. Counter win: apply 3 additional Burn stacks. Burn only deals damage and halves stacks at round end. |
 
 ### 💧 Water
 
 | Name | Element | cpCost | canCounter | counterSuccessType | Effects |
 |------|---------|--------|------------|--------------------|---------|
-| 缓冲池预载 Buffer Pool Preload | Water | 2 | true | SelfBuff | Apply `BufferLoad` to self (next skill CP −4). Counter win: also gain priority +1 next turn. |
+| 缓冲池预载 Buffer Pool Preload | Water | 2 | true | SelfBuff | Apply one-shot, non-stacking `BufferLoad` to self (next skill CP −4). Counter win: also gain priority +1 next turn. |
 
 ### 🌿 Grass
 
 | Name | Element | cpCost | canCounter | counterSuccessType | Effects |
 |------|---------|--------|------------|--------------------|---------|
-| 跨站脚本植入 XSS Injection | Grass | 3 | true | None | Apply Leech (3 stacks, 3 turns) to opponent. Counter win: extend duration by 1 extra turn. |
+| 跨站脚本植入 XSS Injection | Grass | 3 | true | None | Apply Leech (3 stacks, 3 turns) to opponent. Counter win: extend duration by 1 extra turn. Leech stores the caster as its source; do not apply a matching self-side Leech buff. |
 
 ### ⚡ Electric
 
@@ -187,10 +188,7 @@
 |-------|-------|
 | 点火循环 Ignite Loop | Counter success re-casts itself once at 0 CP. Not representable by current fields. |
 | 短路火花 Short Circuit | Counter success grants self "next attack priority+1 AND basePower+10". Compound buff. |
-| 孢子脚本 Spore Script | Counter success applies opponent Leech — current `counterSelfStatus` only models self-buffs. |
 | 绝对零度宕机 Absolute Zero Crash | Counter success forces opponent to act last next turn (priority −2 injection). |
-| 安全模式 Safe Mode | Counter success heals 8% HP AND clears all debuffs simultaneously. |
-| 休眠线程 Sleep Thread | Counter success applies Freeze to the attacker, not self. Reversed target. |
 
 ---
 

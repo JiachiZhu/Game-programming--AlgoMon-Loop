@@ -39,8 +39,8 @@ MonoBehaviour:
   counterOpponentStatusDuration: 3
   counterForceOpponentLast: 0
   counterSelfDamageMultiplier: 1
-  counterApplyToSelf: 2
-  counterSelfStatusStacks: 3
+  counterApplyToSelf: 0
+  counterSelfStatusStacks: 0
   counterSelfStatusDurationType: 2
   counterSelfStatusDuration: 3
   counterRecast: 0

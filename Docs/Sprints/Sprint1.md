@@ -47,7 +47,7 @@ Establish the complete project foundation: data models, messaging system, and co
 - **BST = 600** for all 6 species; average IV = 100 per stat dimension.
 - **Subroutine (passive ability):** Each species has a hardwired `SubroutineData` asset. Trigger + effect system defined; BattleManager logic deferred to Sprint 2.
 - **Skill pool expanded to 33 skills** (18 Attack + 8 Defense + 7 Status, covering all 6 elements plus Normal type).
-- **StatusType expanded:** Added `Burn` (5%/layer, max 4), `Freeze` (−15% speed/layer, max 3, no Fire-type clearance), `Leech` (5%/layer, max 3), `Ensnare`, `Concurrent`, `BufferLoad`, stat-buff types (`ComputingUp`, `ThroughputUp`, `FirewallUp`, `EncryptionUp`).
+- **StatusType expanded:** Added `Burn`, `Freeze`, `Leech`, `Ensnare`, `Concurrent`, `BufferLoad`, stat-buff types (`ComputingUp`, `ThroughputUp`, `FirewallUp`, `EncryptionUp`). Current tuned values live in `Docs/BattleDesign.md`.
 - **SkillData finalised:** All fields locked — `basePower`, `cpCost`, `priority`, `canCounter`, `counterSuccessType`, `counterBlockPercent`, `counterCPDrain`, `counterCPDiscount`, `counterPermanentCPCostReduce`, `onHitFirewallShred`, `onHitStatus` family.
 
 ---

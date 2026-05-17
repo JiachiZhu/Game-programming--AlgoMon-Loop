@@ -65,6 +65,8 @@ public static class CombatResolver
     public static int ResolveDamage(
         AlgoMonInstance attacker,
         AlgoMonInstance defender,
+        BattleStats     attackerStats,
+        BattleStats     defenderStats,
         SkillData       attackerSkill,
         InstructionType defenderAction,
         bool attackerWonCounter = false,
@@ -77,12 +79,12 @@ public static class CombatResolver
         float elementMult  = GetElementMultiplier(attackerSkill.elementType, defender.data.elementType);
 
         int rawAttack = attackerSkill.damageType == DamageType.Computing
-            ? attacker.ComputingPower
-            : attacker.Throughput;
+            ? attackerStats.ComputingPower
+            : attackerStats.Throughput;
 
         int defence = attackerSkill.damageType == DamageType.Computing
-            ? defender.Firewall
-            : defender.Encryption;
+            ? defenderStats.Firewall
+            : defenderStats.Encryption;
 
         float baseMult = attackerSkill.basePower / 100f;
         float raw      = rawAttack * baseMult * elementMult * counterMult;

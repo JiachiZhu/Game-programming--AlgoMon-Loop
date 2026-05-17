@@ -27,8 +27,11 @@ public struct BattleEndEvent
 
 public struct StatusAppliedEvent
 {
+    public string SourceId;
     public string TargetId;
     public StatusType Status;
+    public int Stacks;
+    public StatusDurationType DurationType;
     public int Duration;
 }
 
@@ -73,14 +76,17 @@ public enum GameScene  { MainTerminal, TheGrid, TheArena, TheLab }
 /// Stack values and durations are tracked by BattleManager at runtime.
 ///
 /// Stacking model (additive percentage per layer):
-///   Burn    — each layer deals 5% max-Battery damage per turn. Max 4 layers.
-///   Leech   — each layer steals 5% max-Battery HP per turn from target to user. Max 3 layers.
-///   Freeze  — each layer reduces ClockSpeed by 15%. Max 3 layers (-45% total).
-///             Cleared only by turn-end roll; NOT cleared by Fire-type hits.
+///   Burn    — each layer deals 2% max-Battery damage at round end, then halves. No stack cap.
+///   Leech   — each layer steals 3% max-Battery HP per turn from target to user. Max 3 layers.
+///   Freeze  — each layer reduces ClockSpeed by 15% and adds +1 CP cost.
+///             Max 3 layers; cleared by swap or special skills.
 ///   Ensnare — target cannot swap out for duration turns.
 ///   Concurrent — next skill executes twice (costs 2x CP); clears after activation.
-///   BufferLoad — next skill CP cost -4 (min 0); clears after activation.
+///   BufferLoad — next skill CP cost -4 (min 0); max 1; clears after activation.
 ///   Backup  — (removed from Redundant Backup; reserved for future use)
+///
+/// When adding a new temporary debuff, update
+/// BattleStatusSet.ClearTemporaryDebuffs so cleanse effects can remove it.
 ///
 /// Legacy placeholders (from initial design, may be repurposed):
 ///   Overclock, Throttle, Corrupted
@@ -88,14 +94,14 @@ public enum GameScene  { MainTerminal, TheGrid, TheArena, TheLab }
 public enum StatusType
 {
     // --- Active debuffs ---
-    Burn,           // 5% max-HP damage/turn per layer, max 4 layers
-    Freeze,         // -15% ClockSpeed/layer, max 3 layers; cleared by turn-end roll
-    Leech,          // 5% max-HP stolen/turn per layer (heals caster), max 3 layers
+    Burn,           // 2% max-HP damage per layer at round end, then stacks halve; no cap
+    Freeze,         // -15% ClockSpeed/layer and +1 CP cost/layer, max 3 layers
+    Leech,          // 3% max-HP stolen/turn per layer (heals caster), max 3 layers
     Ensnare,        // cannot swap out AlgoMon for N turns
 
     // --- Self buffs (one-shot, clear on trigger) ---
     Concurrent,     // next skill fires twice (uses 2x CP)
-    BufferLoad,     // next skill CP cost -4 (min 0)
+    BufferLoad,     // next skill CP cost -4 (min 0), max 1
 
     // --- Stat buffs (additive %, stacks persist until battle end) ---
     ComputingUp,    // Computing Power +10% per stack

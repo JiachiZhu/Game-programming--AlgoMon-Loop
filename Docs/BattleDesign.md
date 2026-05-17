@@ -71,7 +71,7 @@ If `canCounter = false`, there is no RPS interaction — turn order is speed/pri
 - `counterCPDrain > 0` → drain that many CP from opponent
 - `counterCPDiscount > 0` → reduce all own skill CP costs by that amount for `counterStatusDuration` turns
 - `counterPermanentCPCostReduce > 0` → permanently reduce this skill's `cpCost` (min 0)
-- `counterBonusValue > 0` → if counterSuccessType = Block AND counterBonusValue > 0, apply `counterSelfStatus × counterBonusValue` to **the attacker** (special case — see SkillPool.md Sleep Thread note)
+- Explicit counter target fields apply status effects to either self or opponent, so reversed-target effects do not need custom BattleManager branches.
 
 ### Special Case skills (custom BattleManager logic required)
 
@@ -79,10 +79,7 @@ If `canCounter = false`, there is no RPS interaction — turn order is speed/pri
 |-------|-----------------------|
 | 点火循环 Ignite Loop | Counter win: re-cast this skill once at 0 CP |
 | 短路火花 Short Circuit | Counter win: self gains "next attack priority +1 AND basePower +10" |
-| 孢子脚本 Spore Script | Counter win: apply Leech to **opponent** (not self), despite using counterSelfStatus field |
 | 绝对零度宕机 Absolute Zero Crash | Counter win: force opponent to act last next turn (inject priority −2) |
-| 安全模式 Safe Mode | Counter win: heal self 8% max Battery AND clear all temporary negative statuses |
-| 休眠线程 Sleep Thread | Counter win: apply Freeze stacks to **the attacker** (opponent), not self |
 
 ---
 
@@ -126,12 +123,12 @@ damage = Max(1, Floor(raw × 50 / (50 + defence)))
 
 | Status | Effect per layer | Max layers | Cleared by |
 |--------|-----------------|-----------|-----------|
-| **Burn** | −5% max Battery per turn | 4 | Turn-end tick, or swap (if temporary) |
-| **Freeze** | −15% ClockSpeed per layer | 3 | Turn-end roll to escape; NOT cleared by Fire hits |
-| **Leech** | Steal 5% max Battery per turn from target to caster | 3 | Duration expiry or swap |
+| **Burn** | −2% max Battery per layer per tick. After each Burn tick, stacks become `Floor(stacks / 2)` | No cap | Stacks reach 0, or swap |
+| **Freeze** | −15% ClockSpeed and +1 skill CP cost per layer | 3 | Swap or special cleanse only; NOT cleared by Fire hits |
+| **Leech** | Target loses 3% max Battery per layer per turn; caster heals the same amount | 3 | Duration expiry or swap |
 | **Ensnare** | Cannot swap this AlgoMon out | — | Duration expiry only |
 | **Concurrent** | Next skill fires twice (costs 2× CP) | — | Clears immediately after activation |
-| **BufferLoad** | Next skill CP cost −4 (min 0) | — | Clears immediately after activation |
+| **BufferLoad** | Next skill CP cost −4 (min 0) | 1 | Clears immediately after activation |
 | **ComputingUp** | Computing Power +10% per stack | — | See persistence rules |
 | **ThroughputUp** | Throughput +10% per stack | — | See persistence rules |
 | **FirewallUp** | Firewall +10% per stack | — | See persistence rules |
@@ -145,6 +142,10 @@ damage = Max(1, Floor(raw × 50 / (50 + defence)))
 | **WhileOnField** | No turn limit; cleared immediately when AlgoMon is swapped out |
 | **Turns** | Lasts `counterStatusDuration` turns; also cleared on swap |
 
+**Burn exception:** Burn does not use a turn-duration countdown. Treat Burn applications as stack-only effects, stored with `StatusDurationType.WhileOnField` so swapping still clears them. Applying Burn during a round only adds stacks; Burn damage and stack-halving happen together at round end.
+
+For `Turns` statuses, the round in which the status is applied does not consume one duration count. A 3-turn status applied during Round 1 remains through the next three round-end countdowns unless it is cleared early.
+
 ### Status persistence on swap ⚠️ CRITICAL RULE
 
 When an AlgoMon is swapped out:
@@ -152,6 +153,15 @@ When an AlgoMon is swapped out:
 - All **permanent** statuses (duration = 0) **survive the swap** and remain active when the AlgoMon returns.
 
 **Implication**: Ensnare's strategic value is preventing the opponent from clearing their own temporary debuffs by swapping. Permanent FirewallUp stacks (Hardcode Armor) persist through swaps and accumulate across the whole battle.
+
+### Runtime tick timing
+
+At the end of each full round, after both queued actions have resolved:
+1. Burn deals damage from the stacks currently on the target, then halves its stacks.
+2. Leech deals damage and heals the recorded caster by the same actual amount.
+3. Turn-duration statuses decrement and expire if their remaining count reaches 0.
+
+Status applications take effect immediately for stat and CP calculations after they are applied, but the current action queue is not re-sorted mid-round.
 
 ---
 

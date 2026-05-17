@@ -7,16 +7,17 @@ using UnityEngine;
 /// <summary>
 /// Core battle loop for TheArena.
 ///
-/// Scope for issue #15:
+/// Scope through issue #16:
 /// - player chooses an action through BattleHudController
 /// - enemy chooses a simple deterministic skill
 /// - ASD counter check determines hard turn-order overrides
 /// - skill priority and ClockSpeed break normal turn order
 /// - CP is spent / restored
 /// - basic damage is resolved and Battery is reduced until one side is offline
+/// - status effects are applied, modify runtime stats / CP costs, and tick at round end
 ///
-/// Status ticking, defense cooldowns, party switching, bag items, and Subroutine
-/// triggers are intentionally left for the follow-up battle issues.
+/// Defense cooldowns, party switching, bag items, and Subroutine triggers are
+/// intentionally left for follow-up battle issues.
 /// </summary>
 [DisallowMultipleComponent]
 public class BattleManager : MonoBehaviour
@@ -68,6 +69,7 @@ public class BattleManager : MonoBehaviour
         public int CurrentBattery { get; set; }
         public int CurrentCP { get; set; }
         public string StatusText { get; set; }
+        public BattleStatusSet Statuses { get; } = new BattleStatusSet();
 
         public string Name => Config.displayName;
         public int DisplayLevel => Mathf.Clamp(Config.displayLevel, 1, AlgoMonInstance.MAX_LEVEL);
@@ -230,7 +232,8 @@ public class BattleManager : MonoBehaviour
 
         if (!CanPay(player, playerSkill))
         {
-            SetDetail(SkillName(playerSkill), $"{player.Name} needs {playerSkill.cpCost} CP.");
+            int cost = EffectiveSkillCost(player, playerSkill);
+            SetDetail(SkillName(playerSkill), $"{player.Name} needs {cost} CP.");
             return;
         }
 
@@ -362,11 +365,11 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case BattleHudController.ActionButton.Bag:
-                SetDetail("Bag", "Items are not part of issue #15 yet.");
+                SetDetail("Bag", "Not yet implemented.");
                 break;
 
             case BattleHudController.ActionButton.Switch:
-                SetDetail("Switch", "Party switching is not part of issue #15 yet.");
+                SetDetail("Switch", "Not yet implemented.");
                 break;
 
             case BattleHudController.ActionButton.Flee:
@@ -438,6 +441,11 @@ public class BattleManager : MonoBehaviour
             BattleAction action = ActionFor(next, playerAction, enemyAction);
             yield return ExecuteActionCoroutine(action);
             TryFinishBattle();
+        }
+
+        if (phase != BattlePhase.BattleOver)
+        {
+            yield return ResolveEndOfRoundStatusesCoroutine();
         }
 
         if (phase != BattlePhase.BattleOver)
@@ -536,6 +544,62 @@ public class BattleManager : MonoBehaviour
                     yield return new WaitForSeconds(logLineDelay);
             }
         }
+
+        if (winner.Skill.counterShredOpponentFirewall > 0f)
+        {
+            loser.Actor.Statuses.ApplyFirewallShred(
+                winner.Skill.counterShredOpponentFirewall,
+                winner.Skill.counterFirewallShredDurationType,
+                winner.Skill.counterFirewallShredDuration,
+                currentRound);
+
+            EmitLog($"{loser.Actor.Name}'s Firewall is shredded by {Mathf.RoundToInt(winner.Skill.counterShredOpponentFirewall * 100f)}%.");
+            RefreshHud();
+            if (logLineDelay > 0f)
+                yield return new WaitForSeconds(logLineDelay);
+        }
+
+        if (winner.Skill.counterSelfCPDiscount > 0)
+        {
+            winner.Actor.Statuses.ApplyCPDiscount(
+                winner.Skill.counterSelfCPDiscount,
+                winner.Skill.counterCPDiscountDurationType,
+                winner.Skill.counterCPDiscountDuration,
+                currentRound);
+
+            EmitLog($"{winner.Actor.Name}'s skill CP costs fall by {winner.Skill.counterSelfCPDiscount}.");
+            RefreshHud();
+            if (logLineDelay > 0f)
+                yield return new WaitForSeconds(logLineDelay);
+        }
+
+        yield return ApplyStatusCoroutine(
+            winner.Actor,
+            loser.Actor,
+            winner.Skill.counterApplyToOpponent,
+            winner.Skill.counterOpponentStatusStacks,
+            winner.Skill.counterOpponentStatusDurationType,
+            winner.Skill.counterOpponentStatusDuration);
+
+        yield return ApplyStatusCoroutine(
+            winner.Actor,
+            winner.Actor,
+            winner.Skill.counterApplyToSelf,
+            winner.Skill.counterSelfStatusStacks,
+            winner.Skill.counterSelfStatusDurationType,
+            winner.Skill.counterSelfStatusDuration);
+
+        if (winner.Skill.counterClearsOwnDebuffs)
+        {
+            int removed = winner.Actor.Statuses.ClearTemporaryDebuffs();
+            if (removed > 0)
+            {
+                EmitLog($"{winner.Actor.Name} clears {removed} temporary debuff(s).");
+                RefreshHud();
+                if (logLineDelay > 0f)
+                    yield return new WaitForSeconds(logLineDelay);
+            }
+        }
     }
 
     private void QueueActions(BattleAction playerAction, BattleAction enemyAction)
@@ -562,15 +626,16 @@ public class BattleManager : MonoBehaviour
         turnQueue.Enqueue(enemyAction.Actor.Instance, EffectivePriority(enemyAction));
     }
 
-    private static float CounterPriority(BattleAction action)
+    private float CounterPriority(BattleAction action)
     {
         return CounterPriorityBase + EffectivePriority(action);
     }
 
-    private static float EffectivePriority(BattleAction action)
+    private float EffectivePriority(BattleAction action)
     {
         int skillPriority = action.Skill != null ? action.Skill.priority : 0;
-        return skillPriority * 10000f + action.Actor.Instance.ClockSpeed;
+        skillPriority += action.Actor.Statuses.PriorityBonus(currentRound);
+        return skillPriority * 10000f + EffectiveStats(action.Actor).ClockSpeed;
     }
 
     private BattleAction ActionFor(AlgoMonInstance instance, BattleAction playerAction, BattleAction enemyAction)
@@ -593,22 +658,44 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
-        int cost = Mathf.Max(0, action.Skill.cpCost);
+        int cost = EffectiveSkillCost(action.Actor, action.Skill);
         if (!SpendCP(action.Actor, cost))
         {
             action.Actor.StatusText = "No CP";
-            EmitLog($"{action.Actor.Name} lacks CP for {SkillName(action.Skill)}.");
+            EmitLog($"{action.Actor.Name} lacks {cost} CP for {SkillName(action.Skill)}.");
             RefreshHud();
             if (logLineDelay > 0f)
                 yield return new WaitForSeconds(logLineDelay);
             yield break;
         }
 
+        int repeatCount = action.Actor.Statuses.SkillRepeatCount(currentRound);
+        action.Actor.Statuses.ConsumeSkillUseModifiers(currentRound);
+
         EmitLog($"{action.Actor.Name} uses {SkillName(action.Skill)}.");
         RefreshHud();
         if (logLineDelay > 0f)
             yield return new WaitForSeconds(logLineDelay);
 
+        for (int repeat = 0; repeat < repeatCount && phase != BattlePhase.BattleOver; repeat++)
+        {
+            if (repeat > 0)
+            {
+                EmitLog($"{SkillName(action.Skill)} repeats from Concurrent.");
+                RefreshHud();
+                if (logLineDelay > 0f)
+                    yield return new WaitForSeconds(logLineDelay);
+            }
+
+            yield return ResolveSkillEffectCoroutine(action);
+            TryFinishBattle();
+            if (action.Target.CurrentBattery <= 0)
+                yield break;
+        }
+    }
+
+    private IEnumerator ResolveSkillEffectCoroutine(BattleAction action)
+    {
         if (action.Skill.baseHealCPAmount > 0)
         {
             int restored = GainCP(action.Actor, action.Skill.baseHealCPAmount);
@@ -621,11 +708,15 @@ public class BattleManager : MonoBehaviour
             }
         }
 
+        yield return ApplyBaseStatusCoroutine(action);
+
         if (action.Skill.damageType != DamageType.None && action.Target.CurrentBattery > 0)
         {
             int damage = CombatResolver.ResolveDamage(
                 action.Actor.Instance,
                 action.Target.Instance,
+                EffectiveStats(action.Actor),
+                EffectiveStats(action.Target),
                 action.Skill,
                 action.DefenderInstructionType,
                 action.WonCounter,
@@ -650,20 +741,41 @@ public class BattleManager : MonoBehaviour
                         yield return new WaitForSeconds(logLineDelay);
                 }
             }
+
+            if (damage > 0 && action.Skill.onHitShredOpponentFirewall > 0f)
+            {
+                action.Target.Statuses.ApplyFirewallShred(
+                    action.Skill.onHitShredOpponentFirewall,
+                    action.Skill.onHitFirewallShredDurationType,
+                    action.Skill.onHitFirewallShredDuration,
+                    currentRound);
+
+                EmitLog($"{action.Target.Name}'s Firewall is shredded by {Mathf.RoundToInt(action.Skill.onHitShredOpponentFirewall * 100f)}% on hit.");
+                RefreshHud();
+                if (logLineDelay > 0f)
+                    yield return new WaitForSeconds(logLineDelay);
+            }
+
+            if (damage > 0)
+            {
+                yield return ApplyStatusCoroutine(
+                    action.Actor,
+                    action.Target,
+                    action.Skill.onHitApplyToOpponent,
+                    action.Skill.onHitOpponentStatusStacks,
+                    action.Skill.onHitOpponentStatusDurationType,
+                    action.Skill.onHitOpponentStatusDuration);
+            }
         }
         else
         {
-            // Status / Defense skills don't deal damage in #15. Narrate intent
-            // without claiming that status state has actually been applied.
             yield return NarrateNonDamageSkill(action);
         }
     }
 
     /// <summary>
-    /// Emits one or more descriptive lines for a Status / Defense skill that
-    /// dealt no damage. Reads SkillData but does not mutate combatant state
-    /// beyond what already happened (CP spend, optional baseHeal). Real status
-    /// and cooldown application lives in issues #16 and #17.
+    /// Emits narration for a Status / Defense skill after its issue #16 status
+    /// effects have already been applied.
     /// </summary>
     private IEnumerator NarrateNonDamageSkill(BattleAction action)
     {
@@ -676,23 +788,154 @@ public class BattleManager : MonoBehaviour
                 yield return new WaitForSeconds(logLineDelay);
         }
 
-        if (skill.baseStatusStacks > 0)
+        if (skill.instructionType == InstructionType.Status)
+            EmitLog($"{action.Actor.Name} runs {SkillName(skill)}.");
+    }
+
+    private IEnumerator ApplyBaseStatusCoroutine(BattleAction action)
+    {
+        SkillData skill = action.Skill;
+        if (skill.baseStatusStacks <= 0)
+            yield break;
+
+        BattleUnit target = skill.baseStatusTarget == StatusTarget.Self
+            ? action.Actor
+            : action.Target;
+
+        yield return ApplyStatusCoroutine(
+            action.Actor,
+            target,
+            skill.baseStatus,
+            skill.baseStatusStacks,
+            skill.baseStatusDurationType,
+            skill.baseStatusDuration);
+    }
+
+    private IEnumerator ApplyStatusCoroutine(
+        BattleUnit source,
+        BattleUnit target,
+        StatusType status,
+        int stacks,
+        StatusDurationType durationType,
+        int duration)
+    {
+        if (source == null || target == null || stacks <= 0)
+            yield break;
+
+        int before = target.Statuses.GetStacks(status);
+        BattleStatusSet.StatusApplyResult result = target.Statuses.ApplyStatus(
+            status,
+            stacks,
+            durationType,
+            duration,
+            currentRound,
+            source.Instance);
+
+        int after = result.FinalStacks;
+        if (result.AddedStacks <= 0 && after == before)
+            yield break;
+
+        EventBus.Publish(new StatusAppliedEvent
         {
-            string targetName = skill.baseStatusTarget == StatusTarget.Self
-                ? action.Actor.Name
-                : action.Target.Name;
-            string stackPart = skill.baseStatusStacks == 1 ? "1 stack" : $"{skill.baseStatusStacks} stacks";
-            EmitLog($"{SkillName(skill)} sets up {skill.baseStatus} pressure ({stackPart}) on {targetName}.");
-            if (logLineDelay > 0f)
-                yield return new WaitForSeconds(logLineDelay);
+            SourceId = source.Instance.nickname,
+            TargetId = target.Instance.nickname,
+            Status = status,
+            Stacks = result.AddedStacks,
+            DurationType = result.DurationType,
+            Duration = result.Duration
+        });
+
+        string stackPart = after == 1 ? "1 stack" : $"{after} stacks";
+        EmitLog($"{target.Name} gains {status} ({stackPart}).");
+        target.StatusText = status.ToString();
+        RefreshHud();
+        if (logLineDelay > 0f)
+            yield return new WaitForSeconds(logLineDelay);
+    }
+
+    private IEnumerator ResolveEndOfRoundStatusesCoroutine()
+    {
+        if (player != null && player.CurrentBattery > 0)
+            yield return TickUnitStatusesCoroutine(player);
+        TryFinishBattle();
+        if (phase == BattlePhase.BattleOver)
+            yield break;
+
+        if (enemy != null && enemy.CurrentBattery > 0)
+            yield return TickUnitStatusesCoroutine(enemy);
+        TryFinishBattle();
+        if (phase == BattlePhase.BattleOver)
+            yield break;
+
+        TickDurations(player);
+        TickDurations(enemy);
+        RefreshHud();
+    }
+
+    private IEnumerator TickUnitStatusesCoroutine(BattleUnit unit)
+    {
+        int burnStacks = unit.Statuses.GetStacks(StatusType.Burn);
+        if (burnStacks > 0)
+        {
+            int damage = Mathf.Max(1, Mathf.RoundToInt(unit.MaxBattery * unit.Statuses.BurnDamagePerLayer * burnStacks));
+            int actualDamage = DealStatusDamage(unit, damage);
+            int nextStacks = burnStacks / 2;
+            unit.Statuses.SetStacks(StatusType.Burn, nextStacks);
+
+            EmitLog($"{unit.Name} takes {actualDamage} Burn damage ({burnStacks} -> {nextStacks} stacks).");
+            unit.StatusText = "Burn";
+            RefreshHud();
+            if (damageLineDelay > 0f)
+                yield return new WaitForSeconds(damageLineDelay);
         }
+
+        int leechStacks = unit.Statuses.GetStacks(StatusType.Leech);
+        if (unit.CurrentBattery > 0 && leechStacks > 0)
+        {
+            int damage = Mathf.Max(1, Mathf.RoundToInt(unit.MaxBattery * unit.Statuses.LeechDamagePerLayer * leechStacks));
+            int actualDamage = DealStatusDamage(unit, damage);
+            BattleUnit source = UnitFor(unit.Statuses.GetSource(StatusType.Leech));
+            int restored = source != null ? HealBattery(source, actualDamage) : 0;
+
+            if (source != null && restored > 0)
+                EmitLog($"{unit.Name} loses {actualDamage} Battery to Leech; {source.Name} restores {restored}.");
+            else
+                EmitLog($"{unit.Name} loses {actualDamage} Battery to Leech.");
+
+            unit.StatusText = "Leech";
+            RefreshHud();
+            if (damageLineDelay > 0f)
+                yield return new WaitForSeconds(damageLineDelay);
+        }
+    }
+
+    private void TickDurations(BattleUnit unit)
+    {
+        if (unit == null)
+            return;
+
+        List<string> expired = unit.Statuses.TickDurations(currentRound);
+        for (int i = 0; i < expired.Count; i++)
+            EmitLog($"{unit.Name}'s {expired[i]} expires.");
+    }
+
+    private BattleStats EffectiveStats(BattleUnit unit)
+    {
+        return unit.Statuses.ApplyToStats(BattleStats.From(unit.Instance));
+    }
+
+    private int EffectiveSkillCost(BattleUnit unit, SkillData skill)
+    {
+        if (unit == null || skill == null)
+            return 0;
+        return unit.Statuses.EffectiveSkillCost(skill.cpCost, currentRound);
     }
 
     private bool CanPay(BattleUnit unit, SkillData skill)
     {
         if (unit == null || skill == null)
             return false;
-        return unit.CurrentCP >= Mathf.Max(0, skill.cpCost);
+        return unit.CurrentCP >= EffectiveSkillCost(unit, skill);
     }
 
     private static bool SpendCP(BattleUnit unit, int amount)
@@ -721,11 +964,29 @@ public class BattleManager : MonoBehaviour
         return drained;
     }
 
+    private static int DealStatusDamage(BattleUnit unit, int amount)
+    {
+        int actual = Mathf.Min(unit.CurrentBattery, Mathf.Max(0, amount));
+        unit.CurrentBattery = Mathf.Max(0, unit.CurrentBattery - actual);
+        return actual;
+    }
+
     private static int HealBattery(BattleUnit unit, int amount)
     {
         int before = unit.CurrentBattery;
         unit.CurrentBattery = Mathf.Clamp(unit.CurrentBattery + Mathf.Max(0, amount), 0, unit.MaxBattery);
         return unit.CurrentBattery - before;
+    }
+
+    private BattleUnit UnitFor(AlgoMonInstance instance)
+    {
+        if (instance == null)
+            return null;
+        if (player != null && ReferenceEquals(player.Instance, instance))
+            return player;
+        if (enemy != null && ReferenceEquals(enemy.Instance, instance))
+            return enemy;
+        return null;
     }
 
     private void TryFinishBattle()
@@ -772,12 +1033,12 @@ public class BattleManager : MonoBehaviour
         hud.SetCombatant(BattleHudController.Side.Player, player.Name, player.DisplayLevel);
         hud.SetBattery(BattleHudController.Side.Player, player.CurrentBattery, player.MaxBattery);
         hud.SetCP(BattleHudController.Side.Player, player.CurrentCP, MaxCP);
-        hud.SetStatus(BattleHudController.Side.Player, $"Status: {player.StatusText}");
+        hud.SetStatus(BattleHudController.Side.Player, $"Status: {FormatUnitStatus(player)}");
 
         hud.SetCombatant(BattleHudController.Side.Enemy, enemy.Name, enemy.DisplayLevel);
         hud.SetBattery(BattleHudController.Side.Enemy, enemy.CurrentBattery, enemy.MaxBattery);
         hud.SetCP(BattleHudController.Side.Enemy, enemy.CurrentCP, MaxCP);
-        hud.SetStatus(BattleHudController.Side.Enemy, $"Status: {enemy.StatusText}");
+        hud.SetStatus(BattleHudController.Side.Enemy, $"Status: {FormatUnitStatus(enemy)}");
 
         for (int i = 0; i < MaxSkillSlots; i++)
         {
@@ -800,8 +1061,8 @@ public class BattleManager : MonoBehaviour
         hud.SetActionButtonAvailable(BattleHudController.ActionButton.Flee, canAct);
 
         hud.SetActionHover(BattleHudController.ActionButton.Recharge, "Recharge", "+5 CP\nSpend the turn to restore CP.");
-        hud.SetActionHover(BattleHudController.ActionButton.Bag, "Bag", "Items are not part of issue #15 yet.");
-        hud.SetActionHover(BattleHudController.ActionButton.Switch, "Switch", "Party switching is not part of issue #15 yet.");
+        hud.SetActionHover(BattleHudController.ActionButton.Bag, "Bag", "Not yet implemented.");
+        hud.SetActionHover(BattleHudController.ActionButton.Switch, "Switch", "Not yet implemented.");
         hud.SetActionHover(BattleHudController.ActionButton.Flee, "Flee", "End this battle immediately.");
     }
 
@@ -824,10 +1085,13 @@ public class BattleManager : MonoBehaviour
         }
     }
 
-    private static string BuildSkillHover(BattleUnit unit, SkillData skill)
+    private string BuildSkillHover(BattleUnit unit, SkillData skill)
     {
         var line = new StringBuilder();
-        line.Append($"CP {Mathf.Max(0, skill.cpCost)}");
+        int cost = EffectiveSkillCost(unit, skill);
+        line.Append($"CP {cost}");
+        if (cost != Mathf.Max(0, skill.cpCost))
+            line.Append($" (base {Mathf.Max(0, skill.cpCost)})");
 
         if (skill.basePower > 0)
             line.Append($" | PWR {skill.basePower}");
@@ -838,9 +1102,9 @@ public class BattleManager : MonoBehaviour
             ? string.Empty
             : skill.description.Trim();
 
-        if (unit.CurrentCP < skill.cpCost)
+        if (unit.CurrentCP < cost)
         {
-            int missing = skill.cpCost - unit.CurrentCP;
+            int missing = cost - unit.CurrentCP;
             return $"{line}\nNeeds {missing} more CP.\n{body}".Trim();
         }
 
@@ -854,6 +1118,16 @@ public class BattleManager : MonoBehaviour
         if (skill == null || string.IsNullOrWhiteSpace(skill.skillName))
             return "Skill";
         return skill.skillName.Trim();
+    }
+
+    private static string FormatUnitStatus(BattleUnit unit)
+    {
+        string summary = unit.Statuses.BuildSummary();
+        if (string.IsNullOrEmpty(summary))
+            return unit.StatusText;
+        if (unit.StatusText == "Ready")
+            return summary;
+        return $"{unit.StatusText} | {summary}";
     }
 
     private void SetDetail(string title, string body)
