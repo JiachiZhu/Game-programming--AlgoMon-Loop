@@ -25,6 +25,7 @@ The originally planned window was Apr 26 – May 2 (one week). Two factors stret
 | #15 | [Battle] Implement BattleManager — turn loop, ASD check, CP management, damage | ✅ Done |
 | #16 | [Battle] Implement status effect tick system | ✅ Done |
 | #17 | [Battle] Implement defense cooldown and Subroutine basic triggers | Done |
+| #18 | [Polish] Add basic battle presentation feedback | Pending |
 
 ### #14 — Acceptance criteria (from issue tracker)
 
@@ -63,6 +64,7 @@ could not cleanly express several SkillPool entries. Documented in `BattleDesign
 - **TheGrid DAG generator** is deliberately deferred to Sprint 3. Arena battle loop is the critical path; Grid depends on a working battle to be meaningful.
 - **Full animation system** (coroutine-based sprite tweens) is a stretch goal for this sprint — basic functional battle takes priority over visual polish.
 - **SubroutineData logic** (BattleManager reading and applying subroutine effects) is included in #17 for `OnBattleStart` and `OnCounterWin` triggers only; remaining triggers deferred.
+- **Battle presentation polish** is included as #18 after #17: background, floating feedback numbers, hit flash/shake, Battery / CP interpolation, and lightweight status feedback. Full skill-specific VFX remains deferred.
 - Former "special case" skills now resolve through generic `SkillData` fields read by BattleManager. No skill-name-specific BattleManager branches are expected for Ignite Loop, Short Circuit, Absolute Zero Crash, Safe Mode, Sleep Thread, or Spore Script.
 
 ## Issue Dependency Order
