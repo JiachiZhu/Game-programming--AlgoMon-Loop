@@ -24,8 +24,8 @@ The originally planned window was Apr 26 – May 2 (one week). Two factors stret
 | #14 | [Arena] Create TheArena scene and battle UI layout | ✅ Done |
 | #15 | [Battle] Implement BattleManager — turn loop, ASD check, CP management, damage | ✅ Done |
 | #16 | [Battle] Implement status effect tick system | ✅ Done |
-| #17 | [Battle] Implement defense cooldown and Subroutine basic triggers | 鉁?Done |
-| #18 | [Polish] Add basic battle presentation feedback | 鉁?Done |
+| #17 | [Battle] Implement defense cooldown and Subroutine basic triggers | ✅ Done |
+| #18 | [Polish] Add basic battle presentation feedback | ✅ Done |
 
 ### #14 — Acceptance criteria (from issue tracker)
 
