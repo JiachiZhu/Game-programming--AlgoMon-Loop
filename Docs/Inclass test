@@ -1,0 +1,55 @@
+# Project Snapshot
+
+## Title
+
+**AlgoMon Loop**
+
+## One-sentence Idea
+
+A 2D cyber monster-battler roguelite where the player hacks through a procedural data network, captures algorithmic creatures, and uses tactical turn-based battles to become stronger.
+
+## Player Action
+
+The player repeatedly chooses paths on a node network, enters battles, selects Attack / Status / Defense skills, manages HP and CP, captures or upgrades AlgoMons, and builds a stronger team.
+
+## Unity Format
+
+2D game; top-down / node-map style for exploration, with side-view tactical battle screens.
+
+---
+
+# Activity 1: Individual Project Snapshot
+
+## Vertical Slice
+
+A playable slice will include one small node-map route, one enemy encounter, one complete turn-based battle, and a simple win/lose result screen.
+
+The player should be able to choose a path, fight with one AlgoMon, use Attack / Status / Defense skills, manage CP, and finish the battle.
+
+## Core Systems
+
+The first systems I need are:
+
+- Node-map selection system
+- AlgoMon data system using ScriptableObjects
+- Skill and CP system
+- Turn-order priority queue
+- ASD counter system
+- Battle manager
+- Basic battle UI for HP, CP, skill buttons, and feedback text
+
+## GitHub Status
+
+Repository already created:
+
+[https://github.com/JiachiZhu/Game-programming--AlgoMon-Loop.git](https://github.com/JiachiZhu/Game-programming--AlgoMon-Loop.git)
+
+## Biggest Risk
+
+The biggest risk is that the battle system may become too complex because it includes turn priority, CP costs, elemental matchups, and Attack / Status / Defense counters.
+
+To reduce this risk, I will build the smallest playable battle first, then add extra skills, status effects, and roguelite systems later.
+
+## Next Action
+
+Before the next session, I will create a visible playable battle prototype in Unity with one player AlgoMon, one enemy AlgoMon, HP/CP displays, and basic Attack / Status / Defense buttons.
