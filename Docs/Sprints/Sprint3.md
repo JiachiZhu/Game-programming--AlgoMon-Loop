@@ -31,7 +31,7 @@ triggers, instead of extending the sprint window.
 
 | # | Title | Status |
 |---|---|---|
-| #19 | [Grid] Implement DAG generator with layered topology and reachability validation | Planned |
+| #19 | [Grid] Implement DAG generator with layered topology and reachability validation | Done |
 | #20 | [Grid] Create TheGrid scene and node selection UI | Planned |
 | #21 | [Flow] Wire scene transitions from MainTerminal to TheGrid to TheArena | Planned |
 | #22 | [Menu] Create MainTerminal scene v1 with Start Run and party preview | Planned |
@@ -65,13 +65,13 @@ guarantee that the Boss node is reachable.
 
 **Acceptance Criteria**
 
-- [ ] Generate a layered node graph with one Start node, several intermediate route layers, and one Boss node.
-- [ ] Assign node types using Sprint 3 defaults: Combat, Elite, Rest, Shop slot, and Boss.
-- [ ] Create directed edges only from earlier layers to later layers; no backward edges or cycles.
-- [ ] Ensure every reachable non-final node has at least one outgoing edge.
-- [ ] Validate Boss reachability after generation.
-- [ ] Regenerate or repair the graph if validation fails.
-- [ ] Add a short `Docs/GridDesign.md` note covering graph schema, parameters, and validation rules.
+- [x] Generate a layered node graph with one Start node, several intermediate route layers, and one Boss node.
+- [x] Assign node types using Sprint 3 defaults: Combat, Elite, Rest, Shop slot, and Boss.
+- [x] Create directed edges only from earlier layers to later layers; no backward edges or cycles.
+- [x] Ensure every reachable non-final node has at least one outgoing edge.
+- [x] Validate Boss reachability after generation.
+- [x] Regenerate or repair the graph if validation fails.
+- [x] Add a short `Docs/GridDesign.md` note covering graph schema, parameters, and validation rules.
 
 **Scope Notes**
 

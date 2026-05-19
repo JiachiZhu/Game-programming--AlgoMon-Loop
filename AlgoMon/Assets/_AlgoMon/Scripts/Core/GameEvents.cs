@@ -80,7 +80,7 @@ public enum StatusTarget { Self, Opponent }
 ///                  Use StatusDuration field to set the turn count.
 /// </summary>
 public enum StatusDurationType { Permanent, WhileOnField, Turns }
-public enum NodeType   { Combat, Elite, Rest, Shop, Boss }
+public enum NodeType   { Combat, Elite, Rest, Shop, Boss, Start }
 public enum GameScene  { MainTerminal, TheGrid, TheArena, TheLab }
 
 /// <summary>
