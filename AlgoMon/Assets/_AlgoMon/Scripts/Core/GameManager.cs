@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -26,6 +27,9 @@ public class GameManager : MonoBehaviour
 
     [Header("Run State")]
     public string currentNodeId;
+    public int currentRunSeed;
+    public GridGraph currentRunGraph;
+    public List<string> visitedNodeIds = new List<string>();
     public AlgoMonInstance currentOpponent;
     public bool IsRunActive { get; private set; }
 
@@ -82,16 +86,75 @@ public class GameManager : MonoBehaviour
 
     public void BeginRun()
     {
+        int seed = (int)(DateTime.UtcNow.Ticks & int.MaxValue);
+        BeginRun(seed);
+    }
+
+    public void BeginRun(int seed)
+    {
+        BeginRun(seed, null);
+    }
+
+    public void BeginRun(int seed, GridGenerationSettings gridSettings)
+    {
+        GridGraph graph = new GridGenerator(gridSettings).Generate(seed);
+
         IsRunActive = true;
-        currentNodeId = string.Empty;
+        currentRunSeed = seed;
+        currentRunGraph = graph;
+        currentNodeId = graph.startNodeId;
+        visitedNodeIds.Clear();
+        visitedNodeIds.Add(currentNodeId);
         currentOpponent = null;
     }
 
     public void EndRun()
     {
         IsRunActive = false;
+        currentRunSeed = 0;
+        currentRunGraph = null;
         currentNodeId = string.Empty;
+        visitedNodeIds.Clear();
         currentOpponent = null;
+    }
+
+    public bool TrySelectRunNode(string nodeId)
+    {
+        if (!IsNodeAvailable(nodeId))
+            return false;
+
+        currentNodeId = nodeId;
+        if (!visitedNodeIds.Contains(nodeId))
+            visitedNodeIds.Add(nodeId);
+        return true;
+    }
+
+    public List<string> GetAvailableNodeIds()
+    {
+        if (currentRunGraph == null || string.IsNullOrEmpty(currentNodeId))
+            return new List<string>();
+
+        GridNode current = currentRunGraph.GetNode(currentNodeId);
+        if (current == null || current.outgoingNodeIds == null)
+            return new List<string>();
+
+        return new List<string>(current.outgoingNodeIds);
+    }
+
+    public bool IsNodeAvailable(string nodeId)
+    {
+        if (currentRunGraph == null || string.IsNullOrEmpty(nodeId))
+            return false;
+        if (currentRunGraph.GetNode(nodeId) == null)
+            return false;
+
+        List<string> available = GetAvailableNodeIds();
+        return available.Contains(nodeId);
+    }
+
+    public bool IsNodeVisited(string nodeId)
+    {
+        return !string.IsNullOrEmpty(nodeId) && visitedNodeIds.Contains(nodeId);
     }
 
     public AlgoMonInstance RegisterCapture(AlgoMonInstance mon)

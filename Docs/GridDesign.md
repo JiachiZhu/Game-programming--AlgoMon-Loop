@@ -103,6 +103,10 @@ before the Boss, and no unreachable UI nodes.
 - #19 owns only the data layer.
 - #20 should draw nodes by `(layer, indexInLayer)` and use
   `outgoingNodeIds` to decide which next nodes are selectable.
+- `GameManager.BeginRun()` creates and stores `currentRunGraph`, sets
+  `currentNodeId` to the Start node, and initializes `visitedNodeIds`.
+- #20 should call `GameManager.TrySelectRunNode(nodeId)` for clicks instead of
+  writing `currentNodeId` directly. The method rejects locked nodes.
 - `NodeType.Shop` can appear in generated maps now, but selecting it should use
   placeholder behavior until Shop logic is scheduled.
 - Boss victory and run-end behavior are handled by #21/#24, not by the graph.
