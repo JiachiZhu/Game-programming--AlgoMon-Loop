@@ -49,3 +49,9 @@ To reduce this risk, I will build the smallest playable battle first, then add e
 ## Next Action
 
 Before the next session, I will create a visible playable battle prototype in Unity with one player AlgoMon, one enemy AlgoMon, HP/CP displays, and basic Attack / Status / Defense buttons.
+
+## Peer Feedback
+
+The feedback I received was that animation may be difficult to produce, sprite balance may be hard to manage, and networking / multiplayer would be challenging to implement.
+
+Based on this feedback, I will keep the first version focused on single-player gameplay, use simple sprite animations first, and avoid multiplayer until the core battle loop is working.
