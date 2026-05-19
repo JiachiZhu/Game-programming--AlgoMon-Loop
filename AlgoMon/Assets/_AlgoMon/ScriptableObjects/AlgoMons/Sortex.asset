@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52e9ccf343b77c24db2e972f38545ab6, type: 3}
+  m_Name: Sortex
+  m_EditorClassIdentifier: 
+  codeName: Sortex
+  description: Electric computing AlgoMon built for fast branch decisions and burst
+    execution.
+  portrait: {fileID: 0}
+  elementType: 5
+  subroutine: {fileID: 11400000, guid: 64a8f151104d48bfbd0bebfb613a5ee8, type: 2}
+  learnset:
+  - skill: {fileID: 11400000, guid: 3ebae1e5616cd334698ffac208b9a25c, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: 26ad67cd39d198d47aba3473762e8afc, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: 170701e8e8bb35441923a0612ab9cc42, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: 15473d759b4c8414e91248bee37fe137, type: 2}
+    unlockLevel: 10
+  - skill: {fileID: 11400000, guid: 38b4ce1fbc7115a4da28120042a64c99, type: 2}
+    unlockLevel: 20
+  - skill: {fileID: 11400000, guid: af157879fe6c8e645b1914cd32aac8ed, type: 2}
+    unlockLevel: 30

@@ -27,6 +27,7 @@ public class GameManager : MonoBehaviour
     [Header("Run State")]
     public string currentNodeId;
     public AlgoMonInstance currentOpponent;
+    public bool IsRunActive { get; private set; }
 
     // ----------------------------------------------------------------
 
@@ -74,6 +75,34 @@ public class GameManager : MonoBehaviour
     public void RemoveFromParty(AlgoMonInstance mon)
     {
         party.Remove(mon);
+    }
+
+    // ----------------------------------------------------------------
+    // Run lifecycle
+
+    public void BeginRun()
+    {
+        IsRunActive = true;
+        currentNodeId = string.Empty;
+        currentOpponent = null;
+    }
+
+    public void EndRun()
+    {
+        IsRunActive = false;
+        currentNodeId = string.Empty;
+        currentOpponent = null;
+    }
+
+    public AlgoMonInstance RegisterCapture(AlgoMonInstance mon)
+    {
+        if (mon == null)
+            return null;
+
+        AlgoMonInstance captured = mon.Clone();
+        captured.EnsureKnownSkillsFromLearnset();
+        AddToPayload(captured);
+        return captured;
     }
 
     // ----------------------------------------------------------------

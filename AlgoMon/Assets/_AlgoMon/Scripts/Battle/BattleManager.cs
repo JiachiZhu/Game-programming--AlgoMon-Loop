@@ -234,6 +234,7 @@ public class BattleManager : MonoBehaviour
     }
 
     [SerializeField] private BattleHudController hud;
+    [SerializeField] private BattlePresentationController presentation;
     [SerializeField] private SkillData rechargeSkill;
 
     [Header("Player")]
@@ -300,6 +301,8 @@ public class BattleManager : MonoBehaviour
     {
         if (hud == null)
             hud = FindObjectOfType<BattleHudController>();
+        if (presentation == null)
+            presentation = FindObjectOfType<BattlePresentationController>();
     }
 
     private void Start()
@@ -353,8 +356,9 @@ public class BattleManager : MonoBehaviour
         DestroyTransientData();
         battleLogLines.Clear();
 
-        player = CreateUnit(playerConfig);
-        enemy = CreateUnit(enemyConfig);
+        player = CreateUnit(playerConfig, ResolveRunPlayerInstance());
+        enemy = CreateUnit(enemyConfig, ResolveRunOpponentInstance());
+        RegisterPresentationCombatants();
         currentRound = 1;
         battleEndPublished = false;
         phase = BattlePhase.Resolving;
@@ -474,7 +478,30 @@ public class BattleManager : MonoBehaviour
         hud.ActionClicked += HandleActionClicked;
     }
 
-    private BattleUnit CreateUnit(BattleCombatantConfig config)
+    private AlgoMonInstance ResolveRunPlayerInstance()
+    {
+        GameManager manager = GameManager.Instance;
+        if (manager == null || manager.party == null || manager.party.Count == 0)
+            return null;
+
+        return manager.party[0];
+    }
+
+    private AlgoMonInstance ResolveRunOpponentInstance()
+    {
+        GameManager manager = GameManager.Instance;
+        return manager != null ? manager.currentOpponent : null;
+    }
+
+    private BattleUnit CreateUnit(BattleCombatantConfig config, AlgoMonInstance runtimeInstance)
+    {
+        if (runtimeInstance != null && runtimeInstance.data != null)
+            return new BattleUnit(BuildRuntimeConfig(config, runtimeInstance), runtimeInstance);
+
+        return CreateFallbackUnit(config);
+    }
+
+    private BattleUnit CreateFallbackUnit(BattleCombatantConfig config)
     {
         AlgoMonData data = ScriptableObject.CreateInstance<AlgoMonData>();
         data.codeName = config.displayName;
@@ -508,7 +535,58 @@ public class BattleManager : MonoBehaviour
         return new BattleUnit(config, instance);
     }
 
+    private static BattleCombatantConfig BuildRuntimeConfig(BattleCombatantConfig fallback, AlgoMonInstance instance)
+    {
+        instance.EnsureKnownSkillsFromLearnset();
+        string displayName = DisplayNameFor(instance);
+        if (string.IsNullOrWhiteSpace(instance.nickname))
+            instance.nickname = displayName;
+
+        var config = new BattleCombatantConfig
+        {
+            displayName = displayName,
+            displayLevel = Mathf.Clamp(instance.level, 1, AlgoMonInstance.MAX_LEVEL),
+            elementType = instance.data.elementType,
+            maxBattery = Mathf.Max(1, instance.Battery),
+            clockSpeed = Mathf.Max(1, instance.ClockSpeed),
+            computingPower = Mathf.Max(1, instance.ComputingPower),
+            throughput = Mathf.Max(1, instance.Throughput),
+            firewall = Mathf.Max(1, instance.Firewall),
+            encryption = Mathf.Max(1, instance.Encryption),
+            startingCP = fallback != null ? fallback.startingCP : 5,
+            subroutine = instance.data.subroutine,
+            skills = new SkillData[MaxSkillSlots]
+        };
+
+        if (instance.knownSkills != null)
+        {
+            for (int i = 0; i < instance.knownSkills.Count && i < MaxSkillSlots; i++)
+                config.skills[i] = instance.knownSkills[i];
+        }
+
+        return config;
+    }
+
+    private void RegisterPresentationCombatants()
+    {
+        if (presentation == null || player == null || enemy == null)
+            return;
+
+        presentation.RegisterCombatants(player.Instance.nickname, enemy.Instance.nickname);
+    }
+
     private static int ClampStat(int value) => Mathf.Clamp(value, 1, 255);
+
+    private static string DisplayNameFor(AlgoMonInstance instance)
+    {
+        if (instance == null)
+            return "AlgoMon";
+        if (!string.IsNullOrWhiteSpace(instance.nickname))
+            return instance.nickname.Trim();
+        if (instance.data != null && !string.IsNullOrWhiteSpace(instance.data.codeName))
+            return instance.data.codeName.Trim();
+        return "AlgoMon";
+    }
 
     private void HandleSkillSlotClicked(int slotIndex)
     {

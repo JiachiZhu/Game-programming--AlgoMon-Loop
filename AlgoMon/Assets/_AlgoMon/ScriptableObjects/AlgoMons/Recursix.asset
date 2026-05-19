@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52e9ccf343b77c24db2e972f38545ab6, type: 3}
+  m_Name: Recursix
+  m_EditorClassIdentifier: 
+  codeName: Recursix
+  description: Grass throughput AlgoMon that grows pressure through recursive access
+    and drain loops.
+  portrait: {fileID: 0}
+  elementType: 3
+  subroutine: {fileID: 11400000, guid: 3706d1f1ffe54481be52239b40fd5d49, type: 2}
+  learnset:
+  - skill: {fileID: 11400000, guid: 4b2a0fee22b1d47479531a48147b3caa, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: 8668f4ebc0156ed4c85918c789fa77c5, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: cd159c5b52f19904e895a896768cc8f6, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: a12a04847c1821140b9f200b5e7710dd, type: 2}
+    unlockLevel: 10
+  - skill: {fileID: 11400000, guid: eb3058f207321ef49ad2ddfce13e72fd, type: 2}
+    unlockLevel: 20
+  - skill: {fileID: 11400000, guid: 591434ece3c6799438bc4ae07c5fb492, type: 2}
+    unlockLevel: 30

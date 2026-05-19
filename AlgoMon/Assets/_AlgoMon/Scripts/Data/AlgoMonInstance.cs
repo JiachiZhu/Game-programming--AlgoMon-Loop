@@ -64,6 +64,55 @@ public class AlgoMonInstance
         return newSkills;
     }
 
+    /// <summary>
+    /// Fills empty active skill slots from every learnset entry already unlocked.
+    /// Useful when a runtime instance is created from a species asset.
+    /// </summary>
+    public void EnsureKnownSkillsFromLearnset()
+    {
+        if (data == null || data.learnset == null)
+            return;
+
+        if (knownSkills == null)
+            knownSkills = new List<SkillData>();
+
+        foreach (LearnsetEntry entry in data.learnset)
+        {
+            if (knownSkills.Count >= MaxSkillSlots)
+                return;
+            if (entry.skill == null || entry.unlockLevel > level)
+                continue;
+            if (knownSkills.Contains(entry.skill))
+                continue;
+
+            knownSkills.Add(entry.skill);
+        }
+    }
+
+    /// <summary>
+    /// Copies persistent capture data without sharing mutable runtime lists.
+    /// ScriptableObject references remain shared read-only blueprints.
+    /// </summary>
+    public AlgoMonInstance Clone()
+    {
+        return new AlgoMonInstance
+        {
+            data = data,
+            nickname = nickname,
+            iv_Battery = iv_Battery,
+            iv_ClockSpeed = iv_ClockSpeed,
+            iv_ComputingPower = iv_ComputingPower,
+            iv_Throughput = iv_Throughput,
+            iv_Firewall = iv_Firewall,
+            iv_Encryption = iv_Encryption,
+            level = level,
+            exp = exp,
+            knownSkills = knownSkills != null
+                ? new List<SkillData>(knownSkills)
+                : new List<SkillData>()
+        };
+    }
+
     // --- Computed Stats ---
     public int Battery        => Calc(iv_Battery);
     public int ClockSpeed     => Calc(iv_ClockSpeed);

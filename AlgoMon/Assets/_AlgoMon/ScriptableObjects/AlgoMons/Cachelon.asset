@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52e9ccf343b77c24db2e972f38545ab6, type: 3}
+  m_Name: Cachelon
+  m_EditorClassIdentifier: 
+  codeName: Cachelon
+  description: Ice throughput AlgoMon that slows execution and locks enemy scheduling
+    windows.
+  portrait: {fileID: 0}
+  elementType: 4
+  subroutine: {fileID: 11400000, guid: 46913262e27b48b3a079228055fc0923, type: 2}
+  learnset:
+  - skill: {fileID: 11400000, guid: 013381306a00c6649b6d6fdbff59e889, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: e5491a4e16b9f8046bc7ee6fec42e1ed, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: cd159c5b52f19904e895a896768cc8f6, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: 5933bdf1d731d4045bec37b3e22d94e7, type: 2}
+    unlockLevel: 10
+  - skill: {fileID: 11400000, guid: f10e08126042a27459fb6bf08051bbf5, type: 2}
+    unlockLevel: 20
+  - skill: {fileID: 11400000, guid: 557e2ef4c2a9ae7439018765d058cb50, type: 2}
+    unlockLevel: 30

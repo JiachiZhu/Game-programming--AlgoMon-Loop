@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52e9ccf343b77c24db2e972f38545ab6, type: 3}
+  m_Name: Heapion
+  m_EditorClassIdentifier: 
+  codeName: Heapion
+  description: Ground computing AlgoMon with heavy hardware pressure and durable
+    kernel defenses.
+  portrait: {fileID: 0}
+  elementType: 6
+  subroutine: {fileID: 11400000, guid: d9176214ba3245b1a14ec35e68b158ed, type: 2}
+  learnset:
+  - skill: {fileID: 11400000, guid: 962fe57b15cf4c645a27aca46e8adb96, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: 63e557138aae58b43a081766e5ada7fa, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: 170701e8e8bb35441923a0612ab9cc42, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: 30be65e3cd3ae194ba62f9a008504329, type: 2}
+    unlockLevel: 10
+  - skill: {fileID: 11400000, guid: 60b86471a65722740ac0d5bf079f1314, type: 2}
+    unlockLevel: 20
+  - skill: {fileID: 11400000, guid: 116628e3488b3d6439be0ad778d6a9d0, type: 2}
+    unlockLevel: 30

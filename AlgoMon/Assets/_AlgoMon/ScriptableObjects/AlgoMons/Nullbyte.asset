@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 52e9ccf343b77c24db2e972f38545ab6, type: 3}
+  m_Name: Nullbyte
+  m_EditorClassIdentifier: 
+  codeName: Nullbyte
+  description: Water throughput AlgoMon that floods channels and recovers value from
+    data flow.
+  portrait: {fileID: 0}
+  elementType: 1
+  subroutine: {fileID: 11400000, guid: 9f9f5848183f46d18fd9101be4fc9efe, type: 2}
+  learnset:
+  - skill: {fileID: 11400000, guid: 1ae61e8184b014e439c35de246ef8186, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: c61eb195f3fcfce418baabf84b802e99, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: cd159c5b52f19904e895a896768cc8f6, type: 2}
+    unlockLevel: 1
+  - skill: {fileID: 11400000, guid: 1a58a1b81a0b2c44287508895b127c5e, type: 2}
+    unlockLevel: 10
+  - skill: {fileID: 11400000, guid: d50cc7953fa03354dae26a4fa19ef6fa, type: 2}
+    unlockLevel: 20
+  - skill: {fileID: 11400000, guid: a0e0cc14823e1d94d8cadca4bc098178, type: 2}
+    unlockLevel: 30

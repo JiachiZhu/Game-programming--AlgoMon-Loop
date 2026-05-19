@@ -89,6 +89,14 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    public void RegisterCombatants(string playerCombatantId, string enemyCombatantId)
+    {
+        if (!string.IsNullOrWhiteSpace(playerCombatantId))
+            playerId = playerCombatantId;
+        if (!string.IsNullOrWhiteSpace(enemyCombatantId))
+            enemyId = enemyCombatantId;
+    }
+
     private void OnDamage(DamageEvent evt)
     {
         BattleSpriteAnimator target = AnimatorFor(evt.TargetId);
