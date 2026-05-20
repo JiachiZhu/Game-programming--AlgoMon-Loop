@@ -178,8 +178,8 @@ public sealed class GridGenerator
     {
         int totalWeight = settings.combatWeight
             + settings.eliteWeight
-            + settings.restWeight
-            + settings.shopWeight;
+            + settings.shopWeight
+            + settings.rebootWeight;
 
         if (totalWeight <= 0)
             return NodeType.Combat;
@@ -193,10 +193,10 @@ public sealed class GridGenerator
             return NodeType.Elite;
         roll -= settings.eliteWeight;
 
-        if (roll < settings.restWeight)
-            return NodeType.Rest;
+        if (roll < settings.shopWeight)
+            return NodeType.Shop;
 
-        return NodeType.Shop;
+        return NodeType.Reboot;
     }
 
     private List<T> Shuffled<T>(IReadOnlyList<T> source)

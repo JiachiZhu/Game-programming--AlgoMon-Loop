@@ -18,8 +18,8 @@ public class GridGenerationSettings
     [Header("Node Type Weights")]
     [Min(0)] public int combatWeight = 70;
     [Min(0)] public int eliteWeight = 15;
-    [Min(0)] public int restWeight = 10;
-    [Min(0)] public int shopWeight = 5;
+    [Min(0)] public int shopWeight = 10;
+    [Min(0)] public int rebootWeight = 5;
 
     public GridGenerationSettings CloneNormalized()
     {
@@ -33,8 +33,8 @@ public class GridGenerationSettings
             maxGenerationAttempts = Mathf.Max(1, maxGenerationAttempts),
             combatWeight = Mathf.Max(0, combatWeight),
             eliteWeight = Mathf.Max(0, eliteWeight),
-            restWeight = Mathf.Max(0, restWeight),
-            shopWeight = Mathf.Max(0, shopWeight)
+            shopWeight = Mathf.Max(0, shopWeight),
+            rebootWeight = Mathf.Max(0, rebootWeight)
         };
     }
 }

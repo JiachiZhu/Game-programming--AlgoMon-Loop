@@ -22,7 +22,7 @@ this graph.
 | `id` | Stable string id. Current format is `start`, `L{layer}N{index}`, `boss`. |
 | `layer` | Integer depth. Edges must point to a higher layer. |
 | `indexInLayer` | Stable sort position for future UI layout. |
-| `nodeType` | `Start`, `Combat`, `Elite`, `Rest`, `Shop`, or `Boss`. |
+| `nodeType` | Active values are `Start`, `Combat`, `Elite`, `Shop`, `Reboot`, and `Boss`. `Rest` is kept only as a legacy enum value for serialized compatibility. |
 | `outgoingNodeIds` | Forward outgoing edges by node id. No reverse edges are stored. |
 
 Reverse links are intentionally omitted. Reachability checks use temporary BFS
@@ -42,8 +42,8 @@ Defaults live in `GridGenerationSettings`.
 | `maxGenerationAttempts` | 10 | Regenerate retry cap if validation fails. |
 | `combatWeight` | 70 | Intermediate node type weight. |
 | `eliteWeight` | 15 | Intermediate node type weight. |
-| `restWeight` | 10 | Intermediate node type weight. |
-| `shopWeight` | 5 | Reserved slot; Shop behavior is out of Sprint 3 scope. |
+| `shopWeight` | 10 | Reserved slot; Shop behavior is out of Sprint 3 scope. |
+| `rebootWeight` | 5 | Route-control node; from Reboot, Start becomes an optional target while visited nodes are preserved. |
 
 The generator uses `System.Random(seed)`, not `UnityEngine.Random`, so the same
 seed and settings produce the same graph.
@@ -61,7 +61,7 @@ Generate(seed):
 
     create nodes
       start node type = Start
-      intermediate node type = weighted Combat / Elite / Rest / Shop
+      intermediate node type = weighted Combat / Elite / Shop / Reboot
       final node type = Boss
 
     for each adjacent layer pair:
@@ -107,6 +107,17 @@ before the Boss, and no unreachable UI nodes.
   `currentNodeId` to the Start node, and initializes `visitedNodeIds`.
 - #20 should call `GameManager.TrySelectRunNode(nodeId)` for clicks instead of
   writing `currentNodeId` directly. The method rejects locked nodes.
+- TheGrid should not silently create production run state. Any direct-scene
+  fallback run or New Run button is editor-debug only and disabled by default;
+  #22 owns normal run creation from MainTerminal.
+- Rest nodes are intentionally not generated. Battle encounters start from
+  full per-battle Battery/CP runtime state, keeping the route map focused on
+  encounter choice rather than attrition management.
 - `NodeType.Shop` can appear in generated maps now, but selecting it should use
   placeholder behavior until Shop logic is scheduled.
+- `NodeType.Reboot` is not a stored backward graph edge. Selecting a Reboot
+  node moves the cursor there normally. While the cursor is on Reboot,
+  `GameManager.GetAvailableNodeIds()` adds `startNodeId` as an extra optional
+  target alongside the node's normal outgoing edges. Previously visited nodes
+  should not repeat rewards or battles when routed through again.
 - Boss victory and run-end behavior are handled by #21/#24, not by the graph.

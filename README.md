@@ -27,7 +27,18 @@ The exploration layer is a pure UI route-selection graph, with no walking or rea
 | Path connectivity | Topological sort + reachability validation | O(V + E) |
 | State separation | Tactical Chips (session) vs. Payload (persistent) | — |
 
-A DAG guarantees the player always has a valid route to the Boss node, while preventing backward loops that would break roguelite progression.
+A DAG guarantees the player always has a valid route to the Boss node, while preventing graph-level backward loops that would break roguelite progression. Reboot nodes are a controlled exception in run state only: from a Reboot node, the player may either continue forward or return the route cursor to Start while preserving visited nodes.
+
+| Node Type | Icon Role | Gameplay Meaning |
+|---|---|---|
+| Start | Terminal | Entry point into the run network. |
+| Combat | Sword | Standard battle encounter. |
+| Elite | Sword | Harder battle encounter. |
+| Shop | CPU | Trading node; separate from Reboot/reset logic. |
+| Reboot | Refresh | Route-control node that offers an optional return to Start without clearing visited nodes. |
+| Boss | Double swords | Final run encounter. |
+
+Each battle encounter starts its combatants at full Battery and their configured starting CP. The Grid does not use attrition/rest-stop pacing; route choices are meant to shape encounter order and options, not punish players for conserving resources between fights.
 
 ### 2. The Arena — Priority-Based Combat Engine
 A 2D side-view tactical battle system. Skills are packaged as executable data instructions, not magic spells.

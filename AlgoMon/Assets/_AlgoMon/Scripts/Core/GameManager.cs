@@ -123,9 +123,10 @@ public class GameManager : MonoBehaviour
         if (!IsNodeAvailable(nodeId))
             return false;
 
-        currentNodeId = nodeId;
         if (!visitedNodeIds.Contains(nodeId))
             visitedNodeIds.Add(nodeId);
+
+        currentNodeId = nodeId;
         return true;
     }
 
@@ -138,7 +139,15 @@ public class GameManager : MonoBehaviour
         if (current == null || current.outgoingNodeIds == null)
             return new List<string>();
 
-        return new List<string>(current.outgoingNodeIds);
+        var available = new List<string>(current.outgoingNodeIds);
+        if (current.nodeType == NodeType.Reboot &&
+            !string.IsNullOrEmpty(currentRunGraph.startNodeId) &&
+            !available.Contains(currentRunGraph.startNodeId))
+        {
+            available.Add(currentRunGraph.startNodeId);
+        }
+
+        return available;
     }
 
     public bool IsNodeAvailable(string nodeId)

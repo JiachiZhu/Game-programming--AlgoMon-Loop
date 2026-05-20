@@ -32,7 +32,7 @@ triggers, instead of extending the sprint window.
 | # | Title | Status |
 |---|---|---|
 | #19 | [Grid] Implement DAG generator with layered topology and reachability validation | Done |
-| #20 | [Grid] Create TheGrid scene and node selection UI | Planned |
+| #20 | [Grid] Create TheGrid scene and node selection UI | Done |
 | #21 | [Flow] Wire scene transitions from MainTerminal to TheGrid to TheArena | Planned |
 | #22 | [Menu] Create MainTerminal scene v1 with Start Run and party preview | Planned |
 | #23 | [Battle] Add capture mechanic v1 with auto-extraction to Payload | Planned |
@@ -66,7 +66,7 @@ guarantee that the Boss node is reachable.
 **Acceptance Criteria**
 
 - [x] Generate a layered node graph with one Start node, several intermediate route layers, and one Boss node.
-- [x] Assign node types using Sprint 3 defaults: Combat, Elite, Rest, Shop slot, and Boss.
+- [x] Assign node types using Sprint 3 defaults: Combat, Elite, Shop slot, Reboot, and Boss.
 - [x] Create directed edges only from earlier layers to later layers; no backward edges or cycles.
 - [x] Ensure every reachable non-final node has at least one outgoing edge.
 - [x] Validate Boss reachability after generation.
@@ -86,18 +86,19 @@ DAG and lets the player choose valid next nodes during a run.
 
 **Acceptance Criteria**
 
-- [ ] Create or complete the `TheGrid` scene.
-- [ ] Render generated DAG nodes as clickable UI elements.
-- [ ] Display distinct visual states for current, available, visited, locked, and Boss nodes.
-- [ ] Only allow selecting nodes connected from the current node.
-- [ ] Publish or handle `NodeSelectedEvent` when a valid node is selected.
-- [ ] Store the selected node as the current run node in `GameManager`.
-- [ ] Show basic node type labels or icons for Combat, Elite, Rest, Shop, and Boss.
+- [x] Create or complete the `TheGrid` scene.
+- [x] Render generated DAG nodes as clickable UI elements.
+- [x] Display distinct visual states for current, available, visited, locked, and Boss nodes.
+- [x] Only allow selecting nodes connected from the current node.
+- [x] Publish or handle `NodeSelectedEvent` when a valid node is selected.
+- [x] Store the selected node as the current run node in `GameManager`.
+- [x] Show basic node type labels or icons for Combat, Elite, Shop, Reboot, and Boss.
 
 **Scope Notes**
 
 - This issue depends on #19.
-- Rest and Shop nodes may use placeholder behavior for Sprint 3.
+- Shop nodes may use placeholder behavior for Sprint 3.
+- Rest nodes are intentionally removed from active generation; battles start at full per-encounter state.
 - Visual polish is secondary; the priority is a clear playable route-selection flow.
 
 ### #21 - [Flow] Wire scene transitions from MainTerminal to TheGrid to TheArena
@@ -259,7 +260,7 @@ Recommended priority path:
 |---|---|---|
 | Layers (depth) | 6-7 | Long enough to feel like a run, short enough to playtest end-to-end in under 10 minutes. |
 | Nodes per layer | 1-4 | Wider middle layers, narrow start/end. |
-| Node-type weights | Combat 70% / Elite 15% / Rest 10% / Shop slot 5% / Boss fixed last | Mirrors genre conventions while reserving Shop now for later logic. |
+| Node-type weights | Combat 70% / Elite 15% / Shop slot 10% / Reboot 5% / Boss fixed last | Keeps the run focused on encounter choices instead of attrition/rest pacing, while reserving Shop now for later logic and giving players a rare optional route reset. |
 | Edge density | 1-3 outgoing edges per non-leaf node | Provides meaningful choice without visual spaghetti. |
 | Reachability rule | Boss must be reachable from Start | Validate after generation; regenerate or repair if invalid. |
 

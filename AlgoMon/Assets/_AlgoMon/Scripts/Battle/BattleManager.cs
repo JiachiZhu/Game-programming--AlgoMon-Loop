@@ -66,6 +66,7 @@ public class BattleManager : MonoBehaviour
         {
             Config = config;
             Instance = instance;
+            // BattleUnit is per-battle runtime state; route-map damage does not persist between encounters.
             CurrentBattery = instance.Battery;
             CurrentCP = Mathf.Clamp(config.startingCP, 0, MaxCP);
             StatusText = "Ready";

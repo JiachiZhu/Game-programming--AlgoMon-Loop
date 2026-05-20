@@ -51,6 +51,10 @@ public struct NodeSelectedEvent
 {
     public string NodeId;
     public NodeType Type;
+    public GridNode Node;
+    public bool WasVisited;
+    public bool IsFirstVisit;
+    public bool ReturnedToStart;
 }
 
 public struct SceneTransitionEvent
@@ -80,7 +84,16 @@ public enum StatusTarget { Self, Opponent }
 ///                  Use StatusDuration field to set the turn count.
 /// </summary>
 public enum StatusDurationType { Permanent, WhileOnField, Turns }
-public enum NodeType   { Combat, Elite, Rest, Shop, Boss, Start }
+public enum NodeType
+{
+    Combat,
+    Elite,
+    Rest, // Legacy value kept for serialized data compatibility; new graphs do not generate Rest nodes.
+    Shop,
+    Boss,
+    Start,
+    Reboot
+}
 public enum GameScene  { MainTerminal, TheGrid, TheArena, TheLab }
 
 /// <summary>
