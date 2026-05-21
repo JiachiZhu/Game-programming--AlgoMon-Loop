@@ -35,7 +35,7 @@ triggers, instead of extending the sprint window.
 | #20 | [Grid] Create TheGrid scene and node selection UI | Done |
 | #21 | [Flow] Wire scene transitions from MainTerminal to TheGrid to TheArena | Done |
 | #22 | [Menu] Create MainTerminal scene v1 with Start Run and squad preview | Done |
-| #23 | [Battle] Add capture mechanic v1 with auto-extraction to Payload | Planned |
+| #23 | [Battle] Add capture mechanic v1 with auto-extraction to Payload | Done |
 | #24 | [Flow] Add run end flow for Boss victory and party defeat | Planned |
 | #25 | [Battle] Wire remaining Subroutine triggers | Planned |
 
@@ -164,18 +164,44 @@ Payload.
 
 **Acceptance Criteria**
 
-- [ ] Detect player victory when the enemy AlgoMon reaches 0 Battery.
-- [ ] Create a persistent `AlgoMonInstance` copy for the defeated enemy.
-- [ ] Add the captured AlgoMon to `GameManager.payload`.
-- [ ] Avoid storing transient battle-only ScriptableObject instances in Payload.
-- [ ] Show a simple battle log or UI message confirming extraction.
-- [ ] Ensure capture happens once per defeated enemy, not multiple times from repeated battle-end events.
+- [x] Detect player victory when the enemy AlgoMon reaches 0 Battery.
+- [x] Create a persistent `AlgoMonInstance` copy for the defeated enemy.
+- [x] Add the captured AlgoMon to `GameManager.payload`.
+- [x] Avoid storing transient battle-only ScriptableObject instances in Payload.
+- [x] Show a simple battle log or UI message confirming extraction.
+- [x] Ensure capture happens once per defeated enemy, not multiple times from repeated battle-end events.
 
 **Scope Notes**
 
 - No capture probability, capture item, or capture button in v1.
 - Boss capture rules can be simple for Sprint 3, but should be documented in code or notes.
 - This issue should not change the core damage / status battle rules.
+
+**Implementation Notes**
+
+- Capture is centralized through `GameManager.TryRegisterCapture`. It clones
+  the defeated enemy, refreshes unlocked skills from the species learnset, and
+  rejects invalid capture data before it reaches `GameManager.payload`.
+- `AlgoMonInstance.usesTransientData` marks runtime-only species data. The
+  capture gate rejects these instances, and in Editor also verifies the species
+  `AlgoMonData` is a real AssetDatabase asset.
+- Encounter species now load from `Resources/EncounterSpeciesCatalog`, with
+  editor-only AssetDatabase fallback and generated transient fallback only as a
+  last resort. The catalog currently contains Cachelon, Heapion, Nullbyte,
+  Overflux, Recursix, and Sortex.
+- `BattleManager` performs extraction from the guarded battle-end path only.
+  `battleEndPublished` prevents repeated end-event capture, and the battle log
+  reports either `EXTRACTED` or `EXTRACTION SKIPPED`.
+- Sprint 3 v1 captures every defeated asset-backed encounter, including Boss
+  encounters. Probability rolls, opt-out rules, and capture items remain future
+  scope.
+- `MainTerminal` now has a simple Payload Box detail view that lists extracted
+  records and shows the selected AlgoMon's portrait, level, EXP, element,
+  Subroutine, current stats, IVs, skills, and profile text.
+- Payload portraits prefer `AlgoMonData.portrait`. In Editor, the UI can fall
+  back to the current sprite naming convention such as
+  `Assets/_AlgoMon/Sprites/CACHELON/Cachelon_Base.png`; before a player build,
+  bind the portrait references on the `AlgoMonData` assets.
 
 ### #24 - [Flow] Add run end flow for Boss victory and party defeat
 
@@ -284,6 +310,16 @@ Recommended priority path:
 Sprint 3 uses KO-bound capture. When an enemy AlgoMon is defeated, its data is
 automatically extracted and added to the player's Payload. There is no capture
 button, no probability roll, and no capture item in v1.
+
+Implementation contract:
+
+- Capture must enter through `GameManager.TryRegisterCapture`.
+- Runtime-generated / transient species are battle-safe but are not persistent
+  collection data and must be skipped.
+- Encounter species for normal runs should come from
+  `Resources/EncounterSpeciesCatalog`.
+- The first Payload read view lives in MainTerminal's Payload Box. It is
+  intentionally functional rather than a final UI art pass.
 
 Design rationale:
 
