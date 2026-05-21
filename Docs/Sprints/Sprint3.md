@@ -36,7 +36,7 @@ triggers, instead of extending the sprint window.
 | #21 | [Flow] Wire scene transitions from MainTerminal to TheGrid to TheArena | Done |
 | #22 | [Menu] Create MainTerminal scene v1 with Start Run and squad preview | Done |
 | #23 | [Battle] Add capture mechanic v1 with auto-extraction to Payload | Done |
-| #24 | [Flow] Add run end flow for Boss victory and party defeat | Planned |
+| #24 | [Flow] Add run end flow for Boss victory and party defeat | Done |
 | #25 | [Battle] Wire remaining Subroutine triggers | Planned |
 
 ### Stretch Goals
@@ -210,18 +210,35 @@ Defeat outcomes, then returning the player to MainTerminal.
 
 **Acceptance Criteria**
 
-- [ ] Detect when the player wins a Boss battle.
-- [ ] Show a simple Victory result screen or result panel.
-- [ ] Detect player defeat and show a simple Defeat result screen or result panel.
-- [ ] Clear or reset active run state after the result is confirmed.
-- [ ] Return to `MainTerminal` from the result state.
-- [ ] Keep captured Payload entries from completed battles.
+- [x] Detect when the player wins a Boss battle.
+- [x] Show a simple Victory result screen or result panel.
+- [x] Detect player defeat and show a simple Defeat result screen or result panel.
+- [x] Clear or reset active run state after the result is confirmed.
+- [x] Return to `MainTerminal` from the result state.
+- [x] Keep captured Payload entries from completed battles.
 
 **Scope Notes**
 
 - Detailed rewards, score breakdowns, save data, and run history are out of scope.
 - The result screen can be minimal; correctness of flow is the priority.
 - This issue depends on scene transition wiring and Boss node handling.
+
+**Implementation Notes**
+
+- `GameManager.OnBattleEnd` routes non-Boss victories back to `TheGrid`, but
+  records `RunOutcome.Victory` and opens `RunResult` when the completed node is
+  a Boss.
+- Any player defeat records `RunOutcome.Defeat`, ends the active run, and opens
+  `RunResult`.
+- `GameManager.RecordRunResult` stores the completed run seed, final node id,
+  final node type, and visited node count before `EndRun` clears active run
+  graph state.
+- `RunResultController` presents Victory / Defeat, payload size, final node,
+  and visited-node count, then returns to `MainTerminal`.
+- Returning from `RunResult` calls both `EndRun` and `ClearRunResult`, so direct
+  result-scene entry cannot leave stale run state behind.
+- `EndRun` intentionally does not clear `GameManager.payload`; captures from
+  completed battles survive the result flow.
 
 ### #25 - [Battle] Wire remaining Subroutine triggers
 

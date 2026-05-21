@@ -94,7 +94,10 @@ public class RunResultController : MonoBehaviour
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
         if (manager != null)
+        {
+            manager.EndRun();
             manager.ClearRunResult();
+        }
 
         GameManager.GoTo(GameScene.MainTerminal);
     }
