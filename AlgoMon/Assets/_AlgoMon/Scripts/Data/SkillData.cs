@@ -133,6 +133,13 @@ public class SkillData : ScriptableObject
     [Tooltip("Only used when counterSelfStatusDurationType = Turns.")]
     public int counterSelfStatusDuration = 1;
 
+    [Tooltip("Optional second SELF status on counter win. Use this for paired effects such as stat buff + Concurrent.")]
+    public StatusType counterApplyToSelfSecondary;
+    public int counterSelfSecondaryStatusStacks = 0;
+    public StatusDurationType counterSelfSecondaryStatusDurationType = StatusDurationType.Turns;
+    [Tooltip("Only used when counterSelfSecondaryStatusDurationType = Turns.")]
+    public int counterSelfSecondaryStatusDuration = 1;
+
     [Tooltip("Re-cast THIS skill once at 0 CP immediately after winning the counter.\n(e.g. Ignite Loop)")]
     public bool counterRecast = false;
 

@@ -12,6 +12,7 @@ using UnityEditor;
 public static class EncounterFactory
 {
     private const string AlgoMonAssetSearchFolder = "Assets/_AlgoMon/ScriptableObjects/AlgoMons";
+    private const string EncounterSpeciesCatalogResourcePath = "EncounterSpeciesCatalog";
 
     private const int BaseLevel = 10;
     private const int LevelPerLayer = 2;
@@ -38,12 +39,13 @@ public static class EncounterFactory
         var rng = new System.Random(hash);
         int tier = EncounterTier(node.nodeType);
         int baseIv = BaseIvFloor + node.layer * IvPerLayer + tier * IvPerTier;
-        AlgoMonData species = PickEncounterSpecies(node, hash);
+        AlgoMonData species = PickEncounterSpecies(node, hash, out bool usesTransientData);
 
         var opponent = new AlgoMonInstance
         {
             data = species,
             nickname = BuildOpponentName(species, node),
+            usesTransientData = usesTransientData,
             level = Mathf.Clamp(
                 BaseLevel + node.layer * LevelPerLayer + tier * LevelPerTier + rng.Next(0, LevelRandomExclusiveMax),
                 1,
@@ -78,18 +80,30 @@ public static class EncounterFactory
         return Mathf.Clamp(baseValue + rng.Next(-spread, spread + 1), 1, 255);
     }
 
-    private static AlgoMonData PickEncounterSpecies(GridNode node, int hash)
+    private static AlgoMonData PickEncounterSpecies(GridNode node, int hash, out bool usesTransientData)
     {
         AlgoMonData[] pool = LoadEncounterSpecies();
         if (pool.Length == 0)
+        {
+            usesTransientData = true;
             return CreateFallbackSpecies(node, hash);
+        }
 
+        usesTransientData = false;
         int index = Mathf.Abs(hash) % pool.Length;
         return pool[index];
     }
 
     private static AlgoMonData[] LoadEncounterSpecies()
     {
+        EncounterSpeciesCatalog catalog = Resources.Load<EncounterSpeciesCatalog>(EncounterSpeciesCatalogResourcePath);
+        if (catalog != null)
+        {
+            AlgoMonData[] catalogSpecies = catalog.GetSpecies();
+            if (catalogSpecies.Length > 0)
+                return catalogSpecies;
+        }
+
 #if UNITY_EDITOR
         string[] guids = AssetDatabase.FindAssets("t:AlgoMonData", new[] { AlgoMonAssetSearchFolder });
         var species = new List<AlgoMonData>();

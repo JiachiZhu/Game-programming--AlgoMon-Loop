@@ -14,9 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   skillName: Faraday Cage
   description: Instantly construct a high-frequency electromagnetic shielding net.
-    This turn significantly reduces the damage from "special/energy-type" skills
-    received, and gain the initiative in the next turn. Counter win:Reduce damage
-    by 70%, and gain +1 to the next round's initiative value.
+    This turn significantly reduces incoming energy pressure. Counter win: Reduce
+    damage by 70% and make the next skill execute twice through Concurrent.
   instructionType: 2
   damageType: 0
   elementType: 5
@@ -41,10 +40,14 @@ MonoBehaviour:
   counterOpponentStatusDuration: 1
   counterForceOpponentLast: 0
   counterSelfDamageMultiplier: 1
-  counterApplyToSelf: 10
+  counterApplyToSelf: 4
   counterSelfStatusStacks: 1
   counterSelfStatusDurationType: 2
   counterSelfStatusDuration: 1
+  counterApplyToSelfSecondary: 0
+  counterSelfSecondaryStatusStacks: 0
+  counterSelfSecondaryStatusDurationType: 2
+  counterSelfSecondaryStatusDuration: 1
   counterRecast: 0
   counterSelfCPDiscount: 0
   counterCPDiscountDurationType: 2

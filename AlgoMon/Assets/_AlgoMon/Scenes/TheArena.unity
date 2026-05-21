@@ -1087,7 +1087,7 @@ MonoBehaviour:
     throughput: 45
     firewall: 52
     encryption: 42
-    startingCP: 6
+    startingCP: 10
     subroutine: {fileID: 11400000, guid: 64a8f151104d48bfbd0bebfb613a5ee8, type: 2}
     skills:
     - {fileID: 11400000, guid: 3ebae1e5616cd334698ffac208b9a25c, type: 2}
@@ -1104,7 +1104,7 @@ MonoBehaviour:
     throughput: 88
     firewall: 48
     encryption: 72
-    startingCP: 8
+    startingCP: 10
     subroutine: {fileID: 11400000, guid: 46913262e27b48b3a079228055fc0923, type: 2}
     skills:
     - {fileID: 11400000, guid: f10e08126042a27459fb6bf08051bbf5, type: 2}

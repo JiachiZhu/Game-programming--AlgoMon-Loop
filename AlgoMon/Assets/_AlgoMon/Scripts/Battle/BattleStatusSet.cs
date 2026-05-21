@@ -33,7 +33,8 @@ public sealed class BattleStatusSet
     private const float BurnDamagePerStack = 0.02f;
     private const float LeechDamagePerStack = 0.03f;
     private const float FreezeClockPenaltyPerStack = 0.15f;
-    private const float StatBuffPerStack = 0.10f;
+    private const float OffensiveStatBuffPerStack = 0.12f;
+    private const float DefensiveStatBuffPerStack = 0.10f;
 
     private sealed class StatusState
     {
@@ -183,19 +184,19 @@ public sealed class BattleStatusSet
 
         stats.ComputingPower = BattleStats.ApplyPercent(
             stats.ComputingPower,
-            1f + GetStacks(StatusType.ComputingUp) * StatBuffPerStack);
+            1f + GetStacks(StatusType.ComputingUp) * OffensiveStatBuffPerStack);
 
         stats.Throughput = BattleStats.ApplyPercent(
             stats.Throughput,
-            1f + GetStacks(StatusType.ThroughputUp) * StatBuffPerStack);
+            1f + GetStacks(StatusType.ThroughputUp) * OffensiveStatBuffPerStack);
 
         stats.Firewall = BattleStats.ApplyPercent(
             stats.Firewall,
-            1f + GetStacks(StatusType.FirewallUp) * StatBuffPerStack - Mathf.Clamp01(firewallShred.Amount));
+            1f + GetStacks(StatusType.FirewallUp) * DefensiveStatBuffPerStack - Mathf.Clamp01(firewallShred.Amount));
 
         stats.Encryption = BattleStats.ApplyPercent(
             stats.Encryption,
-            1f + GetStacks(StatusType.EncryptionUp) * StatBuffPerStack);
+            1f + GetStacks(StatusType.EncryptionUp) * DefensiveStatBuffPerStack);
 
         return stats;
     }

@@ -161,6 +161,10 @@ public class BattleManager : MonoBehaviour
         public int SelfStatusStacks;
         public StatusDurationType SelfStatusDurationType;
         public int SelfStatusDuration;
+        public StatusType ApplyToSelfSecondary;
+        public int SelfSecondaryStatusStacks;
+        public StatusDurationType SelfSecondaryStatusDurationType;
+        public int SelfSecondaryStatusDuration;
         public int SelfCPDiscount;
         public StatusDurationType CPDiscountDurationType;
         public int CPDiscountDuration;
@@ -191,6 +195,10 @@ public class BattleManager : MonoBehaviour
                 SelfStatusStacks = skill.counterSelfStatusStacks,
                 SelfStatusDurationType = skill.counterSelfStatusDurationType,
                 SelfStatusDuration = skill.counterSelfStatusDuration,
+                ApplyToSelfSecondary = skill.counterApplyToSelfSecondary,
+                SelfSecondaryStatusStacks = skill.counterSelfSecondaryStatusStacks,
+                SelfSecondaryStatusDurationType = skill.counterSelfSecondaryStatusDurationType,
+                SelfSecondaryStatusDuration = skill.counterSelfSecondaryStatusDuration,
                 SelfCPDiscount = skill.counterSelfCPDiscount,
                 CPDiscountDurationType = skill.counterCPDiscountDurationType,
                 CPDiscountDuration = skill.counterCPDiscountDuration,
@@ -250,7 +258,7 @@ public class BattleManager : MonoBehaviour
         throughput = 45,
         firewall = 52,
         encryption = 42,
-        startingCP = 6,
+        startingCP = MaxCP,
         skills = new SkillData[MaxSkillSlots]
     };
 
@@ -266,7 +274,7 @@ public class BattleManager : MonoBehaviour
         throughput = 88,
         firewall = 48,
         encryption = 72,
-        startingCP = 8,
+        startingCP = MaxCP,
         skills = new SkillData[MaxSkillSlots]
     };
 
@@ -514,6 +522,7 @@ public class BattleManager : MonoBehaviour
         {
             data = data,
             nickname = config.displayName,
+            usesTransientData = true,
             level = AlgoMonInstance.MAX_LEVEL,
             iv_Battery = ClampStat(config.maxBattery),
             iv_ClockSpeed = ClampStat(config.clockSpeed),
@@ -857,6 +866,14 @@ public class BattleManager : MonoBehaviour
             effects.SelfStatusStacks,
             effects.SelfStatusDurationType,
             effects.SelfStatusDuration);
+
+        yield return ApplyStatusCoroutine(
+            owner,
+            owner,
+            effects.ApplyToSelfSecondary,
+            effects.SelfSecondaryStatusStacks,
+            effects.SelfSecondaryStatusDurationType,
+            effects.SelfSecondaryStatusDuration);
 
         if (effects.SelfCPDiscount > 0)
         {
@@ -1432,11 +1449,30 @@ public class BattleManager : MonoBehaviour
 
         if (!battleEndPublished)
         {
+            if (playerWon)
+                TryExtractDefeatedEnemy();
+
             EventBus.Publish(new BattleEndEvent { PlayerWon = playerWon });
             battleEndPublished = true;
         }
 
         RefreshHud();
+    }
+
+    private void TryExtractDefeatedEnemy()
+    {
+        GameManager manager = GameManager.Instance;
+        if (manager == null || enemy == null)
+            return;
+
+        // Sprint 3 v1 extracts every defeated asset-backed encounter, including Boss.
+        if (manager.TryRegisterCapture(enemy.Instance, out AlgoMonInstance captured))
+        {
+            EmitLog($"EXTRACTED: {DisplayNameFor(captured)} added to Payload.");
+            return;
+        }
+
+        EmitLog("EXTRACTION SKIPPED: encounter data is not persistent.");
     }
 
     private void RefreshHud()

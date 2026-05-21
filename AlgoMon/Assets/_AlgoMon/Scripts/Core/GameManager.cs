@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 /// <summary>
 /// Singleton that owns all cross-scene game state.
@@ -199,15 +202,35 @@ public class GameManager : MonoBehaviour
         return !string.IsNullOrEmpty(nodeId) && visitedNodeIds.Contains(nodeId);
     }
 
-    public AlgoMonInstance RegisterCapture(AlgoMonInstance mon)
+    public bool TryRegisterCapture(AlgoMonInstance mon, out AlgoMonInstance captured)
     {
-        if (mon == null)
-            return null;
+        captured = null;
+        if (!CanPersistCapture(mon))
+            return false;
 
-        AlgoMonInstance captured = mon.Clone();
+        captured = mon.Clone();
+        captured.usesTransientData = false;
         captured.EnsureKnownSkillsFromLearnset();
         AddToPayload(captured);
+        return true;
+    }
+
+    public AlgoMonInstance RegisterCapture(AlgoMonInstance mon)
+    {
+        TryRegisterCapture(mon, out AlgoMonInstance captured);
         return captured;
+    }
+
+    private static bool CanPersistCapture(AlgoMonInstance mon)
+    {
+        if (mon == null || mon.data == null || mon.usesTransientData)
+            return false;
+
+#if UNITY_EDITOR
+        return AssetDatabase.Contains(mon.data);
+#else
+        return true;
+#endif
     }
 
     private void OnNodeSelected(NodeSelectedEvent e)

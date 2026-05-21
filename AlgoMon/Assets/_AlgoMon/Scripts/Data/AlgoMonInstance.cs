@@ -41,6 +41,11 @@ public class AlgoMonInstance
     public List<SkillData> knownSkills = new List<SkillData>();
     public const int MaxSkillSlots = 4;
 
+    [Header("Source")]
+    [Tooltip("True when this instance points at ScriptableObject data created at runtime. " +
+             "Transient instances are battle-safe but should not be persisted into Payload.")]
+    public bool usesTransientData;
+
     /// <summary>
     /// Checks data.learnset for any skill that unlocks at exactly the current level
     /// and adds it to knownSkills if a slot is available.
@@ -107,6 +112,7 @@ public class AlgoMonInstance
             iv_Encryption = iv_Encryption,
             level = level,
             exp = exp,
+            usesTransientData = usesTransientData,
             knownSkills = knownSkills != null
                 ? new List<SkillData>(knownSkills)
                 : new List<SkillData>()

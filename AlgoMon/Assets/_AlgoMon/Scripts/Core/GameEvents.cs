@@ -130,8 +130,8 @@ public enum StatusType
     BufferLoad,     // next skill CP cost -4 (min 0), max 1
 
     // --- Stat buffs (additive %, stacks persist until battle end) ---
-    ComputingUp,    // Computing Power +10% per stack
-    ThroughputUp,   // Throughput +10% per stack
+    ComputingUp,    // Computing Power +12% per stack
+    ThroughputUp,   // Throughput +12% per stack
     FirewallUp,     // Firewall +10% per stack
     EncryptionUp,   // Encryption +10% per stack
 

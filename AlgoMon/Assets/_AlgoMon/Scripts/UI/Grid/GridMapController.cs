@@ -896,7 +896,8 @@ public class GridMapController : MonoBehaviour
             }
         }
 
-        return $"2                 0                   {currentLayer + 1}/{Mathf.Max(1, maxLayer + 1)}";
+        int payloadCount = manager != null && manager.payload != null ? manager.payload.Count : 0;
+        return $"2                 {payloadCount}                   {currentLayer + 1}/{Mathf.Max(1, maxLayer + 1)}";
     }
 
     private string BuildCommandHint(GridNode selectedNode = null, bool returnedToStart = false)
