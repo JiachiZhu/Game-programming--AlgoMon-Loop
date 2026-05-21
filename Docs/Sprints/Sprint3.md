@@ -37,7 +37,7 @@ triggers, instead of extending the sprint window.
 | #22 | [Menu] Create MainTerminal scene v1 with Start Run and squad preview | Done |
 | #23 | [Battle] Add capture mechanic v1 with auto-extraction to Payload | Done |
 | #24 | [Flow] Add run end flow for Boss victory and party defeat | Done |
-| #25 | [Battle] Wire remaining Subroutine triggers | Planned |
+| #25 | [Battle] Wire remaining Subroutine triggers | Done |
 
 ### Stretch Goals
 
@@ -248,19 +248,36 @@ BattleManager so species passives can activate beyond `OnBattleStart` and
 
 **Acceptance Criteria**
 
-- [ ] Trigger `OnTurnStart` at the start of the relevant unit's turn.
-- [ ] Trigger `OnCounterLose` after a unit loses an ASD counter.
-- [ ] Trigger `OnDamageTaken` after a unit takes direct damage.
-- [ ] Trigger `OnAllyFainted` when a party ally is shut down.
-- [ ] Trigger `OnLowBattery` when a unit drops below 25% Battery.
-- [ ] Reuse the existing `BattleEffectBundle` path for Subroutine effects.
-- [ ] Update `Docs/BattleDesign.md` with concrete timing notes for these triggers.
+- [x] Trigger `OnTurnStart` at the start of the relevant unit's turn.
+- [x] Trigger `OnCounterLose` after a unit loses an ASD counter.
+- [x] Trigger `OnDamageTaken` after a unit takes direct damage.
+- [x] Document `OnAllyFainted` as deferred until party switching creates allied battle units.
+- [x] Trigger `OnLowBattery` when a unit drops below 25% Battery.
+- [x] Reuse the existing `BattleEffectBundle` path for Subroutine effects.
+- [x] Update `Docs/BattleDesign.md` with concrete timing notes for these triggers.
 
 **Scope Notes**
 
 - This issue is independent of TheGrid and can be scheduled flexibly.
 - Party-wide behavior may be minimal until Sprint 4 party switching exists.
 - If Sprint 3 scope slips, this is the safest main issue to defer.
+
+**Implementation Notes**
+
+- `OnTurnStart` fires when a non-cancelled queued action begins, before CP is
+  spent.
+- `OnCounterLose` fires after the winner's counter effects resolve, before the
+  queued actions execute.
+- `OnDamageTaken` fires only for direct skill damage, after the damage line and
+  before on-hit secondary effects.
+- `OnLowBattery` fires once per battle when a living unit crosses from above
+  25% Battery to 25% or below. It is checked after direct damage and after Burn
+  / Leech status damage.
+- All implemented triggers reuse `BattleEffectBundle.FromSubroutine`, so passive
+  effects share the same status, CP, heal, priority, and next-power handling as
+  existing counter effects.
+- `OnAllyFainted` is intentionally left data-only until Sprint 4 party switching
+  introduces real bench/allied battle units.
 
 ---
 

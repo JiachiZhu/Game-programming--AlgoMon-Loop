@@ -16,10 +16,10 @@ using UnityEngine;
 /// - basic damage is resolved and Battery is reduced until one side is offline
 /// - status effects are applied, modify runtime stats / CP costs, and tick at round end
 /// - Defense skills enter a one-round cooldown after successful execution
-/// - SubroutineData OnBattleStart and OnCounterWin triggers are applied
+/// - SubroutineData triggers are applied at supported battle timing hooks
 /// - former special counter skills use generic SkillData fields
 ///
-/// Party switching, bag items, and additional Subroutine triggers are intentionally
+/// Party switching, bag items, and ally-faint Subroutine hooks are intentionally
 /// left for follow-up battle issues.
 /// </summary>
 [DisallowMultipleComponent]
@@ -78,6 +78,7 @@ public class BattleManager : MonoBehaviour
         public int CurrentCP { get; set; }
         public string StatusText { get; set; }
         public int LastDefenseRound { get; set; } = int.MinValue;
+        public bool LowBatterySubroutineTriggered { get; set; }
         public BattleStatusSet Statuses { get; } = new BattleStatusSet();
         private struct PermanentCostReduction
         {
@@ -693,6 +694,13 @@ public class BattleManager : MonoBehaviour
             yield return new WaitForSeconds(logLineDelay);
 
         yield return ResolveCounterCoroutine(playerAction, enemyAction);
+        TryFinishBattle();
+        if (phase == BattlePhase.BattleOver)
+        {
+            RefreshHud();
+            activeResolution = null;
+            yield break;
+        }
 
         QueueActions(playerAction, enemyAction);
 
@@ -773,6 +781,8 @@ public class BattleManager : MonoBehaviour
         }
 
         yield return ApplyCounterEffectsCoroutine(winner, loser);
+
+        yield return ApplySubroutineTriggerCoroutine(loser.Actor, winner.Actor, SubroutineTrigger.OnCounterLose);
     }
 
     private static bool CanCounter(SkillData attackerSkill, SkillData defenderSkill)
@@ -797,6 +807,8 @@ public class BattleManager : MonoBehaviour
         SubroutineTrigger trigger)
     {
         SubroutineData subroutine = owner?.Instance?.data?.subroutine;
+        if (owner == null || opponent == null || owner.CurrentBattery <= 0)
+            yield break;
         if (subroutine == null || subroutine.trigger != trigger)
             yield break;
 
@@ -1004,6 +1016,11 @@ public class BattleManager : MonoBehaviour
             yield break;
         }
 
+        yield return ApplySubroutineTriggerCoroutine(action.Actor, action.Target, SubroutineTrigger.OnTurnStart);
+        TryFinishBattle();
+        if (phase == BattlePhase.BattleOver || action.Actor.CurrentBattery <= 0)
+            yield break;
+
         int cost = EffectiveSkillCost(action.Actor, action.Skill);
         if (!SpendCP(action.Actor, cost))
         {
@@ -1084,6 +1101,7 @@ public class BattleManager : MonoBehaviour
                 action.FinalDamageMultiplier,
                 action.BasePowerBonus);
 
+            int previousBattery = action.Target.CurrentBattery;
             action.Target.CurrentBattery = Mathf.Max(0, action.Target.CurrentBattery - damage);
             if (damage > 0)
                 action.Target.StatusText = "Hit";
@@ -1091,6 +1109,14 @@ public class BattleManager : MonoBehaviour
             RefreshHud();
             if (damageLineDelay > 0f)
                 yield return new WaitForSeconds(damageLineDelay);
+
+            if (damage > 0)
+            {
+                yield return ApplyDamageTakenTriggersCoroutine(action.Target, action.Actor, previousBattery, true);
+                TryFinishBattle();
+                if (phase == BattlePhase.BattleOver)
+                    yield break;
+            }
 
             if (damage > 0 && action.Skill.onHitDrainOpponentCP > 0)
             {
@@ -1234,11 +1260,54 @@ public class BattleManager : MonoBehaviour
         RefreshHud();
     }
 
+    private IEnumerator ApplyDamageTakenTriggersCoroutine(
+        BattleUnit damaged,
+        BattleUnit opponent,
+        int previousBattery,
+        bool directDamage)
+    {
+        if (damaged == null || opponent == null || previousBattery <= damaged.CurrentBattery)
+            yield break;
+
+        if (directDamage)
+            yield return ApplySubroutineTriggerCoroutine(damaged, opponent, SubroutineTrigger.OnDamageTaken);
+
+        TryFinishBattle();
+        if (phase == BattlePhase.BattleOver)
+            yield break;
+
+        yield return ApplyLowBatterySubroutineCoroutine(damaged, opponent, previousBattery);
+    }
+
+    private IEnumerator ApplyLowBatterySubroutineCoroutine(
+        BattleUnit owner,
+        BattleUnit opponent,
+        int previousBattery)
+    {
+        if (owner == null ||
+            opponent == null ||
+            owner.LowBatterySubroutineTriggered ||
+            owner.CurrentBattery <= 0 ||
+            previousBattery <= owner.CurrentBattery ||
+            !HasSubroutineTrigger(owner, SubroutineTrigger.OnLowBattery))
+        {
+            yield break;
+        }
+
+        int threshold = LowBatteryThreshold(owner);
+        if (previousBattery <= threshold || owner.CurrentBattery > threshold)
+            yield break;
+
+        owner.LowBatterySubroutineTriggered = true;
+        yield return ApplySubroutineTriggerCoroutine(owner, opponent, SubroutineTrigger.OnLowBattery);
+    }
+
     private IEnumerator TickUnitStatusesCoroutine(BattleUnit unit)
     {
         int burnStacks = unit.Statuses.GetStacks(StatusType.Burn);
         if (burnStacks > 0)
         {
+            int previousBattery = unit.CurrentBattery;
             int damage = Mathf.Max(1, Mathf.RoundToInt(unit.MaxBattery * unit.Statuses.BurnDamagePerLayer * burnStacks));
             int actualDamage = DealStatusDamage(unit, damage);
             int nextStacks = burnStacks / 2;
@@ -1249,11 +1318,20 @@ public class BattleManager : MonoBehaviour
             RefreshHud();
             if (damageLineDelay > 0f)
                 yield return new WaitForSeconds(damageLineDelay);
+
+            if (actualDamage > 0)
+            {
+                yield return ApplyDamageTakenTriggersCoroutine(unit, OpponentFor(unit), previousBattery, false);
+                TryFinishBattle();
+                if (phase == BattlePhase.BattleOver)
+                    yield break;
+            }
         }
 
         int leechStacks = unit.Statuses.GetStacks(StatusType.Leech);
         if (unit.CurrentBattery > 0 && leechStacks > 0)
         {
+            int previousBattery = unit.CurrentBattery;
             int damage = Mathf.Max(1, Mathf.RoundToInt(unit.MaxBattery * unit.Statuses.LeechDamagePerLayer * leechStacks));
             int actualDamage = DealStatusDamage(unit, damage);
             BattleUnit source = UnitFor(unit.Statuses.GetSource(StatusType.Leech));
@@ -1268,7 +1346,24 @@ public class BattleManager : MonoBehaviour
             RefreshHud();
             if (damageLineDelay > 0f)
                 yield return new WaitForSeconds(damageLineDelay);
+
+            if (actualDamage > 0)
+            {
+                yield return ApplyDamageTakenTriggersCoroutine(unit, OpponentFor(unit), previousBattery, false);
+                TryFinishBattle();
+            }
         }
+    }
+
+    private static bool HasSubroutineTrigger(BattleUnit unit, SubroutineTrigger trigger)
+    {
+        return unit?.Instance?.data?.subroutine != null &&
+               unit.Instance.data.subroutine.trigger == trigger;
+    }
+
+    private static int LowBatteryThreshold(BattleUnit unit)
+    {
+        return Mathf.Max(1, Mathf.CeilToInt(unit.MaxBattery * 0.25f));
     }
 
     private void TickDurations(BattleUnit unit)
@@ -1420,6 +1515,17 @@ public class BattleManager : MonoBehaviour
             return player;
         if (enemy != null && ReferenceEquals(enemy.Instance, instance))
             return enemy;
+        return null;
+    }
+
+    private BattleUnit OpponentFor(BattleUnit unit)
+    {
+        if (unit == null)
+            return null;
+        if (ReferenceEquals(unit, player))
+            return enemy;
+        if (ReferenceEquals(unit, enemy))
+            return player;
         return null;
     }
 

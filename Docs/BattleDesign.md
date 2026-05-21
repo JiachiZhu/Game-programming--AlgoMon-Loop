@@ -187,16 +187,27 @@ Each species has one `SubroutineData` asset. BattleManager checks triggers each 
 | Trigger | When to check |
 |---------|--------------|
 | `OnBattleStart` | Once at battle initialization |
-| `OnTurnStart` | Start of this unit's turn |
+| `OnTurnStart` | Start of this unit's queued action |
 | `OnCounterWin` | After winning ASD check |
 | `OnCounterLose` | After losing ASD check |
-| `OnDamageTaken` | After this unit's Battery is reduced |
+| `OnDamageTaken` | After direct skill damage reduces this unit's Battery |
 | `OnAllyFainted` | When any party ally reaches 0 Battery |
-| `OnLowBattery` | When Battery drops below 25% of max |
+| `OnLowBattery` | Once per battle when Battery crosses from above 25% to 25% or below |
 
-Issue #17 implements only `OnBattleStart` and `OnCounterWin`; the other triggers remain data-only until later battle issues.
+Issue #25 implements `OnTurnStart`, `OnCounterLose`, `OnDamageTaken`, and `OnLowBattery`.
+`OnAllyFainted` remains data-only until Sprint 4 party switching creates more than one allied battle unit to observe.
 
-`OnBattleStart` fires once after both combatants are initialized and before the first player instruction. `OnCounterWin` fires after the winning unit's current counter action resolves. Direct skill counter damage modifiers still affect the current action, while Subroutine stat/status rewards create pressure for later actions rather than retroactively changing the just-resolved hit.
+Concrete timing:
+
+- `OnBattleStart` fires once after both combatants are initialized and before the first player instruction.
+- `OnTurnStart` fires when a non-cancelled queued action begins, before CP is spent.
+- `OnCounterWin` fires after the winning unit's current counter action resolves.
+- `OnCounterLose` fires immediately after the winner's counter effects resolve and before the turn queue executes.
+- `OnDamageTaken` fires after direct skill damage is logged, before on-hit CP drain, shred, or status effects.
+- `OnLowBattery` is checked after `OnDamageTaken` for direct hits, and after Burn / Leech status damage. It fires only once per battle for each unit.
+- `OnAllyFainted` needs party switching / bench combatants before it can target a real surviving ally.
+
+Direct skill counter damage modifiers still affect the current action, while Subroutine stat/status rewards create pressure for later actions rather than retroactively changing the just-resolved hit.
 
 ---
 
