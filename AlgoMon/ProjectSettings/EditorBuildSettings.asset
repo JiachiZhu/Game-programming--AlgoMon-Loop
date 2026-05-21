@@ -15,6 +15,9 @@ EditorBuildSettings:
     path: Assets/_AlgoMon/Scenes/TheArena.unity
     guid: 5bbf38baa57f801439b9a62b1ff6f13a
   - enabled: 1
+    path: Assets/_AlgoMon/Scenes/RunResult.unity
+    guid: 6650f3d63fc689f4a818ed16f1552ae0
+  - enabled: 1
     path: Assets/_AlgoMon/Scenes/TheLab.unity
     guid: 3c2acbad655444d4d894266243d82787
   m_configObjects: {}

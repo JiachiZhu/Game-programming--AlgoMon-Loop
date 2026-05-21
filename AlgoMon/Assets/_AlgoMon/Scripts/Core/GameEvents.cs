@@ -94,7 +94,8 @@ public enum NodeType
     Start,
     Reboot
 }
-public enum GameScene  { MainTerminal, TheGrid, TheArena, TheLab }
+public enum GameScene  { MainTerminal, TheGrid, TheArena, RunResult, TheLab }
+public enum RunOutcome { None, Victory, Defeat }
 
 /// <summary>
 /// All persistent status conditions that can be applied to an AlgoMon.

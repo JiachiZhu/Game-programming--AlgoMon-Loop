@@ -33,8 +33,8 @@ triggers, instead of extending the sprint window.
 |---|---|---|
 | #19 | [Grid] Implement DAG generator with layered topology and reachability validation | Done |
 | #20 | [Grid] Create TheGrid scene and node selection UI | Done |
-| #21 | [Flow] Wire scene transitions from MainTerminal to TheGrid to TheArena | Planned |
-| #22 | [Menu] Create MainTerminal scene v1 with Start Run and party preview | Planned |
+| #21 | [Flow] Wire scene transitions from MainTerminal to TheGrid to TheArena | Done |
+| #22 | [Menu] Create MainTerminal scene v1 with Start Run and squad preview | Done |
 | #23 | [Battle] Add capture mechanic v1 with auto-extraction to Payload | Planned |
 | #24 | [Flow] Add run end flow for Boss victory and party defeat | Planned |
 | #25 | [Battle] Wire remaining Subroutine triggers | Planned |
@@ -108,12 +108,12 @@ using the existing `GameManager.GoTo(GameScene)` transition path.
 
 **Acceptance Criteria**
 
-- [ ] Starting a run from MainTerminal transitions to `TheGrid`.
-- [ ] Selecting a Combat, Elite, or Boss node transitions to `TheArena`.
-- [ ] Battle victory returns the player to `TheGrid` unless the defeated node is the Boss.
-- [ ] Battle defeat routes to the run defeat flow.
-- [ ] Current node and current opponent state are stored through `GameManager`.
-- [ ] Existing `SceneTransitionEvent` / `GameManager.GoTo` infrastructure is reused.
+- [x] Starting a run from MainTerminal transitions to `TheGrid`.
+- [x] Selecting a Combat, Elite, or Boss node transitions to `TheArena`.
+- [x] Battle victory returns the player to `TheGrid` unless the defeated node is the Boss.
+- [x] Battle defeat routes to the run defeat flow.
+- [x] Current node and current opponent state are stored through `GameManager`.
+- [x] Existing `SceneTransitionEvent` / `GameManager.GoTo` infrastructure is reused.
 
 **Scope Notes**
 
@@ -121,25 +121,40 @@ using the existing `GameManager.GoTo(GameScene)` transition path.
 - Transition animations are out of scope.
 - This issue is the glue between Menu, Grid, Battle, and Run End work.
 
-### #22 - [Menu] Create MainTerminal scene v1 with Start Run and party preview
+**Implementation Notes**
+
+- `GameManager` now listens for `NodeSelectedEvent` and `BattleEndEvent`, creates
+  the current encounter opponent, and routes through `GameManager.GoTo`.
+- `RunResult` is a minimal result scene used by Boss victory and battle defeat;
+  #24 can expand the presentation and reward details without changing the #21
+  transition path.
+
+### #22 - [Menu] Create MainTerminal scene v1 with Start Run and squad preview
 
 **Objective:** Create the first functional MainTerminal scene so the player has
 a clear entry point into a Sprint 3 run.
 
 **Acceptance Criteria**
 
-- [ ] Create or complete the `MainTerminal` scene.
-- [ ] Add a clear Start Run button.
-- [ ] Start Run initializes fresh run state and transitions to `TheGrid`.
-- [ ] Show a read-only party preview row using `GameManager.party`.
-- [ ] Provide a placeholder starter party if no party exists yet.
-- [ ] Optionally show simple stats such as Payload size or runs completed.
+- [x] Create or complete the `MainTerminal` scene.
+- [x] Add a clear Start Run button.
+- [x] Start Run initializes fresh run state and transitions to `TheGrid`.
+- [x] Show a read-only squad preview row using `GameManager.party`.
+- [x] Provide a placeholder starter squad if no party exists yet.
+- [x] Optionally show simple stats such as Payload size or runs completed.
 
 **Scope Notes**
 
 - Save / load, settings, AlgoMon detail view, and TheLab are out of scope.
 - The scene only needs to support starting a run for Sprint 3.
 - Keep the UI consistent with the cyber terminal style already defined in the project.
+
+**Implementation Notes**
+
+- `MainTerminalController` auto-creates the starter squad from the configured
+  fallback Sortex asset when `GameManager.party` is empty.
+- The scene shows a read-only squad preview plus Payload/run/squad-slot stats
+  on top of the existing terminal cover.
 
 ### #23 - [Battle] Add capture mechanic v1 with auto-extraction to Payload
 
@@ -282,8 +297,8 @@ Minimum viable:
 
 - Title text.
 - Start Run button that creates fresh run state and transitions to TheGrid.
-- Party preview row, read-only from `GameManager.party`.
-- Placeholder starter party if no party exists yet.
+- Squad preview row, read-only from `GameManager.party`.
+- Placeholder starter squad if no party exists yet.
 - Optional stats footer for Payload size or runs completed.
 
 Out of v1: save/load slots, settings menu, AlgoMon detail view. Those flow

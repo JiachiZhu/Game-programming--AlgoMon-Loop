@@ -115,10 +115,12 @@ The IV/EXP split is the game's core design pillar: grinding only raises software
 
 #### Payload vs. Party — Two-Tier Roster System
 
-| | Payload (Warehouse) | Party (Active Squad) |
+`Party` is the internal code name for the player's active run squad.
+
+| | Payload (Warehouse) | Squad / Party (Active Run Team) |
 |---|---|---|
 | **What it is** | Every AlgoMon the player has ever captured | The squad selected for the current run |
-| **Size limit** | Unlimited | Max 6 |
+| **Size limit** | Unlimited | Max 4 |
 | **Where managed** | The Lab — sorted via QuickSort | Pre-run selection screen |
 | **Algorithmic focus** | O(N log N) retrieval and sorting | — |
 

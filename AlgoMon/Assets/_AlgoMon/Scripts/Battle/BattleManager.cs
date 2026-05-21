@@ -559,10 +559,21 @@ public class BattleManager : MonoBehaviour
             skills = new SkillData[MaxSkillSlots]
         };
 
+        bool hasRuntimeSkills = false;
         if (instance.knownSkills != null)
         {
             for (int i = 0; i < instance.knownSkills.Count && i < MaxSkillSlots; i++)
+            {
                 config.skills[i] = instance.knownSkills[i];
+                if (instance.knownSkills[i] != null)
+                    hasRuntimeSkills = true;
+            }
+        }
+
+        if (!hasRuntimeSkills && fallback != null && fallback.skills != null)
+        {
+            for (int i = 0; i < fallback.skills.Length && i < MaxSkillSlots; i++)
+                config.skills[i] = fallback.skills[i];
         }
 
         return config;

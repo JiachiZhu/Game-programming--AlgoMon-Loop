@@ -34,7 +34,7 @@ Establish the complete project foundation: data models, messaging system, and co
 ### Architecture
 - **Unity template:** Chose Universal 2D (URP) over Built-In pipeline. Rationale: URP supports Shader Graph and post-processing effects suited to the cyberpunk terminal aesthetic.
 - **Stat naming:** Renamed `Bandwidth` → `Throughput` for clearer domain semantics.
-- **Payload vs Party:** Two-tier roster — Payload is the unlimited warehouse (QuickSort in Lab); Party is the active run squad capped at 6.
+- **Payload vs Party:** Two-tier roster — Payload is the unlimited warehouse (QuickSort in Lab); Party is the active run squad capped at 4.
 
 ### Battle System
 - **Damage formula:** Replaced flat subtraction with ratio-based defence: `damage = Floor(raw × 50 / (50 + defence))`. Softcap at defence=50 halves incoming damage without hard-zeroing. Validated: basePower ≈ 45 gives 5-round neutral / 3-round advantage at BST=600 lv50.

@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 /// Responsibilities:
 ///   - Payload: the full warehouse of all captured AlgoMons (no size cap,
 ///     sorted via QuickSort in the Lab)
-///   - Party: the active squad taken into a run (max 6 slots)
+///   - Party: the active squad taken into a run (max 4 slots)
 ///   - Track current run state (active node, current opponent)
 ///   - Drive scene transitions via EventBus
 /// </summary>
@@ -21,9 +21,9 @@ public class GameManager : MonoBehaviour
     [Header("Payload — Full Warehouse (all captured AlgoMons)")]
     public List<AlgoMonInstance> payload = new List<AlgoMonInstance>();
 
-    [Header("Party — Active Squad (max 6 for current run)")]
+    [Header("Party — Active Squad (max 4 for current run)")]
     public List<AlgoMonInstance> party = new List<AlgoMonInstance>();
-    public const int MaxPartySize = 6;
+    public const int MaxPartySize = 4;
 
     [Header("Run State")]
     public string currentNodeId;
@@ -33,7 +33,29 @@ public class GameManager : MonoBehaviour
     public AlgoMonInstance currentOpponent;
     public bool IsRunActive { get; private set; }
 
+    [Header("Run Result")]
+    public RunOutcome pendingRunOutcome = RunOutcome.None;
+    public int completedRunSeed;
+    public string completedRunNodeId;
+    public NodeType completedRunNodeType;
+    public int completedRunVisitedCount;
+
     // ----------------------------------------------------------------
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    private static void Bootstrap()
+    {
+        EnsureInstance();
+    }
+
+    public static GameManager EnsureInstance()
+    {
+        if (Instance != null)
+            return Instance;
+
+        GameObject managerObject = new GameObject(nameof(GameManager));
+        return managerObject.AddComponent<GameManager>();
+    }
 
     private void Awake()
     {
@@ -45,12 +67,12 @@ public class GameManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
-        EventBus.Subscribe<SceneTransitionEvent>(OnSceneTransition);
+        SubscribePersistentEvents();
     }
 
     private void OnDestroy()
     {
-        EventBus.Unsubscribe<SceneTransitionEvent>(OnSceneTransition);
+        UnsubscribePersistentEvents();
     }
 
     // ----------------------------------------------------------------
@@ -67,7 +89,7 @@ public class GameManager : MonoBehaviour
     }
 
     // ----------------------------------------------------------------
-    // Party management (active squad — max 6)
+    // Party management (active squad — max 4)
 
     public bool AddToParty(AlgoMonInstance mon)
     {
@@ -97,6 +119,8 @@ public class GameManager : MonoBehaviour
 
     public void BeginRun(int seed, GridGenerationSettings gridSettings)
     {
+        ClearRunResult();
+
         GridGraph graph = new GridGenerator(gridSettings).Generate(seed);
 
         IsRunActive = true;
@@ -116,6 +140,15 @@ public class GameManager : MonoBehaviour
         currentNodeId = string.Empty;
         visitedNodeIds.Clear();
         currentOpponent = null;
+    }
+
+    public void ClearRunResult()
+    {
+        pendingRunOutcome = RunOutcome.None;
+        completedRunSeed = 0;
+        completedRunNodeId = string.Empty;
+        completedRunNodeType = NodeType.Start;
+        completedRunVisitedCount = 0;
     }
 
     public bool TrySelectRunNode(string nodeId)
@@ -177,13 +210,87 @@ public class GameManager : MonoBehaviour
         return captured;
     }
 
+    private void OnNodeSelected(NodeSelectedEvent e)
+    {
+        if (!IsRunActive || e.Node == null)
+            return;
+
+        if (!IsEncounterNode(e.Type))
+        {
+            currentOpponent = null;
+            return;
+        }
+
+        currentOpponent = EncounterFactory.Create(currentRunSeed, e.Node);
+        GoTo(GameScene.TheArena);
+    }
+
+    private void OnBattleEnd(BattleEndEvent e)
+    {
+        if (!IsRunActive)
+            return;
+
+        GridNode completedNode = CurrentRunNode();
+        currentOpponent = null;
+
+        if (e.PlayerWon && completedNode != null && completedNode.nodeType != NodeType.Boss)
+        {
+            GoTo(GameScene.TheGrid);
+            return;
+        }
+
+        RecordRunResult(e.PlayerWon ? RunOutcome.Victory : RunOutcome.Defeat, completedNode);
+        EndRun();
+        GoTo(GameScene.RunResult);
+    }
+
+    private GridNode CurrentRunNode()
+    {
+        if (currentRunGraph == null || string.IsNullOrEmpty(currentNodeId))
+            return null;
+
+        return currentRunGraph.GetNode(currentNodeId);
+    }
+
+    private void RecordRunResult(RunOutcome outcome, GridNode completedNode)
+    {
+        pendingRunOutcome = outcome;
+        completedRunSeed = currentRunSeed;
+        completedRunNodeId = completedNode != null ? completedNode.id : currentNodeId;
+        completedRunNodeType = completedNode != null ? completedNode.nodeType : NodeType.Start;
+        completedRunVisitedCount = visitedNodeIds != null ? visitedNodeIds.Count : 0;
+    }
+
+    private static bool IsEncounterNode(NodeType type)
+    {
+        return type == NodeType.Combat || type == NodeType.Elite || type == NodeType.Boss;
+    }
+
     // ----------------------------------------------------------------
     // Scene transitions
+
+    private void SubscribePersistentEvents()
+    {
+        EventBus.Unsubscribe<SceneTransitionEvent>(OnSceneTransition);
+        EventBus.Unsubscribe<NodeSelectedEvent>(OnNodeSelected);
+        EventBus.Unsubscribe<BattleEndEvent>(OnBattleEnd);
+
+        EventBus.Subscribe<SceneTransitionEvent>(OnSceneTransition);
+        EventBus.Subscribe<NodeSelectedEvent>(OnNodeSelected);
+        EventBus.Subscribe<BattleEndEvent>(OnBattleEnd);
+    }
+
+    private void UnsubscribePersistentEvents()
+    {
+        EventBus.Unsubscribe<SceneTransitionEvent>(OnSceneTransition);
+        EventBus.Unsubscribe<NodeSelectedEvent>(OnNodeSelected);
+        EventBus.Unsubscribe<BattleEndEvent>(OnBattleEnd);
+    }
 
     private void OnSceneTransition(SceneTransitionEvent e)
     {
         EventBus.Clear();
-        EventBus.Subscribe<SceneTransitionEvent>(OnSceneTransition);
+        SubscribePersistentEvents();
         SceneManager.LoadScene(e.Destination.ToString());
     }
 

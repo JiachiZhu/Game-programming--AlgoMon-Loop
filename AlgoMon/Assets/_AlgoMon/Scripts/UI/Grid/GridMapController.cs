@@ -24,7 +24,6 @@ public class GridMapController : MonoBehaviour
     [SerializeField] private Button newRunButton;
 
     [Header("Editor Debug")]
-    [SerializeField] private bool createGameManagerIfMissing;
     [SerializeField] private bool beginRunIfMissing;
     [SerializeField] private bool showDebugNewRunButton;
     [SerializeField] private int debugSeed;
@@ -146,14 +145,7 @@ public class GridMapController : MonoBehaviour
 
     private GameManager ResolveManager()
     {
-        if (GameManager.Instance != null)
-            return GameManager.Instance;
-
-        if (!CanUseEditorDebugFeatures() || !createGameManagerIfMissing)
-            return null;
-
-        GameObject managerObject = new GameObject("GameManager");
-        return managerObject.AddComponent<GameManager>();
+        return GameManager.EnsureInstance();
     }
 
     private static bool CanUseEditorDebugFeatures()
@@ -334,12 +326,14 @@ public class GridMapController : MonoBehaviour
 
     private Color IconColorFor(GridNode node, GridNodeVisualState state)
     {
-        if (state == GridNodeVisualState.Locked)
-            return new Color(textDim.r, textDim.g, textDim.b, 0.42f);
         if (node != null && node.nodeType == NodeType.Boss)
             return new Color(1f, 0.82f, 0.78f, 1f);
         if (node != null && (node.nodeType == NodeType.Shop || node.nodeType == NodeType.Reboot))
-            return warning;
+            return state == GridNodeVisualState.Locked
+                ? new Color(warning.r, warning.g, warning.b, 0.58f)
+                : warning;
+        if (state == GridNodeVisualState.Locked)
+            return new Color(textDim.r, textDim.g, textDim.b, 0.42f);
         if (state == GridNodeVisualState.Visited)
             return lineVisited;
         if (state == GridNodeVisualState.Current)
@@ -527,6 +521,8 @@ public class GridMapController : MonoBehaviour
                                manager.currentRunGraph != null &&
                                node.id == manager.currentRunGraph.startNodeId;
 
+        RebuildMap(BuildCommandHint(node, returnedToStart));
+
         EventBus.Publish(new NodeSelectedEvent
         {
             NodeId = node.id,
@@ -536,8 +532,6 @@ public class GridMapController : MonoBehaviour
             IsFirstVisit = !wasVisited,
             ReturnedToStart = returnedToStart
         });
-
-        RebuildMap(BuildCommandHint(node, returnedToStart));
     }
 
     private void ConfigureDebugNewRunButton()
