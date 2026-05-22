@@ -55,3 +55,4 @@ Before the next session, I will create a visible playable battle prototype in Un
 The feedback I received was that animation may be difficult to produce, sprite balance may be hard to manage, and networking / multiplayer would be challenging to implement.
 
 Based on this feedback, I will keep the first version focused on single-player gameplay, use simple sprite animations first, and avoid multiplayer until the core battle loop is working.
+By Session 4, I will improve the battle skill UI by making the skill buttons clearer and adding CP/element information, and I will show evidence by pushing the updated scripts, prefab, scene changes, and screenshots to GitHub.
