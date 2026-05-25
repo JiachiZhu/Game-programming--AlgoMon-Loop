@@ -201,12 +201,15 @@ public class MainTerminalController : MonoBehaviour
         if (statsText != null)
         {
             int payloadCount = manager.payload != null ? manager.payload.Count : 0;
+            int evolutionDataCount = manager.evolutionDataSpeciesCodes != null ? manager.evolutionDataSpeciesCodes.Count : 0;
             string runStatus = manager.IsRunActive ? "ACTV" : "STBY";
             int rewardPercent = manager.IsRunActive
                 ? Mathf.RoundToInt(manager.currentRewardMultiplier * 100f)
                 : ThreatTierRules.RewardMultiplierPercent(manager.SelectedThreatTier, manager.HighestUnlockedThreatTier);
             statsText.text =
+                $"USER// XP {manager.playerExp:0000} CMP {manager.computeBalance:0000}\n" +
                 $"PAYLOAD// {payloadCount:00}\n" +
+                $"EVO// {evolutionDataCount:00}\n" +
                 $"RUN// {runStatus} T{manager.SelectedThreatTierNumber:00}/{manager.HighestUnlockedThreatTierNumber:00} x{rewardPercent:000}%\n" +
                 $"SQUAD// {PartyCount(manager):00}/{GameManager.MaxPartySize:00}";
         }
@@ -361,6 +364,7 @@ public class MainTerminalController : MonoBehaviour
         builder.AppendLine($"{DisplayNameFor(mon).ToUpperInvariant()}");
         builder.AppendLine($"CODE: {codeName.ToUpperInvariant()}  ELEMENT: {element}");
         builder.AppendLine($"LV {mon.level:00}/{AlgoMonInstance.MAX_LEVEL}  EXP {mon.exp}/{mon.expToNextLevel}");
+        builder.AppendLine($"DATA QUALITY: {EncounterReward.FormatQuality(mon.dataQuality)}");
         builder.AppendLine($"SUBROUTINE: {subroutine.ToUpperInvariant()}");
         builder.AppendLine();
         builder.AppendLine("ACTIVE STATS");

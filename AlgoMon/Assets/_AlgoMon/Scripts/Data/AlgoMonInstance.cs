@@ -21,6 +21,7 @@ public class AlgoMonInstance
 
     public AlgoMonData data;
     public string nickname;
+    public RewardDataQuality dataQuality = RewardDataQuality.Base;
     // TODO: Persist this when permanent evolution/form state lands.
     [NonSerialized] public string battleFormName = "Base";
 
@@ -106,6 +107,7 @@ public class AlgoMonInstance
         {
             data = data,
             nickname = nickname,
+            dataQuality = dataQuality,
             iv_Battery = iv_Battery,
             iv_ClockSpeed = iv_ClockSpeed,
             iv_ComputingPower = iv_ComputingPower,

@@ -34,7 +34,7 @@ animations, and broad VFX content are deferred.
 |---|---|---|
 | #29 | [Progression] Add Threat Tier 1-5 and Lv1-Lv50 encounter bands | Done |
 | #30 | [Grid] Apply node-depth difficulty scaling within each Threat Tier | Done |
-| #31 | [Rewards] Define wild, hacker, elite, boss, and shop reward identities | Planned |
+| #31 | [Rewards] Define wild, hacker, elite, boss, and shop reward identities | Done |
 | #32 | [Battle] Add party switch action with absolute-first priority | Planned |
 | #33 | [Encounters] Add hacker encounter v1 with multi-AlgoMon pressure | Planned |
 | #34 | [Shop] Add compute currency and first-pass shop buff choices | Planned |
@@ -131,15 +131,15 @@ while later nodes and bosses continue to create pressure.
 
 **Acceptance Criteria**
 
-- [ ] Wild AlgoMon nodes grant small player EXP, small AlgoMon EXP, and base
+- [x] Wild AlgoMon nodes grant small player EXP, small AlgoMon EXP, and base
   AlgoMon data.
-- [ ] Hacker nodes grant higher player EXP, higher AlgoMon EXP, and more compute,
+- [x] Hacker nodes grant higher player EXP, higher AlgoMon EXP, and more compute,
   but do not grant captured AlgoMon data.
-- [ ] Elite nodes grant above-average EXP and compute, and may use harder
+- [x] Elite nodes grant above-average EXP and compute, and may use harder
   encounter rules.
-- [ ] Boss nodes grant high EXP, high-quality base data, and evolution data for
+- [x] Boss nodes grant high EXP, high-quality base data, and evolution data for
   the defeated evolved species.
-- [ ] Shop nodes spend compute on buffs instead of starting a battle.
+- [x] Shop nodes spend compute on buffs instead of starting a battle.
 
 **Scope Notes**
 
@@ -147,6 +147,19 @@ while later nodes and bosses continue to create pressure.
   Full evolution UI belongs to Sprint 5.
 - Base data quality can be represented with a placeholder quality tier if the
   final gene system is not ready.
+- Shop buff choice UI and concrete buff effects are implemented in #34; #31
+  adds the compute wallet and spend API that shop choices will consume.
+
+**Implementation Notes**
+
+- Added `EncounterReward`, `RunRewardSummary`, and `EncounterRewardCalculator`
+  as the reward contract for combat node wins.
+- Victory rewards now grant player EXP, party AlgoMon EXP, compute, optional
+  base data, and optional evolution data through `GameManager`.
+- Combat nodes grant base data; Hacker and Elite reward EXP/compute without
+  capture data; Boss rewards high-quality base data plus evolution data.
+- MainTerminal now surfaces player EXP, compute, evolution-data count, and
+  Payload data quality. RunResult shows the accumulated run reward summary.
 
 ### #32 - [Battle] Add party switch action with absolute-first priority
 

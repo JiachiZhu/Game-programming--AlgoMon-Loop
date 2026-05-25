@@ -1637,7 +1637,7 @@ public class BattleManager : MonoBehaviour
         if (!battleEndPublished)
         {
             if (playerWon)
-                TryExtractDefeatedEnemy();
+                TryGrantDefeatedEnemyReward();
 
             EventBus.Publish(new BattleEndEvent { PlayerWon = playerWon });
             battleEndPublished = true;
@@ -1646,20 +1646,20 @@ public class BattleManager : MonoBehaviour
         RefreshHud();
     }
 
-    private void TryExtractDefeatedEnemy()
+    private void TryGrantDefeatedEnemyReward()
     {
         GameManager manager = GameManager.Instance;
         if (manager == null || enemy == null)
             return;
 
-        // Sprint 3 v1 extracts every defeated asset-backed encounter, including Boss.
-        if (manager.TryRegisterCapture(enemy.Instance, out AlgoMonInstance captured))
+        EncounterReward reward = manager.GrantCurrentEncounterReward(enemy.Instance);
+        if (reward != null && reward.HasAnyGrant)
         {
-            EmitLog($"EXTRACTED: {DisplayNameFor(captured)} added to Payload.");
+            EmitLog(reward.ToBattleLogLine());
             return;
         }
 
-        EmitLog("EXTRACTION SKIPPED: encounter data is not persistent.");
+        EmitLog("REWARD SKIPPED: encounter data is not rewardable.");
     }
 
     private void RefreshHud()

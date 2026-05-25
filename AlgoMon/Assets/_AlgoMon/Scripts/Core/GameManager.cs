@@ -28,6 +28,11 @@ public class GameManager : MonoBehaviour
     public List<AlgoMonInstance> party = new List<AlgoMonInstance>();
     public const int MaxPartySize = 4;
 
+    [Header("Player Progress")]
+    public int playerExp;
+    public int computeBalance;
+    public List<string> evolutionDataSpeciesCodes = new List<string>();
+
     [Header("Run State")]
     public string currentNodeId;
     public int currentRunSeed;
@@ -43,7 +48,7 @@ public class GameManager : MonoBehaviour
     [Range(ThreatTierRules.MinTier, ThreatTierRules.MaxTier)]
     public int selectedThreatTier = ThreatTierRules.MinTier;
     public int currentThreatTier = ThreatTierRules.MinTier;
-    // TODO #31: Apply this multiplier when reward grants land; currently it is surfaced for run reporting.
+    // Applied by EncounterRewardCalculator when combat rewards are granted.
     public float currentRewardMultiplier = 1f;
 
     [Header("Run Result")]
@@ -53,8 +58,10 @@ public class GameManager : MonoBehaviour
     public NodeType completedRunNodeType;
     public int completedRunVisitedCount;
     public int completedRunThreatTier = ThreatTierRules.MinTier;
-    // TODO #31: Use this when RunResult shows concrete EXP/data/compute rewards.
     public float completedRunRewardMultiplier = 1f;
+    public EncounterReward lastEncounterReward = new EncounterReward();
+    public RunRewardSummary currentRunRewards = new RunRewardSummary();
+    public RunRewardSummary completedRunRewards = new RunRewardSummary();
 
     // ----------------------------------------------------------------
 
@@ -83,6 +90,7 @@ public class GameManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
 
+        EnsureRewardContainers();
         SubscribePersistentEvents();
     }
 
@@ -136,6 +144,9 @@ public class GameManager : MonoBehaviour
     public void BeginRun(int seed, GridGenerationSettings gridSettings)
     {
         ClearRunResult();
+        EnsureRewardContainers();
+        currentRunRewards.Reset();
+        lastEncounterReward = new EncounterReward();
 
         ThreatTier runTier = SelectedThreatTier;
         selectedThreatTier = ThreatTierRules.ToInt(runTier);
@@ -167,6 +178,9 @@ public class GameManager : MonoBehaviour
         currentOpponent = null;
         currentThreatTier = ThreatTierRules.MinTier;
         currentRewardMultiplier = 1f;
+        EnsureRewardContainers();
+        currentRunRewards.Reset();
+        lastEncounterReward = new EncounterReward();
     }
 
     public void ClearRunResult()
@@ -178,6 +192,9 @@ public class GameManager : MonoBehaviour
         completedRunVisitedCount = 0;
         completedRunThreatTier = ThreatTierRules.MinTier;
         completedRunRewardMultiplier = 1f;
+        EnsureRewardContainers();
+        completedRunRewards.Reset();
+        lastEncounterReward = new EncounterReward();
     }
 
     public ThreatTier HighestUnlockedThreatTier
@@ -265,12 +282,21 @@ public class GameManager : MonoBehaviour
 
     public bool TryRegisterCapture(AlgoMonInstance mon, out AlgoMonInstance captured)
     {
+        return TryRegisterCapture(mon, RewardDataQuality.Base, out captured);
+    }
+
+    public bool TryRegisterCapture(AlgoMonInstance mon, RewardDataQuality quality, out AlgoMonInstance captured)
+    {
         captured = null;
         if (!CanPersistCapture(mon))
             return false;
 
         captured = mon.Clone();
         captured.usesTransientData = false;
+        captured.dataQuality = quality;
+        captured.battleFormName = "Base";
+        if (captured.data != null && !string.IsNullOrWhiteSpace(captured.data.codeName))
+            captured.nickname = captured.data.codeName.Trim();
         captured.EnsureKnownSkillsFromLearnset();
         AddToPayload(captured);
         return true;
@@ -292,6 +318,96 @@ public class GameManager : MonoBehaviour
 #else
         return true;
 #endif
+    }
+
+    public bool CanAffordCompute(int amount)
+    {
+        return amount <= 0 || computeBalance >= amount;
+    }
+
+    public bool TrySpendCompute(int amount)
+    {
+        if (amount <= 0)
+            return true;
+        if (!CanAffordCompute(amount))
+            return false;
+
+        computeBalance -= amount;
+        return true;
+    }
+
+    public int EvolutionDataCountFor(string speciesCodeName)
+    {
+        if (evolutionDataSpeciesCodes == null || string.IsNullOrWhiteSpace(speciesCodeName))
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < evolutionDataSpeciesCodes.Count; i++)
+        {
+            if (string.Equals(evolutionDataSpeciesCodes[i], speciesCodeName, StringComparison.OrdinalIgnoreCase))
+                count++;
+        }
+
+        return count;
+    }
+
+    public EncounterReward GrantCurrentEncounterReward(AlgoMonInstance defeatedOpponent)
+    {
+        EnsureRewardContainers();
+
+        GridNode completedNode = CurrentRunNode();
+        ThreatTier tier = currentRunGraph != null
+            ? ThreatTierRules.ClampTier(currentRunGraph.threatTier)
+            : ThreatTierRules.ClampTier(currentThreatTier);
+
+        EncounterReward reward = EncounterRewardCalculator.Build(
+            completedNode,
+            defeatedOpponent,
+            tier,
+            currentRewardMultiplier);
+
+        ApplyEncounterReward(reward, defeatedOpponent);
+        currentRunRewards.Add(reward);
+        lastEncounterReward = reward.Clone();
+        return reward;
+    }
+
+    private void ApplyEncounterReward(EncounterReward reward, AlgoMonInstance defeatedOpponent)
+    {
+        if (reward == null)
+            return;
+
+        playerExp += reward.playerExp;
+        computeBalance += reward.compute;
+        GrantPartyExp(reward.algoMonExp);
+
+        if (reward.shouldGrantBaseData &&
+            TryRegisterCapture(defeatedOpponent, reward.baseDataQuality, out AlgoMonInstance captured))
+        {
+            reward.baseDataGranted = captured != null;
+        }
+
+        if (reward.shouldGrantEvolutionData)
+        {
+            string code = !string.IsNullOrWhiteSpace(reward.speciesCodeName)
+                ? reward.speciesCodeName.Trim()
+                : "UNKNOWN";
+            evolutionDataSpeciesCodes.Add(code);
+            reward.evolutionDataGranted = true;
+        }
+    }
+
+    private void GrantPartyExp(int amount)
+    {
+        if (amount <= 0 || party == null)
+            return;
+
+        for (int i = 0; i < party.Count; i++)
+        {
+            AlgoMonInstance mon = party[i];
+            if (mon != null)
+                mon.GainExp(amount);
+        }
     }
 
     private void OnNodeSelected(NodeSelectedEvent e)
@@ -348,6 +464,8 @@ public class GameManager : MonoBehaviour
         completedRunVisitedCount = visitedNodeIds != null ? visitedNodeIds.Count : 0;
         completedRunThreatTier = currentThreatTier;
         completedRunRewardMultiplier = currentRewardMultiplier;
+        EnsureRewardContainers();
+        completedRunRewards = currentRunRewards.Clone();
     }
 
     private static bool IsEncounterNode(NodeType type)
@@ -373,6 +491,18 @@ public class GameManager : MonoBehaviour
         }
 
         return count > 0 ? Mathf.RoundToInt(total / (float)count) : 0;
+    }
+
+    private void EnsureRewardContainers()
+    {
+        if (evolutionDataSpeciesCodes == null)
+            evolutionDataSpeciesCodes = new List<string>();
+        if (lastEncounterReward == null)
+            lastEncounterReward = new EncounterReward();
+        if (currentRunRewards == null)
+            currentRunRewards = new RunRewardSummary();
+        if (completedRunRewards == null)
+            completedRunRewards = new RunRewardSummary();
     }
 
     // ----------------------------------------------------------------

@@ -86,7 +86,8 @@ public class RunResultController : MonoBehaviour
                     $"FINAL NODE: {nodeId} [{manager.completedRunNodeType}]\n" +
                     $"THREAT TIER: T{manager.completedRunThreatTier} ({Mathf.RoundToInt(manager.completedRunRewardMultiplier * 100f)}% REWARD)\n" +
                     $"NODES VISITED: {manager.completedRunVisitedCount}\n" +
-                    $"PAYLOAD SIZE: {PayloadCount()}";
+                    $"PAYLOAD SIZE: {PayloadCount()}\n\n" +
+                    $"RUN REWARDS\n{CompletedRewardSummary()}";
             }
         }
     }
@@ -114,6 +115,14 @@ public class RunResultController : MonoBehaviour
     private int PayloadCount()
     {
         return manager != null && manager.payload != null ? manager.payload.Count : 0;
+    }
+
+    private string CompletedRewardSummary()
+    {
+        if (manager == null || manager.completedRunRewards == null)
+            return "USER EXP +0 | ALGOMON EXP +0\nCOMPUTE +0 | DATA +0 | EVO +0";
+
+        return manager.completedRunRewards.ToCompactDisplay();
     }
 
     private void EnsureSceneObjects()
