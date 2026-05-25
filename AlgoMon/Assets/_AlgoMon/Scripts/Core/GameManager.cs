@@ -36,12 +36,22 @@ public class GameManager : MonoBehaviour
     public AlgoMonInstance currentOpponent;
     public bool IsRunActive { get; private set; }
 
+    [Header("Threat Tier")]
+    [Range(ThreatTierRules.MinTier, ThreatTierRules.MaxTier)]
+    public int highestUnlockedThreatTier = ThreatTierRules.MinTier;
+    [Range(ThreatTierRules.MinTier, ThreatTierRules.MaxTier)]
+    public int selectedThreatTier = ThreatTierRules.MinTier;
+    public int currentThreatTier = ThreatTierRules.MinTier;
+    public float currentRewardMultiplier = 1f;
+
     [Header("Run Result")]
     public RunOutcome pendingRunOutcome = RunOutcome.None;
     public int completedRunSeed;
     public string completedRunNodeId;
     public NodeType completedRunNodeType;
     public int completedRunVisitedCount;
+    public int completedRunThreatTier = ThreatTierRules.MinTier;
+    public float completedRunRewardMultiplier = 1f;
 
     // ----------------------------------------------------------------
 
@@ -124,7 +134,14 @@ public class GameManager : MonoBehaviour
     {
         ClearRunResult();
 
+        ThreatTier runTier = SelectedThreatTier;
+        selectedThreatTier = ThreatTierRules.ToInt(runTier);
+        currentThreatTier = selectedThreatTier;
+        currentRewardMultiplier = ThreatTierRules.RewardMultiplier(runTier, HighestUnlockedThreatTier);
+
         GridGraph graph = new GridGenerator(gridSettings).Generate(seed);
+        graph.threatTier = currentThreatTier;
+        graph.rewardMultiplierPercent = ThreatTierRules.RewardMultiplierPercent(runTier, HighestUnlockedThreatTier);
 
         IsRunActive = true;
         currentRunSeed = seed;
@@ -143,6 +160,8 @@ public class GameManager : MonoBehaviour
         currentNodeId = string.Empty;
         visitedNodeIds.Clear();
         currentOpponent = null;
+        currentThreatTier = ThreatTierRules.MinTier;
+        currentRewardMultiplier = 1f;
     }
 
     public void ClearRunResult()
@@ -152,6 +171,43 @@ public class GameManager : MonoBehaviour
         completedRunNodeId = string.Empty;
         completedRunNodeType = NodeType.Start;
         completedRunVisitedCount = 0;
+        completedRunThreatTier = ThreatTierRules.MinTier;
+        completedRunRewardMultiplier = 1f;
+    }
+
+    public ThreatTier HighestUnlockedThreatTier
+    {
+        get { return ThreatTierRules.ClampTier(highestUnlockedThreatTier); }
+    }
+
+    public ThreatTier SelectedThreatTier
+    {
+        get { return ThreatTierRules.ClampSelectableTier(selectedThreatTier, highestUnlockedThreatTier); }
+    }
+
+    public int HighestUnlockedThreatTierNumber
+    {
+        get { return ThreatTierRules.ToInt(HighestUnlockedThreatTier); }
+    }
+
+    public int SelectedThreatTierNumber
+    {
+        get { return ThreatTierRules.ToInt(SelectedThreatTier); }
+    }
+
+    public bool TrySetSelectedThreatTier(int tier)
+    {
+        if (!ThreatTierRules.CanEnterTier(tier, highestUnlockedThreatTier))
+            return false;
+
+        selectedThreatTier = ThreatTierRules.ToInt(ThreatTierRules.ClampTier(tier));
+        return true;
+    }
+
+    public void SetHighestUnlockedThreatTier(int tier)
+    {
+        highestUnlockedThreatTier = ThreatTierRules.ToInt(ThreatTierRules.ClampTier(tier));
+        selectedThreatTier = ThreatTierRules.ToInt(ThreatTierRules.ClampSelectableTier(selectedThreatTier, highestUnlockedThreatTier));
     }
 
     public bool TrySelectRunNode(string nodeId)
@@ -244,7 +300,10 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        currentOpponent = EncounterFactory.Create(currentRunSeed, e.Node);
+        ThreatTier threatTier = currentRunGraph != null
+            ? ThreatTierRules.ClampTier(currentRunGraph.threatTier)
+            : ThreatTierRules.ClampTier(currentThreatTier);
+        currentOpponent = EncounterFactory.Create(currentRunSeed, e.Node, threatTier);
         GoTo(GameScene.TheArena);
     }
 
@@ -282,6 +341,8 @@ public class GameManager : MonoBehaviour
         completedRunNodeId = completedNode != null ? completedNode.id : currentNodeId;
         completedRunNodeType = completedNode != null ? completedNode.nodeType : NodeType.Start;
         completedRunVisitedCount = visitedNodeIds != null ? visitedNodeIds.Count : 0;
+        completedRunThreatTier = currentThreatTier;
+        completedRunRewardMultiplier = currentRewardMultiplier;
     }
 
     private static bool IsEncounterNode(NodeType type)

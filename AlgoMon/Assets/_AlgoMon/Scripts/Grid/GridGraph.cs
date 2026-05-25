@@ -8,6 +8,8 @@ using System.Collections.Generic;
 public class GridGraph
 {
     public int seed;
+    public int threatTier = ThreatTierRules.MinTier;
+    public int rewardMultiplierPercent = 100;
     public string startNodeId;
     public string bossNodeId;
     public List<GridNode> nodes = new List<GridNode>();

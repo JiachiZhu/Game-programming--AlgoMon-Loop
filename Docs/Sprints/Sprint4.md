@@ -32,7 +32,7 @@ animations, and broad VFX content are deferred.
 
 | # | Title | Status |
 |---|---|---|
-| #29 | [Progression] Add Threat Tier 1-5 and Lv1-Lv50 encounter bands | Planned |
+| #29 | [Progression] Add Threat Tier 1-5 and Lv1-Lv50 encounter bands | Done |
 | #30 | [Grid] Apply node-depth difficulty scaling within each Threat Tier | Planned |
 | #31 | [Rewards] Define wild, hacker, elite, boss, and shop reward identities | Planned |
 | #32 | [Battle] Add party switch action with absolute-first priority | Planned |
@@ -61,16 +61,16 @@ progression without making enemies mirror the player's level exactly.
 
 **Acceptance Criteria**
 
-- [ ] AlgoMon level cap is treated as Lv50 for Sprint 4 planning.
-- [ ] Threat Tier values 1-5 exist as run difficulty settings.
-- [ ] Each Threat Tier maps to a 10-level band:
+- [x] AlgoMon level cap is treated as Lv50 for Sprint 4 planning.
+- [x] Threat Tier values 1-5 exist as run difficulty settings.
+- [x] Each Threat Tier maps to a 10-level band:
   - Tier 1: Lv1-Lv10
   - Tier 2: Lv11-Lv20
   - Tier 3: Lv21-Lv30
   - Tier 4: Lv31-Lv40
   - Tier 5: Lv41-Lv50
-- [ ] The player can only enter the highest unlocked Threat Tier or a lower one.
-- [ ] Lower-tier runs remain playable for farming, but use lower reward
+- [x] The player can only enter the highest unlocked Threat Tier or a lower one.
+- [x] Lower-tier runs remain playable for farming, but use lower reward
   multipliers than the current highest tier.
 
 **Scope Notes**
@@ -78,6 +78,14 @@ progression without making enemies mirror the player's level exactly.
 - Unlock rules can be simple in Sprint 4, such as defaulting to Tier 1 or using
   a debug/configured max tier.
 - Do not build a full account progression UI unless required for testing.
+
+**Implementation Notes**
+
+- Added `ThreatTierRules` as the single source for Tier 1-5, Lv1-Lv50 bands,
+  selectable-tier clamping, and lower-tier reward multipliers.
+- `GameManager` now stores selected, highest-unlocked, active, and completed
+  run Threat Tier state.
+- `EncounterFactory` now creates enemies inside the active tier's level band.
 
 ### #30 - [Grid] Apply node-depth difficulty scaling within each Threat Tier
 

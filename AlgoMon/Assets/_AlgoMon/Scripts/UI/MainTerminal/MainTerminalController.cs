@@ -204,7 +204,7 @@ public class MainTerminalController : MonoBehaviour
             string runStatus = manager.IsRunActive ? "ACTV" : "STBY";
             statsText.text =
                 $"PAYLOAD// {payloadCount:00}\n" +
-                $"RUN// {runStatus}\n" +
+                $"RUN// {runStatus} T{manager.SelectedThreatTierNumber:00}/{manager.HighestUnlockedThreatTierNumber:00}\n" +
                 $"SQUAD// {PartyCount(manager):00}/{GameManager.MaxPartySize:00}";
         }
 

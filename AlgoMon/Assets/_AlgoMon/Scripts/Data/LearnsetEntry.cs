@@ -16,6 +16,6 @@ public struct LearnsetEntry
     public SkillData skill;
 
     [Tooltip("The level at which this skill becomes learnable. 1 = available from capture.")]
-    [Range(1, 100)]
+    [Range(1, AlgoMonInstance.MAX_LEVEL)]
     public int unlockLevel;
 }

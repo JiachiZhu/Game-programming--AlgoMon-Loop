@@ -17,7 +17,7 @@ using UnityEngine;
 [Serializable]
 public class AlgoMonInstance
 {
-    public const int MAX_LEVEL = 100;
+    public const int MAX_LEVEL = ThreatTierRules.SprintLevelCap;
 
     public AlgoMonData data;
     public string nickname;

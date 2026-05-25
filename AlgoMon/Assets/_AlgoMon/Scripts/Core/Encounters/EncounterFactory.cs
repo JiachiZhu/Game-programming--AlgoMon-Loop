@@ -14,14 +14,12 @@ public static class EncounterFactory
     private const string AlgoMonAssetSearchFolder = "Assets/_AlgoMon/ScriptableObjects/AlgoMons";
     private const string EncounterSpeciesCatalogResourcePath = "EncounterSpeciesCatalog";
 
-    private const int BaseLevel = 10;
-    private const int LevelPerLayer = 2;
-    private const int LevelPerTier = 3;
     private const int LevelRandomExclusiveMax = 3;
 
     private const int BaseIvFloor = 138;
     private const int IvPerLayer = 7;
-    private const int IvPerTier = 18;
+    private const int IvPerEncounterGrade = 18;
+    private const int IvPerThreatTier = 10;
     private const int TierStatBonus = 4;
 
     private const int BatteryIvBonus = 20;
@@ -32,13 +30,19 @@ public static class EncounterFactory
 
     public static AlgoMonInstance Create(int runSeed, GridNode node)
     {
+        return Create(runSeed, node, ThreatTier.Tier1);
+    }
+
+    public static AlgoMonInstance Create(int runSeed, GridNode node, ThreatTier threatTier)
+    {
         if (node == null)
             return null;
 
-        int hash = StableHash($"{runSeed}:{node.id}:{node.nodeType}");
+        int hash = StableHash($"{runSeed}:{node.id}:{node.nodeType}:T{ThreatTierRules.ToInt(threatTier)}");
         var rng = new System.Random(hash);
-        int tier = EncounterTier(node.nodeType);
-        int baseIv = BaseIvFloor + node.layer * IvPerLayer + tier * IvPerTier;
+        int encounterGrade = EncounterGrade(node.nodeType);
+        int threatIndex = ThreatTierRules.ToInt(threatTier) - 1;
+        int baseIv = BaseIvFloor + node.layer * IvPerLayer + encounterGrade * IvPerEncounterGrade + threatIndex * IvPerThreatTier;
         AlgoMonData species = PickEncounterSpecies(node, hash, out bool usesTransientData);
 
         var opponent = new AlgoMonInstance
@@ -46,14 +50,11 @@ public static class EncounterFactory
             data = species,
             nickname = BuildOpponentName(species, node),
             usesTransientData = usesTransientData,
-            level = Mathf.Clamp(
-                BaseLevel + node.layer * LevelPerLayer + tier * LevelPerTier + rng.Next(0, LevelRandomExclusiveMax),
-                1,
-                AlgoMonInstance.MAX_LEVEL),
+            level = ThreatTierRules.EncounterLevel(threatTier, node.nodeType, node.layer, rng.Next(0, LevelRandomExclusiveMax)),
             iv_Battery = RollEncounterStat(rng, baseIv + BatteryIvBonus, BatteryIvSpread),
             iv_ClockSpeed = RollEncounterStat(rng, baseIv, SpeedIvSpread),
-            iv_ComputingPower = RollEncounterStat(rng, baseIv + tier * TierStatBonus, OffenseIvSpread),
-            iv_Throughput = RollEncounterStat(rng, baseIv + tier * TierStatBonus, OffenseIvSpread),
+            iv_ComputingPower = RollEncounterStat(rng, baseIv + encounterGrade * TierStatBonus, OffenseIvSpread),
+            iv_Throughput = RollEncounterStat(rng, baseIv + encounterGrade * TierStatBonus, OffenseIvSpread),
             iv_Firewall = RollEncounterStat(rng, baseIv, DefenseIvSpread),
             iv_Encryption = RollEncounterStat(rng, baseIv, DefenseIvSpread)
         };
@@ -62,7 +63,7 @@ public static class EncounterFactory
         return opponent;
     }
 
-    private static int EncounterTier(NodeType type)
+    private static int EncounterGrade(NodeType type)
     {
         switch (type)
         {

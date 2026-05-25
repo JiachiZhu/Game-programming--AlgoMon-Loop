@@ -84,6 +84,7 @@ public class RunResultController : MonoBehaviour
                 detailText.text =
                     $"RUN SEED: {manager.completedRunSeed}\n" +
                     $"FINAL NODE: {nodeId} [{manager.completedRunNodeType}]\n" +
+                    $"THREAT TIER: T{manager.completedRunThreatTier} ({Mathf.RoundToInt(manager.completedRunRewardMultiplier * 100f)}% REWARD)\n" +
                     $"NODES VISITED: {manager.completedRunVisitedCount}\n" +
                     $"PAYLOAD SIZE: {PayloadCount()}";
             }
