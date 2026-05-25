@@ -14,6 +14,11 @@ public class AlgoMonData : ScriptableObject
     public Sprite portrait;
     public ElementType elementType;
 
+    [Header("Battle Presentation")]
+    [Tooltip("Optional species/form-specific battle animation profile. " +
+             "If empty, BattleSpriteAnimator uses its generic fallback motion.")]
+    public BattleAnimationProfile battleAnimationProfile;
+
     [Header("Subroutine — Passive Ability")]
     [Tooltip("This species' hardwired passive. Triggers automatically in battle. " +
              "Assign a SubroutineData asset. Effect logic is handled by BattleManager.")]

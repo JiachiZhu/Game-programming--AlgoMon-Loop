@@ -27,18 +27,52 @@ public class BattleHudController : MonoBehaviour
 
     private const int MaxSkillSlots = 4;
     private const int MaxCP         = 10;
+    private const string PlayerTurnStateText = "Player turn";
+    private const string AnnouncerPanelResourcePath = "UI/BattleAnnouncer_GreenPanel";
+    private const string AnnouncerFontResourcePath = "Fonts/NicoBold-Regular";
+    private const string SkillButtonFrameResourcePath = "UI/SkillFrame/scifi_inventory01_box_back";
+    private const string SkillInsetFrameResourcePath = "UI/SkillFrame/scifi_inventory01_box";
+    private const string SkillTagFrameResourcePath = "UI/SkillFrame/scifi_inventory02_box_select01";
+    private const string SkillPanelBackdropResourcePath = "UI/SkillFrame/inventory_example_02_four_rows_soft";
+    private const string ElementIconResourcePrefix = "UI/Elements/Element_";
 
     // Default text shown in the Skill Details panel when no button is hovered.
     private const string DefaultSkillDetailTitle = "Skill Details";
     private const string DefaultSkillDetailBody  = "Ready.";
 
     // CP dot palette used by both prefab defaults and live HUD updates.
-    private static readonly Color32 CPDotActive   = new Color32( 73, 181, 255, 255);
-    private static readonly Color32 CPDotInactive = new Color32( 48,  57,  66, 255);
+    private static readonly Color32 CPDotActive   = new Color32(120, 235, 244, 255);
+    private static readonly Color32 CPDotInactive = new Color32(120, 235, 244,   0);
+    private static readonly Color32 PlayerBatteryFillColor = new Color32( 70, 221, 233, 255);
+    private static readonly Color32 EnemyBatteryFillColor  = new Color32(242, 131,  92, 255);
+    private static readonly Vector2 BatteryFillFallbackAnchorMin = new Vector2(0.30f, 0.02f);
+    private static readonly Vector2 BatteryFillFallbackAnchorMax = new Vector2(0.82f, 0.98f);
+    private static readonly Vector2 BatteryFillInsetMin = new Vector2(0f, 0f);
+    private static readonly Vector2 BatteryFillInsetMax = new Vector2(1f, 1f);
 
     [Header("Resource Animation")]
     [SerializeField, Min(0f)] private float batteryLerpSpeed = 8f;
     [SerializeField, Min(0f)] private float cpLerpSpeed = 12f;
+
+    [Header("Round Prompt Animation")]
+    [SerializeField] private Image roundSandclockImage;
+    [SerializeField] private Sprite[] roundSandclockFrames = Array.Empty<Sprite>();
+    [SerializeField, Min(0.01f)] private float roundSandclockFrameSeconds = 0.14f;
+
+    [Header("Battle Announcer")]
+    [SerializeField] private Text announcerTitleText;
+    [SerializeField] private Text announcerBodyText;
+    [SerializeField] private Image announcerFrame;
+    [SerializeField] private Sprite announcerPanelSprite;
+    [SerializeField] private Font announcerFont;
+    [SerializeField] private bool autoCreateAnnouncer = true;
+    [SerializeField, Min(0f)] private float announcerPulseSeconds = 0.18f;
+
+    [Header("Skill Slot Skin")]
+    [SerializeField] private Sprite skillButtonFrameSprite;
+    [SerializeField] private Sprite skillInsetFrameSprite;
+    [SerializeField] private Sprite skillTagFrameSprite;
+    [SerializeField] private Sprite skillPanelBackdropSprite;
 
     // Placeholder hover bodies for the default Sortex loadout baked into the
     // prefab. Keyed by skill name so layout edits that change slot order still
@@ -47,7 +81,7 @@ public class BattleHudController : MonoBehaviour
     private static readonly System.Collections.Generic.Dictionary<string, string> DefaultSkillHoverBodies =
         new System.Collections.Generic.Dictionary<string, string>
     {
-        { "Volt Array",      "CP 4 | PWR 50\nReliable Electric attack.\nNo counter effect." },
+        { "Volt Array",      "CP 4 | BP 50\nReliable Electric attack.\nNo counter effect." },
         { "Faraday Cage",    "CP 2 | Counter\nDefense skill. Reduces incoming damage when it wins the matchup." },
         { "Auto-Tuning",     "CP 2\nStatus skill. Raises Computing Power." },
         { "Hyper-Threading", "CP 2\nStatus skill. Next skill fires twice." },
@@ -56,6 +90,14 @@ public class BattleHudController : MonoBehaviour
     // --- Top bar refs ---
     private Text roundText;
     private Text battleStateText;
+    private bool roundSandclockPlaying;
+    private float roundSandclockTimer;
+    private int roundSandclockFrameIndex;
+    private float announcerPulseTimer;
+    private bool skillPanelPresentationApplied;
+    private bool skillPanelSlotLayoutApplied;
+    private readonly Color announcerFrameBaseColor = new Color(0.035f, 0.075f, 0.11f, 0.90f);
+    private readonly Color announcerFramePulseColor = new Color(0.18f, 0.72f, 0.92f, 0.96f);
 
     // --- Per-side refs ---
     private struct CombatantRefs
@@ -64,7 +106,10 @@ public class BattleHudController : MonoBehaviour
         public Text    LevelText;
         public Text    BatteryValueText;
         public Image   BatteryFill;
+        public Color32 BatteryFillColor;
+        public RectTransform BatteryFrameRect;
         public Image[] CPDots;
+        public Text    CPValueText;
         public Text    StatusText;
     }
     private CombatantRefs player;
@@ -91,6 +136,12 @@ public class BattleHudController : MonoBehaviour
     private readonly Text[]   skillCPTexts     = new Text  [MaxSkillSlots];
     private readonly Text[]   skillPowerTexts  = new Text  [MaxSkillSlots];
     private readonly Text[]   skillCounterTexts= new Text  [MaxSkillSlots];
+    private readonly Image[]  skillInstructionFrames = new Image[MaxSkillSlots];
+    private readonly Text[]   skillInstructionTexts  = new Text [MaxSkillSlots];
+    private readonly Image[]  skillElementBadges     = new Image[MaxSkillSlots];
+    private readonly Image[]  skillElementIconImages = new Image[MaxSkillSlots];
+    private readonly Text[]   skillElementTexts      = new Text [MaxSkillSlots];
+    private readonly Sprite[] elementIconSprites      = new Sprite[7];
     private readonly GameObject[] skillCPTagObjects      = new GameObject[MaxSkillSlots];
     private readonly GameObject[] skillPowerTagObjects   = new GameObject[MaxSkillSlots];
     private readonly GameObject[] skillCounterTagObjects = new GameObject[MaxSkillSlots];
@@ -124,6 +175,9 @@ public class BattleHudController : MonoBehaviour
     private void Update()
     {
         UpdateResourceDisplays();
+        UpdateRoundSandclockAnimation();
+        UpdateAnnouncerPulse();
+        EnsureSkillPanelPresentation();
     }
 
     private void OnDestroy()
@@ -134,7 +188,7 @@ public class BattleHudController : MonoBehaviour
     /// <summary>
     /// Re-resolve all child references and re-wire button click events. Safe
     /// to call multiple times; old listeners are removed before re-adding.
-    /// BattleHud.prefab keeps stable CP / PWR / Counter tag roots on every
+    /// BattleHud.prefab keeps stable CP / BP / Counter tag roots on every
     /// skill slot, and SetSkillSlot toggles them from live SkillData.
     /// </summary>
     public void Bind()
@@ -144,11 +198,16 @@ public class BattleHudController : MonoBehaviour
         // Canvas_Arena's children all live under SafeArea.
         roundText        = FindText("SafeArea/TopBar/RoundText");
         battleStateText  = FindText("SafeArea/TopBar/BattleStateText");
+        if (roundSandclockImage == null)
+            roundSandclockImage = Find<Image>("SafeArea/TopBar/RoundSandclock");
+        ApplyRoundSandclockState();
+        EnsureBattleAnnouncer();
 
         player = BindCombatant("SafeArea/CombatLayer/PlayerCombatantPanel");
         enemy  = BindCombatant("SafeArea/CombatLayer/EnemyCombatantPanel");
         playerDisplay = default;
         enemyDisplay = default;
+        EnsureSkillPanelPresentation();
 
         for (int i = 0; i < MaxSkillSlots; i++)
         {
@@ -162,6 +221,7 @@ public class BattleHudController : MonoBehaviour
             skillCPTexts[i]       = FindTextDeep(root, "CPTag/Text");
             skillPowerTexts[i]    = FindTextDeep(root, "PowerTag/Text");
             skillCounterTexts[i]  = FindTextDeep(root, "CounterTag/Text");
+            EnsureSkillSlotPresentation(i, FindTransform(root));
 
             if (skillButtons[i] != null)
                 skillButtons[i].onClick.AddListener(() => SkillSlotClicked?.Invoke(slot));
@@ -176,6 +236,8 @@ public class BattleHudController : MonoBehaviour
         if (bagButton      != null) bagButton.onClick.AddListener     (() => ActionClicked?.Invoke(ActionButton.Bag));
         if (switchButton   != null) switchButton.onClick.AddListener  (() => ActionClicked?.Invoke(ActionButton.Switch));
         if (fleeButton     != null) fleeButton.onClick.AddListener    (() => ActionClicked?.Invoke(ActionButton.Flee));
+
+        EnsureSkillPanelPresentation();
 
         skillDetailTitle = FindText("SafeArea/CommandPanel/ActionPanel/SkillDetailPanel/TitleText");
         skillDetailBody  = FindText("SafeArea/CommandPanel/ActionPanel/SkillDetailPanel/BodyText");
@@ -261,6 +323,30 @@ public class BattleHudController : MonoBehaviour
     public void SetBattleState(string text)
     {
         if (battleStateText != null) battleStateText.text = text;
+        SetRoundSandclockActive(string.Equals(text, PlayerTurnStateText, StringComparison.OrdinalIgnoreCase));
+    }
+
+    public void SetBattleAnnouncement(string title, string body)
+    {
+        EnsureBattleAnnouncer();
+        if (announcerTitleText != null)
+            announcerTitleText.text = string.IsNullOrWhiteSpace(title) ? "BATTLE" : title.Trim().ToUpperInvariant();
+        if (announcerBodyText != null)
+            announcerBodyText.text = body ?? string.Empty;
+
+        announcerPulseTimer = announcerPulseSeconds;
+        ApplyAnnouncerFrameColor(1f);
+    }
+
+    public void SetRoundSandclockActive(bool active)
+    {
+        roundSandclockPlaying = active;
+        if (active)
+        {
+            roundSandclockTimer = 0f;
+            roundSandclockFrameIndex = 0;
+        }
+        ApplyRoundSandclockState();
     }
 
     public void SetCombatant(Side side, string name, int level)
@@ -278,7 +364,7 @@ public class BattleHudController : MonoBehaviour
         int safeCurrent = safeMax <= 0 ? 0 : Mathf.Clamp(current, 0, safeMax);
 
         if (refs.BatteryValueText != null)
-            refs.BatteryValueText.text = $"{safeCurrent} / {safeMax}";
+            refs.BatteryValueText.text = $"{safeCurrent}/{safeMax}";
 
         if (!display.BatteryInitialized)
         {
@@ -300,6 +386,9 @@ public class BattleHudController : MonoBehaviour
 
         int safeMax = Mathf.Clamp(max, 0, MaxCP);
         int safeCurrent = Mathf.Clamp(current, 0, safeMax);
+        if (refs.CPValueText != null)
+            refs.CPValueText.text = $"{safeCurrent}/{safeMax}";
+
         if (!display.CPInitialized)
         {
             display.DisplayCP = safeCurrent;
@@ -320,7 +409,7 @@ public class BattleHudController : MonoBehaviour
 
     /// <summary>
     /// Populates the stable tag placeholders on a skill button from a SkillData
-    /// asset. Every slot has CP / PWR / Counter roots; this method fills and
+    /// asset. Every slot has CP / BP / Counter roots; this method fills and
     /// toggles them according to the skill's current data.
     /// </summary>
     public void SetSkillSlot(int index, SkillData skill)
@@ -340,11 +429,12 @@ public class BattleHudController : MonoBehaviour
 
         bool showsPower = skill.basePower > 0;
         SetTag(skillPowerTagObjects[index], skillPowerTexts[index], showsPower,
-            showsPower ? $"PWR {skill.basePower}" : string.Empty);
+            showsPower ? $"BP {skill.basePower}" : string.Empty);
 
         bool showsCounter = skill.canCounter && skill.instructionType == InstructionType.Defense;
         SetTag(skillCounterTagObjects[index], skillCounterTexts[index], showsCounter,
             showsCounter ? "Counter" : string.Empty);
+        SetSkillSlotBadges(index, skill);
 
         // Hover preview follows the skill currently in the slot.
         skillHoverTitles[index] = skill.skillName;
@@ -417,6 +507,7 @@ public class BattleHudController : MonoBehaviour
         SetTag(skillCPTagObjects[index], skillCPTexts[index], false, string.Empty);
         SetTag(skillPowerTagObjects[index], skillPowerTexts[index], false, string.Empty);
         SetTag(skillCounterTagObjects[index], skillCounterTexts[index], false, string.Empty);
+        SetSkillSlotBadges(index, null);
         skillHoverTitles[index] = string.Empty;
         skillHoverBodies[index] = string.Empty;
     }
@@ -459,6 +550,683 @@ public class BattleHudController : MonoBehaviour
         UpdateResourceDisplay(enemy, ref enemyDisplay);
     }
 
+    private void UpdateRoundSandclockAnimation()
+    {
+        if (roundSandclockImage == null)
+            return;
+
+        bool shouldPlay = ShouldRoundSandclockPlay();
+        if (roundSandclockImage.gameObject.activeSelf != shouldPlay)
+            roundSandclockImage.gameObject.SetActive(shouldPlay);
+
+        if (!shouldPlay || roundSandclockFrames == null || roundSandclockFrames.Length == 0)
+            return;
+
+        roundSandclockTimer += Time.deltaTime;
+        while (roundSandclockTimer >= roundSandclockFrameSeconds)
+        {
+            roundSandclockTimer -= roundSandclockFrameSeconds;
+            roundSandclockFrameIndex = (roundSandclockFrameIndex + 1) % roundSandclockFrames.Length;
+        }
+
+        Sprite frame = roundSandclockFrames[roundSandclockFrameIndex];
+        if (frame != null && roundSandclockImage.sprite != frame)
+            roundSandclockImage.sprite = frame;
+    }
+
+    private void ApplyRoundSandclockState()
+    {
+        if (roundSandclockImage == null)
+            return;
+
+        roundSandclockImage.gameObject.SetActive(ShouldRoundSandclockPlay());
+        if (roundSandclockFrames != null && roundSandclockFrames.Length > 0)
+        {
+            roundSandclockFrameIndex = Mathf.Clamp(roundSandclockFrameIndex, 0, roundSandclockFrames.Length - 1);
+            roundSandclockImage.sprite = roundSandclockFrames[roundSandclockFrameIndex];
+        }
+    }
+
+    private bool ShouldRoundSandclockPlay()
+    {
+        return roundSandclockPlaying ||
+            (battleStateText != null && string.Equals(battleStateText.text, PlayerTurnStateText, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void EnsureBattleAnnouncer()
+    {
+        if (announcerTitleText != null && announcerBodyText != null)
+            return;
+
+        Transform root = FindTransform("SafeArea/BattleAnnouncer");
+        if (root == null && autoCreateAnnouncer)
+            root = CreateBattleAnnouncer();
+        if (root == null)
+            return;
+
+        if (announcerFrame == null)
+            announcerFrame = root.GetComponent<Image>();
+        ConfigureAnnouncerFrame();
+        if (announcerTitleText == null)
+            announcerTitleText = FindText("SafeArea/BattleAnnouncer/TitleText");
+        if (announcerBodyText == null)
+            announcerBodyText = FindText("SafeArea/BattleAnnouncer/BodyText");
+
+        ApplyAnnouncerFrameColor(0f);
+    }
+
+    private Transform CreateBattleAnnouncer()
+    {
+        Transform safeArea = FindTransform("SafeArea");
+        Transform parent = safeArea != null ? safeArea : transform;
+
+        GameObject rootObject = new GameObject("BattleAnnouncer", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        RectTransform root = rootObject.GetComponent<RectTransform>();
+        root.SetParent(parent, false);
+        root.anchorMin = new Vector2(0.30f, 0.855f);
+        root.anchorMax = new Vector2(0.70f, 0.985f);
+        root.offsetMin = Vector2.zero;
+        root.offsetMax = Vector2.zero;
+        root.SetAsLastSibling();
+
+        announcerFrame = rootObject.GetComponent<Image>();
+        ConfigureAnnouncerFrame();
+
+        announcerTitleText = CreateAnnouncerText(
+            "TitleText",
+            root,
+            12,
+            FontStyle.Bold,
+            TextAnchor.MiddleCenter,
+            Color.white,
+            new Vector2(0.05f, 0.63f),
+            new Vector2(0.96f, 0.96f));
+
+        announcerBodyText = CreateAnnouncerText(
+            "BodyText",
+            root,
+            21,
+            FontStyle.Bold,
+            TextAnchor.MiddleCenter,
+            new Color(0.96f, 1f, 1f, 1f),
+            new Vector2(0.05f, 0.08f),
+            new Vector2(0.95f, 0.70f));
+
+        return root;
+    }
+
+    private Text CreateAnnouncerText(
+        string objectName,
+        Transform parent,
+        int size,
+        FontStyle style,
+        TextAnchor alignment,
+        Color color,
+        Vector2 anchorMin,
+        Vector2 anchorMax)
+    {
+        GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+        RectTransform rect = textObject.GetComponent<RectTransform>();
+        rect.SetParent(parent, false);
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+
+        Text text = textObject.GetComponent<Text>();
+        text.font = AnnouncerFont();
+        text.fontSize = size;
+        text.fontStyle = style;
+        text.alignment = alignment;
+        text.color = color;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Truncate;
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = Mathf.Max(8, size - 7);
+        text.resizeTextMaxSize = size;
+
+        Shadow shadow = textObject.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.72f);
+        shadow.effectDistance = new Vector2(1.4f, -1.4f);
+        return text;
+    }
+
+    private Font AnnouncerFont()
+    {
+        if (announcerFont == null)
+            announcerFont = Resources.Load<Font>(AnnouncerFontResourcePath);
+        if (announcerFont == null)
+            announcerFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return announcerFont;
+    }
+
+    private Sprite AnnouncerPanelSprite()
+    {
+        if (announcerPanelSprite == null)
+            announcerPanelSprite = Resources.Load<Sprite>(AnnouncerPanelResourcePath);
+        return announcerPanelSprite;
+    }
+
+    private Sprite SkillButtonFrameSprite()
+    {
+        if (skillButtonFrameSprite == null)
+            skillButtonFrameSprite = Resources.Load<Sprite>(SkillButtonFrameResourcePath);
+        return skillButtonFrameSprite;
+    }
+
+    private Sprite SkillInsetFrameSprite()
+    {
+        if (skillInsetFrameSprite == null)
+            skillInsetFrameSprite = Resources.Load<Sprite>(SkillInsetFrameResourcePath);
+        return skillInsetFrameSprite;
+    }
+
+    private Sprite SkillTagFrameSprite()
+    {
+        if (skillTagFrameSprite == null)
+            skillTagFrameSprite = Resources.Load<Sprite>(SkillTagFrameResourcePath);
+        return skillTagFrameSprite;
+    }
+
+    private Sprite SkillPanelBackdropSprite()
+    {
+        if (skillPanelBackdropSprite == null)
+            skillPanelBackdropSprite = Resources.Load<Sprite>(SkillPanelBackdropResourcePath);
+        return skillPanelBackdropSprite;
+    }
+
+    private void EnsureSkillPanelPresentation()
+    {
+        Image panelImage = Find<Image>("SafeArea/CommandPanel/SkillPanel");
+        if (panelImage == null)
+            return;
+
+        Sprite backdrop = SkillPanelBackdropSprite();
+        if (backdrop == null)
+            return;
+
+        bool needsPanelApply = !skillPanelPresentationApplied || panelImage.sprite != backdrop || panelImage.color != Color.white;
+        if (!needsPanelApply && skillPanelSlotLayoutApplied)
+            return;
+
+        if (needsPanelApply)
+        {
+            panelImage.sprite = backdrop;
+            panelImage.type = Image.Type.Simple;
+            panelImage.preserveAspect = false;
+            panelImage.color = Color.white;
+            panelImage.raycastTarget = false;
+            skillPanelSlotLayoutApplied = false;
+        }
+
+        Outline outline = panelImage.GetComponent<Outline>();
+        if (outline != null)
+            outline.enabled = false;
+
+        skillPanelPresentationApplied = true;
+        if (!skillPanelSlotLayoutApplied)
+        {
+            ConfigureSkillGridForPanelBackdrop();
+
+            bool allSlotsReady = true;
+            for (int i = 0; i < MaxSkillSlots; i++)
+            {
+                if (skillButtons[i] != null)
+                    EnsureSkillSlotPresentation(i, skillButtons[i].transform);
+                else
+                    allSlotsReady = false;
+            }
+
+            skillPanelSlotLayoutApplied = allSlotsReady;
+        }
+    }
+
+    private void ConfigureSkillGridForPanelBackdrop()
+    {
+        Transform grid = FindTransform("SafeArea/CommandPanel/SkillPanel/SkillGrid");
+        if (grid == null)
+            return;
+
+        RectTransform gridRect = grid.GetComponent<RectTransform>();
+        SetStretchRect(gridRect, Vector2.zero, Vector2.one);
+
+        GridLayoutGroup layout = grid.GetComponent<GridLayoutGroup>();
+        if (layout != null)
+            layout.enabled = false;
+
+        Vector2[] rowMins =
+        {
+            new Vector2(0.018f, 0.748f),
+            new Vector2(0.018f, 0.524f),
+            new Vector2(0.018f, 0.299f),
+            new Vector2(0.018f, 0.048f),
+        };
+        Vector2[] rowMaxes =
+        {
+            new Vector2(0.982f, 0.952f),
+            new Vector2(0.982f, 0.728f),
+            new Vector2(0.982f, 0.503f),
+            new Vector2(0.982f, 0.272f),
+        };
+
+        for (int i = 0; i < MaxSkillSlots; i++)
+        {
+            if (skillButtons[i] == null)
+                continue;
+
+            RectTransform buttonRect = skillButtons[i].GetComponent<RectTransform>();
+            if (buttonRect == null)
+                continue;
+
+            SetStretchRect(buttonRect, rowMins[i], rowMaxes[i]);
+            buttonRect.localScale = Vector3.one;
+            buttonRect.localRotation = Quaternion.identity;
+        }
+    }
+
+    private void EnsureSkillSlotPresentation(int index, Transform root)
+    {
+        if (!IndexInRange(index) || root == null)
+            return;
+
+        bool hasPanelBackdrop = SkillPanelBackdropSprite() != null;
+        Image buttonImage = root.GetComponent<Image>();
+        if (buttonImage != null)
+        {
+            if (hasPanelBackdrop)
+            {
+                buttonImage.sprite = null;
+                buttonImage.color = new Color(0f, 0f, 0f, 0f);
+            }
+            else
+            {
+                Sprite frame = SkillButtonFrameSprite();
+                if (frame != null)
+                {
+                    buttonImage.sprite = frame;
+                    buttonImage.type = Image.Type.Sliced;
+                    buttonImage.pixelsPerUnitMultiplier = 1.5f;
+                    buttonImage.color = Color.white;
+                }
+                else
+                {
+                    buttonImage.color = new Color(0.07f, 0.16f, 0.13f, 0.92f);
+                }
+            }
+        }
+
+        Outline buttonOutline = root.GetComponent<Outline>();
+        if (buttonOutline != null && hasPanelBackdrop)
+            buttonOutline.enabled = false;
+
+        Transform typeStrip = root.Find("TypeStrip");
+        if (typeStrip != null)
+            typeStrip.gameObject.SetActive(false);
+
+        RectTransform nameRect = skillNameTexts[index] != null
+            ? skillNameTexts[index].GetComponent<RectTransform>()
+            : null;
+        if (nameRect != null)
+        {
+            SetStretchRect(nameRect, new Vector2(hasPanelBackdrop ? 0.245f : 0.145f, 0.10f), new Vector2(0.515f, 0.90f));
+            ConfigureSkillNameText(skillNameTexts[index], hasPanelBackdrop);
+        }
+
+        skillInstructionFrames[index] = EnsureChildImage(root, "InstructionFrame");
+        RectTransform instructionRect = skillInstructionFrames[index].rectTransform;
+        if (hasPanelBackdrop)
+            SetStretchRect(instructionRect, new Vector2(0.050f, 0.10f), new Vector2(0.205f, 0.90f));
+        else
+            SetFixedLeftRect(instructionRect, 10f, 42f);
+        if (hasPanelBackdrop)
+            ConfigureTransparentImage(skillInstructionFrames[index]);
+        else
+            ConfigureFramedImage(skillInstructionFrames[index], SkillInsetFrameSprite(), new Color(0.10f, 0.48f, 0.28f, 0.78f));
+        skillInstructionFrames[index].transform.SetAsFirstSibling();
+
+        skillInstructionTexts[index] = EnsureChildText(skillInstructionFrames[index].transform, "InstructionText", hasPanelBackdrop ? 20 : 23, TextAnchor.MiddleCenter);
+        skillInstructionTexts[index].fontStyle = FontStyle.Bold;
+        skillInstructionTexts[index].color = Color.white;
+        EnsureShadow(skillInstructionTexts[index].gameObject, new Color(0f, 0f, 0f, 0.75f), new Vector2(1.2f, -1.2f));
+
+        skillElementBadges[index] = EnsureChildImage(root, "ElementBadge");
+        SetStretchRect(skillElementBadges[index].rectTransform, new Vector2(0.535f, 0.27f), new Vector2(0.595f, 0.73f));
+        if (hasPanelBackdrop)
+            ConfigureTransparentImage(skillElementBadges[index]);
+        else
+            ConfigureFramedImage(skillElementBadges[index], SkillInsetFrameSprite(), new Color(0.35f, 0.75f, 0.90f, 0.88f));
+
+        skillElementIconImages[index] = EnsureChildImage(skillElementBadges[index].transform, "ElementIcon");
+        SetStretchRect(skillElementIconImages[index].rectTransform, Vector2.zero, Vector2.one);
+        skillElementIconImages[index].raycastTarget = false;
+
+        skillElementTexts[index] = EnsureChildText(skillElementBadges[index].transform, "ElementText", 13, TextAnchor.MiddleCenter);
+        skillElementTexts[index].fontStyle = FontStyle.Bold;
+        skillElementTexts[index].color = Color.white;
+        EnsureShadow(skillElementTexts[index].gameObject, new Color(0f, 0f, 0f, 0.70f), new Vector2(1f, -1f));
+
+        ConfigureSkillTag(skillCPTagObjects[index], skillCPTexts[index], new Vector2(0.625f, 0.20f), new Vector2(0.715f, 0.80f));
+        ConfigureSkillTag(skillPowerTagObjects[index], skillPowerTexts[index], new Vector2(0.735f, 0.20f), new Vector2(0.845f, 0.80f));
+        ConfigureSkillTag(skillCounterTagObjects[index], skillCounterTexts[index], new Vector2(0.735f, 0.20f), new Vector2(0.965f, 0.80f));
+    }
+
+    private void ConfigureSkillNameText(Text text, bool hasPanelBackdrop)
+    {
+        if (text == null)
+            return;
+
+        text.font = AnnouncerFont();
+        text.fontStyle = FontStyle.Bold;
+        text.fontSize = hasPanelBackdrop ? 17 : Mathf.Max(17, text.fontSize);
+        text.alignment = TextAnchor.MiddleLeft;
+        text.horizontalOverflow = HorizontalWrapMode.Overflow;
+        text.verticalOverflow = VerticalWrapMode.Truncate;
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = 11;
+        text.resizeTextMaxSize = hasPanelBackdrop ? 17 : Mathf.Max(17, text.fontSize);
+        text.color = new Color(0.96f, 1f, 1f, 1f);
+        EnsureShadow(text.gameObject, new Color(0f, 0f, 0f, 0.70f), new Vector2(1f, -1f));
+    }
+
+    private void ConfigureSkillTag(GameObject tagObject, Text text, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        if (tagObject == null)
+            return;
+
+        RectTransform rect = tagObject.GetComponent<RectTransform>();
+        if (rect != null)
+            SetStretchRect(rect, anchorMin, anchorMax);
+
+        Image image = tagObject.GetComponent<Image>();
+        if (image == null)
+            image = tagObject.AddComponent<Image>();
+        ConfigureFramedImage(image, SkillTagFrameSprite(), new Color(0.10f, 0.45f, 0.30f, 0.64f));
+
+        if (text == null)
+            return;
+
+        text.font = AnnouncerFont();
+        text.fontStyle = FontStyle.Bold;
+        text.fontSize = Mathf.Max(12, text.fontSize);
+        text.alignment = TextAnchor.MiddleCenter;
+        text.horizontalOverflow = HorizontalWrapMode.Overflow;
+        text.verticalOverflow = VerticalWrapMode.Truncate;
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = 8;
+        text.resizeTextMaxSize = Mathf.Max(13, text.fontSize);
+        text.color = new Color(0.92f, 1f, 0.94f, 1f);
+        EnsureShadow(text.gameObject, new Color(0f, 0f, 0f, 0.65f), new Vector2(1f, -1f));
+    }
+
+    private void SetSkillSlotBadges(int index, SkillData skill)
+    {
+        if (!IndexInRange(index))
+            return;
+
+        bool visible = skill != null;
+        if (skillInstructionFrames[index] != null)
+            skillInstructionFrames[index].gameObject.SetActive(visible);
+        if (skillElementBadges[index] != null)
+            skillElementBadges[index].gameObject.SetActive(visible);
+        if (skillElementIconImages[index] != null)
+            skillElementIconImages[index].gameObject.SetActive(false);
+
+        if (!visible)
+            return;
+
+        if (skillInstructionTexts[index] != null)
+        {
+            skillInstructionTexts[index].text = InstructionShortLabel(skill.instructionType);
+            skillInstructionTexts[index].color = InstructionTextColor(skill.instructionType);
+        }
+
+        Sprite elementIcon = ElementIconSprite(skill.elementType);
+        if (skillElementBadges[index] != null)
+            skillElementBadges[index].color = elementIcon == null
+                ? ElementBadgeColor(skill.elementType)
+                : new Color(0f, 0f, 0f, 0f);
+
+        if (skillElementIconImages[index] != null)
+        {
+            skillElementIconImages[index].sprite = elementIcon;
+            skillElementIconImages[index].type = Image.Type.Simple;
+            skillElementIconImages[index].color = Color.white;
+            skillElementIconImages[index].gameObject.SetActive(elementIcon != null);
+        }
+
+        if (skillElementTexts[index] != null)
+        {
+            skillElementTexts[index].text = ElementShortLabel(skill.elementType);
+            skillElementTexts[index].gameObject.SetActive(elementIcon == null);
+        }
+    }
+
+    private Sprite ElementIconSprite(ElementType elementType)
+    {
+        int index = (int)elementType;
+        if (index < 0 || index >= elementIconSprites.Length)
+            return null;
+
+        if (elementIconSprites[index] == null)
+            elementIconSprites[index] = Resources.Load<Sprite>($"{ElementIconResourcePrefix}{elementType}");
+        return elementIconSprites[index];
+    }
+
+    private static string InstructionShortLabel(InstructionType instructionType)
+    {
+        switch (instructionType)
+        {
+            case InstructionType.Attack:  return "A";
+            case InstructionType.Defense: return "D";
+            case InstructionType.Status:  return "S";
+            default:                      return "?";
+        }
+    }
+
+    private static Color InstructionTextColor(InstructionType instructionType)
+    {
+        switch (instructionType)
+        {
+            case InstructionType.Attack:  return new Color(1f, 0.58f, 0.38f, 1f);
+            case InstructionType.Defense: return new Color(0.62f, 0.92f, 1f, 1f);
+            case InstructionType.Status:  return new Color(0.82f, 0.72f, 1f, 1f);
+            default:                      return Color.white;
+        }
+    }
+
+    private static string ElementShortLabel(ElementType elementType)
+    {
+        switch (elementType)
+        {
+            case ElementType.Electric: return "EL";
+            case ElementType.Water:    return "WA";
+            case ElementType.Fire:     return "FI";
+            case ElementType.Ground:   return "GR";
+            case ElementType.Grass:    return "LE";
+            case ElementType.Ice:      return "IC";
+            case ElementType.Normal:   return "NO";
+            default:                   return "--";
+        }
+    }
+
+    private static Color ElementBadgeColor(ElementType elementType)
+    {
+        switch (elementType)
+        {
+            case ElementType.Electric: return new Color(1.00f, 0.82f, 0.15f, 1f);
+            case ElementType.Water:    return new Color(0.18f, 0.58f, 0.95f, 1f);
+            case ElementType.Fire:     return new Color(1.00f, 0.35f, 0.08f, 1f);
+            case ElementType.Ground:   return new Color(0.55f, 0.36f, 0.20f, 1f);
+            case ElementType.Grass:    return new Color(0.22f, 0.66f, 0.20f, 1f);
+            case ElementType.Ice:      return new Color(0.40f, 0.88f, 1.00f, 1f);
+            case ElementType.Normal:   return new Color(0.78f, 0.78f, 0.74f, 1f);
+            default:                   return Color.white;
+        }
+    }
+
+    private Image EnsureChildImage(Transform parent, string childName)
+    {
+        Transform child = parent.Find(childName);
+        if (child == null)
+        {
+            GameObject childObject = new GameObject(childName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+            childObject.layer = parent.gameObject.layer;
+            child = childObject.transform;
+            child.SetParent(parent, false);
+        }
+        else
+        {
+            child.gameObject.layer = parent.gameObject.layer;
+        }
+
+        Image image = child.GetComponent<Image>();
+        if (image == null)
+            image = child.gameObject.AddComponent<Image>();
+        return image;
+    }
+
+    private Text EnsureChildText(Transform parent, string childName, int fontSize, TextAnchor alignment)
+    {
+        Transform child = parent.Find(childName);
+        if (child == null)
+        {
+            GameObject childObject = new GameObject(childName, typeof(RectTransform), typeof(CanvasRenderer), typeof(Text));
+            childObject.layer = parent.gameObject.layer;
+            child = childObject.transform;
+            child.SetParent(parent, false);
+        }
+        else
+        {
+            child.gameObject.layer = parent.gameObject.layer;
+        }
+
+        RectTransform rect = child.GetComponent<RectTransform>();
+        SetStretchRect(rect, Vector2.zero, Vector2.one);
+
+        Text text = child.GetComponent<Text>();
+        if (text == null)
+            text = child.gameObject.AddComponent<Text>();
+        text.font = AnnouncerFont();
+        text.fontSize = fontSize;
+        text.alignment = alignment;
+        text.horizontalOverflow = HorizontalWrapMode.Overflow;
+        text.verticalOverflow = VerticalWrapMode.Truncate;
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = Mathf.Max(7, fontSize - 8);
+        text.resizeTextMaxSize = fontSize;
+        return text;
+    }
+
+    private static void ConfigureFramedImage(Image image, Sprite sprite, Color fallbackColor)
+    {
+        if (image == null)
+            return;
+
+        image.raycastTarget = false;
+        if (sprite != null)
+        {
+            image.sprite = sprite;
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 2f;
+            image.color = Color.white;
+            return;
+        }
+
+        image.sprite = null;
+        image.color = fallbackColor;
+    }
+
+    private static void ConfigureTransparentImage(Image image)
+    {
+        if (image == null)
+            return;
+
+        image.raycastTarget = false;
+        image.sprite = null;
+        image.color = new Color(0f, 0f, 0f, 0f);
+    }
+
+    private static void EnsureShadow(GameObject target, Color color, Vector2 distance)
+    {
+        if (target == null)
+            return;
+
+        Shadow shadow = target.GetComponent<Shadow>();
+        if (shadow == null)
+            shadow = target.AddComponent<Shadow>();
+        shadow.effectColor = color;
+        shadow.effectDistance = distance;
+    }
+
+    private static void SetStretchRect(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        if (rect == null)
+            return;
+
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+    }
+
+    private static void SetFixedLeftRect(RectTransform rect, float left, float size)
+    {
+        if (rect == null)
+            return;
+
+        rect.anchorMin = new Vector2(0f, 0.5f);
+        rect.anchorMax = new Vector2(0f, 0.5f);
+        rect.pivot = new Vector2(0f, 0.5f);
+        rect.anchoredPosition = new Vector2(left, 0f);
+        rect.sizeDelta = new Vector2(size, size);
+    }
+
+    private void ConfigureAnnouncerFrame()
+    {
+        if (announcerFrame == null)
+            return;
+
+        Sprite panelSprite = AnnouncerPanelSprite();
+        if (panelSprite != null)
+        {
+            announcerFrame.sprite = panelSprite;
+            announcerFrame.type = Image.Type.Sliced;
+            announcerFrame.pixelsPerUnitMultiplier = 2.5f;
+            announcerFrame.color = Color.white;
+            return;
+        }
+
+        announcerFrame.color = announcerFrameBaseColor;
+    }
+
+    private void UpdateAnnouncerPulse()
+    {
+        if (announcerFrame == null || announcerPulseSeconds <= 0f)
+            return;
+
+        if (announcerPulseTimer > 0f)
+            announcerPulseTimer = Mathf.Max(0f, announcerPulseTimer - Time.deltaTime);
+
+        float pulse = announcerPulseSeconds <= 0f ? 0f : announcerPulseTimer / announcerPulseSeconds;
+        ApplyAnnouncerFrameColor(pulse);
+    }
+
+    private void ApplyAnnouncerFrameColor(float pulse)
+    {
+        if (announcerFrame == null)
+            return;
+
+        float clampedPulse = Mathf.Clamp01(pulse);
+        if (announcerFrame.sprite != null)
+        {
+            Color pulseTint = new Color(0.78f, 1f, 0.72f, 1f);
+            announcerFrame.color = Color.Lerp(Color.white, pulseTint, clampedPulse * 0.35f);
+            return;
+        }
+
+        announcerFrame.color = Color.Lerp(announcerFrameBaseColor, announcerFramePulseColor, clampedPulse);
+    }
+
     private void UpdateResourceDisplay(CombatantRefs refs, ref CombatantDisplayState display)
     {
         if (display.BatteryInitialized)
@@ -499,10 +1267,29 @@ public class BattleHudController : MonoBehaviour
 
         float ratio = max <= 0 ? 0f : Mathf.Clamp01(current / max);
         RectTransform rt = refs.BatteryFill.rectTransform;
-        rt.anchorMin = new Vector2(0f, 0f);
-        rt.anchorMax = new Vector2(ratio, 1f);
+        if (refs.BatteryFrameRect != null && rt.parent == refs.BatteryFrameRect.parent)
+        {
+            Vector2 frameMin = refs.BatteryFrameRect.anchorMin;
+            Vector2 frameMax = refs.BatteryFrameRect.anchorMax;
+            Vector2 frameSize = frameMax - frameMin;
+            rt.anchorMin = frameMin + Vector2.Scale(frameSize, BatteryFillInsetMin);
+            rt.anchorMax = frameMin + Vector2.Scale(frameSize, BatteryFillInsetMax);
+        }
+        else
+        {
+            rt.anchorMin = BatteryFillFallbackAnchorMin;
+            rt.anchorMax = BatteryFillFallbackAnchorMax;
+        }
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
+        if (refs.BatteryFrameRect != null && rt.parent == refs.BatteryFrameRect.parent)
+            rt.SetSiblingIndex(Mathf.Min(rt.parent.childCount - 1, refs.BatteryFrameRect.GetSiblingIndex() + 1));
+
+        refs.BatteryFill.color = refs.BatteryFill.sprite == null ? refs.BatteryFillColor : Color.white;
+        refs.BatteryFill.type = Image.Type.Filled;
+        refs.BatteryFill.fillMethod = Image.FillMethod.Horizontal;
+        refs.BatteryFill.fillOrigin = 0;
+        refs.BatteryFill.fillAmount = ratio;
     }
 
     private static void ApplyCPVisual(CombatantRefs refs, float current, int max)
@@ -510,19 +1297,17 @@ public class BattleHudController : MonoBehaviour
         if (refs.CPDots == null)
             return;
 
+        float filledSegments = refs.CPDots.Length <= 0 || max <= 0
+            ? 0f
+            : Mathf.Clamp01(current / max) * refs.CPDots.Length;
+
         for (int i = 0; i < refs.CPDots.Length; i++)
         {
             Image dot = refs.CPDots[i];
             if (dot == null)
                 continue;
 
-            if (i >= max)
-            {
-                dot.color = CPDotInactive;
-                continue;
-            }
-
-            float fill = Mathf.Clamp01(current - i);
+            float fill = Mathf.Clamp01(filledSegments - i);
             dot.color = Color.Lerp(CPDotInactive, CPDotActive, fill);
         }
     }
@@ -535,21 +1320,51 @@ public class BattleHudController : MonoBehaviour
             LevelText        = FindText($"{root}/LevelText"),
             BatteryValueText = FindText($"{root}/BatteryBar/ValueText"),
             BatteryFill      = Find<Image>($"{root}/BatteryBar/Fill"),
+            BatteryFillColor = root.Contains("Enemy") ? EnemyBatteryFillColor : PlayerBatteryFillColor,
+            BatteryFrameRect = Find<RectTransform>($"{root}/BatteryBar/BatteryFrame"),
+            CPValueText      = FindText($"{root}/CPDots/CPValueText"),
             StatusText       = FindText($"{root}/StatusRow/StatusText"),
-            CPDots           = new Image[MaxCP],
+            CPDots           = new Image[0],
         };
 
         Transform cpRow = transform.Find($"{root}/CPDots");
         if (cpRow != null)
-        {
-            for (int i = 0; i < MaxCP; i++)
-            {
-                Transform dot = cpRow.Find($"CP_{i + 1:00}");
-                refs.CPDots[i] = dot != null ? dot.GetComponent<Image>() : null;
-            }
-        }
+            refs.CPDots = FindCPDots(cpRow);
 
         return refs;
+    }
+
+    private static Image[] FindCPDots(Transform cpRow)
+    {
+        var dots = new System.Collections.Generic.List<Image>(MaxCP);
+        for (int i = 0; i < MaxCP; i++)
+        {
+            Transform dot = FindChildRecursive(cpRow, $"CP_{i + 1:00}");
+            Image image = dot != null ? dot.GetComponent<Image>() : null;
+            if (image != null)
+                dots.Add(image);
+        }
+
+        return dots.ToArray();
+    }
+
+    private static Transform FindChildRecursive(Transform root, string childName)
+    {
+        if (root == null)
+            return null;
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform child = root.GetChild(i);
+            if (child.name == childName)
+                return child;
+
+            Transform match = FindChildRecursive(child, childName);
+            if (match != null)
+                return match;
+        }
+
+        return null;
     }
 
     private void UnhookButtons()

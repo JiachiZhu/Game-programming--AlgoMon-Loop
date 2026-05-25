@@ -95,11 +95,13 @@ public static class CombatResolver
 
         EventBus.Publish(new DamageEvent
         {
-            AttackerId   = attacker.nickname,
-            TargetId     = defender.nickname,
-            Amount       = damage,
-            DmgType      = attackerSkill.damageType,
-            SkillElement = attackerSkill.elementType
+            AttackerId         = attacker.nickname,
+            TargetId           = defender.nickname,
+            Amount             = damage,
+            DmgType            = attackerSkill.damageType,
+            SkillElement       = attackerSkill.elementType,
+            TargetElement      = defender.data.elementType,
+            ElementMultiplier  = elementMult
         });
 
         return damage;

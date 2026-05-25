@@ -1,0 +1,30 @@
+{
+  "profileId": "Cachelon_Base",
+  "idle": {
+    "fps": 8,
+    "loop": true
+  },
+  "attack": {
+    "fps": 12,
+    "actionFrame": 11,
+    "holdLastFrame": false
+  },
+  "defense": {
+    "fps": 10,
+    "actionFrame": 4,
+    "holdLastFrame": false
+  },
+  "status": {
+    "fps": 10,
+    "actionFrame": 3,
+    "holdLastFrame": false
+  },
+  "hit": {
+    "fps": 8,
+    "holdLastFrame": false
+  },
+  "faint": {
+    "fps": 10,
+    "holdLastFrame": true
+  }
+}

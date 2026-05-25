@@ -12,6 +12,8 @@ public struct DamageEvent
     public int Amount;
     public DamageType DmgType;
     public ElementType SkillElement;
+    public ElementType TargetElement;
+    public float ElementMultiplier;
 }
 
 public struct CounterEvent
@@ -20,11 +22,28 @@ public struct CounterEvent
     public string CounteredId;  // unit that lost
     public bool CounterHasDamage;
     public bool CounteredHasDamage;
+    public InstructionType CounterInstructionType;
+    public InstructionType CounteredInstructionType;
 }
 
 public struct BattleEndEvent
 {
     public bool PlayerWon;
+}
+
+public struct BattleActionEvent
+{
+    public string ActorId;
+    public string TargetId;
+    public string SkillName;
+    public InstructionType InstructionType;
+    public bool WonCounter;
+    public bool WasCountered;
+}
+
+public struct UnitFaintedEvent
+{
+    public string UnitId;
 }
 
 public struct StatusAppliedEvent
@@ -107,7 +126,7 @@ public enum RunOutcome { None, Victory, Defeat }
 ///   Freeze  — each layer reduces ClockSpeed by 15% and adds +1 CP cost.
 ///             Max 3 layers; cleared by swap or special skills.
 ///   Ensnare — target cannot swap out for duration turns.
-///   Concurrent — next skill executes twice (costs 2x CP); clears after activation.
+///   Concurrent — next skill can execute twice; each execution pays CP separately.
 ///   BufferLoad — next skill CP cost -4 (min 0); max 1; clears after activation.
 ///   Backup  — (removed from Redundant Backup; reserved for future use)
 ///
@@ -126,7 +145,7 @@ public enum StatusType
     Ensnare,        // cannot swap out AlgoMon for N turns
 
     // --- Self buffs (one-shot, clear on trigger) ---
-    Concurrent,     // next skill fires twice (uses 2x CP)
+    Concurrent,     // next skill can fire twice if CP remains for the repeat
     BufferLoad,     // next skill CP cost -4 (min 0), max 1
 
     // --- Stat buffs (additive %, stacks persist until battle end) ---

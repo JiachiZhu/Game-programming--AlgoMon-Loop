@@ -285,7 +285,9 @@ public class BattleManager : MonoBehaviour
     [Tooltip("Pause after a normal narration line (skill use, counter result, CP drain, etc.).")]
     [SerializeField, Min(0f)] private float logLineDelay = 0.45f;
     [Tooltip("Pause after the damage line so the player can see the battery drop.")]
-    [SerializeField, Min(0f)] private float damageLineDelay = 0.75f;
+    [SerializeField, Min(0f)] private float damageLineDelay = 1.2f;
+    [Tooltip("Pause between the first unit's action and the second unit's action within the same round.")]
+    [SerializeField, Min(0f)] private float actionTransitionDelay = 1.0f;
     [Tooltip("Pause before the round closes and player input is re-enabled.")]
     [SerializeField, Min(0f)] private float roundFinishedDelay = 0.8f;
 
@@ -298,6 +300,9 @@ public class BattleManager : MonoBehaviour
     private BattlePhase phase = BattlePhase.WaitingForPlayer;
     private int currentRound = 1;
     private bool battleEndPublished;
+    private bool playerFaintPublished;
+    private bool enemyFaintPublished;
+    private string activeActionAnnouncementLine;
     private Coroutine activeResolution;
 
     public int CurrentRound => currentRound;
@@ -365,12 +370,15 @@ public class BattleManager : MonoBehaviour
         StopActiveResolution();
         DestroyTransientData();
         battleLogLines.Clear();
+        activeActionAnnouncementLine = null;
 
         player = CreateUnit(playerConfig, ResolveRunPlayerInstance());
         enemy = CreateUnit(enemyConfig, ResolveRunOpponentInstance());
         RegisterPresentationCombatants();
         currentRound = 1;
         battleEndPublished = false;
+        playerFaintPublished = false;
+        enemyFaintPublished = false;
         phase = BattlePhase.Resolving;
 
         EmitLog("Battle started.");
@@ -446,7 +454,7 @@ public class BattleManager : MonoBehaviour
     }
 
     private bool UsesInstantResolution =>
-        logLineDelay <= 0f && damageLineDelay <= 0f && roundFinishedDelay <= 0f;
+        logLineDelay <= 0f && damageLineDelay <= 0f && actionTransitionDelay <= 0f && roundFinishedDelay <= 0f;
 
     private static void RunImmediate(IEnumerator routine)
     {
@@ -594,7 +602,13 @@ public class BattleManager : MonoBehaviour
         if (presentation == null || player == null || enemy == null)
             return;
 
-        presentation.RegisterCombatants(player.Instance.nickname, enemy.Instance.nickname);
+        presentation.RegisterCombatants(
+            player.Instance.nickname,
+            enemy.Instance.nickname,
+            player.Instance.data != null ? player.Instance.data.battleAnimationProfile : null,
+            enemy.Instance.data != null ? enemy.Instance.data.battleAnimationProfile : null,
+            player.Instance.data != null ? player.Instance.data.codeName : null,
+            enemy.Instance.data != null ? enemy.Instance.data.codeName : null);
     }
 
     private static int ClampStat(int value) => Mathf.Clamp(value, 1, 255);
@@ -689,6 +703,9 @@ public class BattleManager : MonoBehaviour
         EmitLog($"-- Round {currentRound} --");
         EmitLog($"{player.Name} commits {SkillName(playerSkill)}.");
         EmitLog($"{enemy.Name} commits {SkillName(enemySkill)}.");
+        Announce(
+            $"Round {currentRound}",
+            $"{player.Name}: {SkillName(playerSkill)}  |  {enemy.Name}: {SkillName(enemySkill)}");
         RefreshHud();
         if (logLineDelay > 0f)
             yield return new WaitForSeconds(logLineDelay);
@@ -712,7 +729,10 @@ public class BattleManager : MonoBehaviour
             if (phase != BattlePhase.BattleOver && action.WonCounter)
                 yield return ApplySubroutineTriggerCoroutine(action.Actor, action.Target, SubroutineTrigger.OnCounterWin);
             TryFinishBattle();
+            if (phase != BattlePhase.BattleOver && !turnQueue.IsEmpty && actionTransitionDelay > 0f)
+                yield return new WaitForSeconds(actionTransitionDelay);
         }
+        activeActionAnnouncementLine = null;
 
         if (phase != BattlePhase.BattleOver)
         {
@@ -753,7 +773,9 @@ public class BattleManager : MonoBehaviour
             CounterId = winner.Actor.Instance.nickname,
             CounteredId = loser.Actor.Instance.nickname,
             CounterHasDamage = winner.Skill.damageType != DamageType.None,
-            CounteredHasDamage = loser.Skill.damageType != DamageType.None && !winner.Skill.counterNullifies
+            CounteredHasDamage = loser.Skill.damageType != DamageType.None && !winner.Skill.counterNullifies,
+            CounterInstructionType = winner.Skill.instructionType,
+            CounteredInstructionType = loser.Skill.instructionType
         });
 
         EmitLog($"{winner.Actor.Name}'s {SkillName(winner.Skill)} wins the ASD check.");
@@ -1022,37 +1044,54 @@ public class BattleManager : MonoBehaviour
             yield break;
 
         int cost = EffectiveSkillCost(action.Actor, action.Skill);
-        if (!SpendCP(action.Actor, cost))
-        {
-            action.Actor.StatusText = "No CP";
-            EmitLog($"{action.Actor.Name} lacks {cost} CP for {SkillName(action.Skill)}.");
-            RefreshHud();
-            if (logLineDelay > 0f)
-                yield return new WaitForSeconds(logLineDelay);
-            yield break;
-        }
-
-        if (action.Skill.instructionType == InstructionType.Defense)
-            action.Actor.LastDefenseRound = currentRound;
-
         action.BasePowerBonus = action.Actor.Statuses.BasePowerBonus(currentRound);
         int repeatCount = action.Actor.Statuses.SkillRepeatCount(currentRound);
-        action.Actor.Statuses.ConsumeSkillUseModifiers(currentRound);
-
-        EmitLog($"{action.Actor.Name} uses {SkillName(action.Skill)}.");
-        RefreshHud();
-        if (logLineDelay > 0f)
-            yield return new WaitForSeconds(logLineDelay);
+        bool consumedSkillUseModifiers = false;
 
         for (int repeat = 0; repeat < repeatCount && phase != BattlePhase.BattleOver; repeat++)
         {
-            if (repeat > 0)
+            if (!SpendCP(action.Actor, cost))
             {
-                EmitLog($"{SkillName(action.Skill)} repeats from Concurrent.");
+                action.Actor.StatusText = "No CP";
+                if (repeat == 0)
+                    EmitLog($"{action.Actor.Name} lacks {cost} CP for {SkillName(action.Skill)}.");
+                else
+                    EmitLog($"{SkillName(action.Skill)} cannot repeat; {action.Actor.Name} lacks {cost} CP.");
+
                 RefreshHud();
                 if (logLineDelay > 0f)
                     yield return new WaitForSeconds(logLineDelay);
+                if (repeat == 0)
+                    yield break;
+                break;
             }
+
+            if (!consumedSkillUseModifiers)
+            {
+                if (action.Skill.instructionType == InstructionType.Defense)
+                    action.Actor.LastDefenseRound = currentRound;
+
+                action.Actor.Statuses.ConsumeSkillUseModifiers(currentRound);
+                consumedSkillUseModifiers = true;
+            }
+
+            if (repeat == 0)
+                EmitLog($"{action.Actor.Name} uses {SkillName(action.Skill)}.");
+            else
+                EmitLog($"{SkillName(action.Skill)} repeats from Concurrent.");
+
+            EventBus.Publish(new BattleActionEvent
+            {
+                ActorId = action.Actor.Instance.nickname,
+                TargetId = action.Target.Instance.nickname,
+                SkillName = SkillName(action.Skill),
+                InstructionType = action.Skill.instructionType,
+                WonCounter = action.WonCounter,
+                WasCountered = action.WasCountered
+            });
+            RefreshHud();
+            if (logLineDelay > 0f)
+                yield return new WaitForSeconds(logLineDelay);
 
             yield return ResolveSkillEffectCoroutine(action);
             TryFinishBattle();
@@ -1107,8 +1146,9 @@ public class BattleManager : MonoBehaviour
                 action.Target.StatusText = "Hit";
             EmitLog($"{action.Target.Name} takes {damage} damage.");
             RefreshHud();
-            if (damageLineDelay > 0f)
-                yield return new WaitForSeconds(damageLineDelay);
+            float damagePause = DirectDamagePauseSeconds(action);
+            if (damagePause > 0f)
+                yield return new WaitForSeconds(damagePause);
 
             if (damage > 0)
             {
@@ -1178,6 +1218,21 @@ public class BattleManager : MonoBehaviour
 
         if (skill.instructionType == InstructionType.Status)
             EmitLog($"{action.Actor.Name} runs {SkillName(skill)}.");
+    }
+
+    private float DirectDamagePauseSeconds(BattleAction action)
+    {
+        float pause = damageLineDelay;
+        if (presentation != null && action != null && action.Actor != null && action.Target != null)
+        {
+            pause = Mathf.Max(
+                pause,
+                presentation.ExpectedDamageFeedbackRemaining(
+                    action.Actor.Instance.nickname,
+                    action.Target.Instance.nickname));
+        }
+
+        return pause;
     }
 
     private IEnumerator ApplyBaseStatusCoroutine(BattleAction action)
@@ -1537,6 +1592,7 @@ public class BattleManager : MonoBehaviour
         if (enemy.CurrentBattery <= 0)
         {
             enemy.StatusText = "Offline";
+            PublishFaint(enemy);
             FinishBattle(true, $"{enemy.Name} is offline. Victory.");
             return;
         }
@@ -1544,8 +1600,31 @@ public class BattleManager : MonoBehaviour
         if (player.CurrentBattery <= 0)
         {
             player.StatusText = "Offline";
+            PublishFaint(player);
             FinishBattle(false, $"{player.Name} is offline. Defeat.");
         }
+    }
+
+    private void PublishFaint(BattleUnit unit)
+    {
+        if (unit == null)
+            return;
+
+        bool isPlayer = ReferenceEquals(unit, player);
+        if (isPlayer)
+        {
+            if (playerFaintPublished)
+                return;
+            playerFaintPublished = true;
+        }
+        else
+        {
+            if (enemyFaintPublished)
+                return;
+            enemyFaintPublished = true;
+        }
+
+        EventBus.Publish(new UnitFaintedEvent { UnitId = unit.Instance.nickname });
     }
 
     private void FinishBattle(bool playerWon, string message)
@@ -1588,6 +1667,7 @@ public class BattleManager : MonoBehaviour
 
         hud.SetRound(currentRound);
         hud.SetBattleState(PhaseLabel());
+        hud.SetRoundSandclockActive(phase == BattlePhase.WaitingForPlayer);
 
         hud.SetCombatant(BattleHudController.Side.Player, player.Name, player.DisplayLevel);
         hud.SetBattery(BattleHudController.Side.Player, player.CurrentBattery, player.MaxBattery);
@@ -1651,6 +1731,8 @@ public class BattleManager : MonoBehaviour
         line.Append($"CP {cost}");
         if (cost != Mathf.Max(0, skill.cpCost))
             line.Append($" (base {Mathf.Max(0, skill.cpCost)})");
+        if (unit != null && unit.Statuses.SkillRepeatCount(currentRound) > 1)
+            line.Append(cost > 0 ? $" | Concurrent: +{cost} CP for repeat" : " | Concurrent: free repeat");
 
         if (skill.basePower > 0)
             line.Append($" | PWR {skill.basePower}");
@@ -1710,6 +1792,12 @@ public class BattleManager : MonoBehaviour
             hud.SetSkillDetail(title, body);
     }
 
+    private void Announce(string title, string body)
+    {
+        if (hud != null)
+            hud.SetBattleAnnouncement(title, body);
+    }
+
     /// <summary>
     /// Appends a single line to the rolling battle log and pushes the
     /// accumulated buffer to the Skill Details panel. Called from coroutines
@@ -1725,7 +1813,101 @@ public class BattleManager : MonoBehaviour
             battleLogLines.RemoveAt(0);
 
         if (hud != null)
+        {
             hud.SetSkillDetail("Battle Log", string.Join("\n", battleLogLines));
+            hud.SetBattleAnnouncement(AnnouncementTitleFor(line), AnnouncementBodyFor(line));
+        }
+    }
+
+    private string AnnouncementBodyFor(string line)
+    {
+        if (IsActionStartAnnouncementLine(line))
+        {
+            activeActionAnnouncementLine = line;
+            return line;
+        }
+
+        if (ShouldClearActionAnnouncement(line))
+            activeActionAnnouncementLine = null;
+
+        if (!string.IsNullOrEmpty(activeActionAnnouncementLine) && ShouldPairWithActiveAction(line))
+            return $"{activeActionAnnouncementLine}\n{line}";
+
+        return line;
+    }
+
+    private static string AnnouncementTitleFor(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return "Battle";
+        if (line.StartsWith("-- Round", StringComparison.Ordinal))
+            return "Round";
+        if (line.IndexOf(" uses ", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf(" repeats ", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf(" recasts ", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf(" commits ", StringComparison.OrdinalIgnoreCase) >= 0)
+            return "Action";
+        if (line.IndexOf("takes", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("gains", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("restores", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("drains", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("blocks", StringComparison.OrdinalIgnoreCase) >= 0)
+            return "Effect";
+        if (line.IndexOf("counter", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("ASD check", StringComparison.OrdinalIgnoreCase) >= 0)
+            return "Counter";
+        if (line.IndexOf("lacks", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("cannot repeat", StringComparison.OrdinalIgnoreCase) >= 0)
+            return "No CP";
+        if (line.IndexOf("Awaiting", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("Choose", StringComparison.OrdinalIgnoreCase) >= 0)
+            return "Input";
+
+        return "Battle";
+    }
+
+    private static bool IsActionStartAnnouncementLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return false;
+
+        return line.IndexOf(" uses ", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf(" repeats ", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf(" recasts ", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static bool ShouldPairWithActiveAction(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return false;
+        if (IsActionStartAnnouncementLine(line) || ShouldClearActionAnnouncement(line))
+            return false;
+
+        return line.IndexOf("takes", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("gains", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("restores", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("drains", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("blocks", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("shredded", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("braces", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("runs", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("forced", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("clears", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("expires", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static bool ShouldClearActionAnnouncement(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+            return true;
+
+        return line.StartsWith("-- Round", StringComparison.Ordinal) ||
+            line.IndexOf(" commits ", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("Awaiting", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("Choose", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("Battle started", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("lacks", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            line.IndexOf("cannot repeat", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private void DestroyTransientData()

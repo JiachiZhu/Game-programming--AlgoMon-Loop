@@ -212,12 +212,7 @@ public sealed class BattleStatusSet
         if (IsTimedModifierActive(cpDiscount, currentRound))
             cost -= cpDiscount.Amount;
 
-        cost = Mathf.Max(0, cost);
-
-        if (IsActiveForSkillUse(StatusType.Concurrent, currentRound))
-            cost *= 2;
-
-        return cost;
+        return Mathf.Max(0, cost);
     }
 
     public int SkillRepeatCount(int currentRound)

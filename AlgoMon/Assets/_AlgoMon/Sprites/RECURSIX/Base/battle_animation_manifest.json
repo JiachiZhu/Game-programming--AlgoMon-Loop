@@ -1,0 +1,30 @@
+{
+  "profileId": "Recursix_Base",
+  "idle": {
+    "fps": 8,
+    "loop": true
+  },
+  "attack": {
+    "fps": 10,
+    "actionFrame": 10,
+    "holdLastFrame": false
+  },
+  "defense": {
+    "fps": 10,
+    "actionFrame": 11,
+    "holdLastFrame": false
+  },
+  "status": {
+    "fps": 10,
+    "actionFrame": 10,
+    "holdLastFrame": false
+  },
+  "hit": {
+    "fps": 12,
+    "holdLastFrame": false
+  },
+  "faint": {
+    "fps": 8,
+    "holdLastFrame": true
+  }
+}

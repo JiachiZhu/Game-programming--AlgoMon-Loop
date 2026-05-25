@@ -1,0 +1,34 @@
+{
+  "profileId": "Sortex_Base",
+  "idle": {
+    "fps": 8,
+    "loop": true
+  },
+  "attack": {
+    "fps": 9,
+    "actionFrame": 11,
+    "contactFrame": 8,
+    "returnFrame": 16,
+    "contactDistanceFromTarget": 0.65,
+    "contactOffset": { "x": -0.35, "y": 0 },
+    "holdLastFrame": false
+  },
+  "defense": {
+    "fps": 9,
+    "actionFrame": 7,
+    "holdLastFrame": false
+  },
+  "status": {
+    "fps": 9,
+    "actionFrame": 3,
+    "holdLastFrame": false
+  },
+  "hit": {
+    "fps": 6,
+    "holdLastFrame": false
+  },
+  "faint": {
+    "fps": 8,
+    "holdLastFrame": true
+  }
+}

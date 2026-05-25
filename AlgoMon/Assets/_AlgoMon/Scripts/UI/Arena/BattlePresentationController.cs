@@ -17,15 +17,49 @@ public class BattlePresentationController : MonoBehaviour
     [SerializeField] private BattleSpriteAnimator playerAnimator;
     [SerializeField] private BattleSpriteAnimator enemyAnimator;
 
+    [Header("Animation Profiles")]
+    [SerializeField] private BattleAnimationProfile playerAnimationProfileOverride;
+    [SerializeField] private BattleAnimationProfile enemyAnimationProfileOverride;
+    [SerializeField] private string defaultAnimationForm = "Base";
+    [SerializeField] private bool autoLoadAnimationProfilesInEditor = true;
+
     [Header("Floating Feedback")]
     [SerializeField, Min(0f)] private float feedbackLifetime = 0.75f;
     [SerializeField, Min(0f)] private float feedbackRise = 0.75f;
     [SerializeField] private int feedbackSortingOrder = 80;
     [SerializeField] private Font feedbackFont;
+    [SerializeField, Min(0.01f)] private float bitmapFeedbackScale = 1.25f;
+    [SerializeField, Min(0.01f)] private float textFeedbackCharacterSize = 0.21f;
+    [SerializeField, Min(1)] private int textFeedbackFontSize = 64;
+    [SerializeField] private bool moveEnemyDamageFeedbackRight;
+    [SerializeField, Min(0f)] private float enemyDamageFeedbackRightPadding = 0.55f;
+    [SerializeField] private float enemyDamageFeedbackVerticalOffset = 0.15f;
+    [SerializeField] private bool movePlayerFeedbackLeft = true;
+    [SerializeField, Min(0f)] private float playerFeedbackLeftPadding = 0.45f;
+    [SerializeField] private float playerFeedbackVerticalOffset = -0.28f;
+
+    [Header("Element Feedback Bitmap Fonts")]
+    [SerializeField] private bool useElementBitmapFeedbackFonts = true;
+    [SerializeField] private bool autoLoadBitmapFeedbackFontsInEditor = true;
+    [SerializeField] private string bitmapFeedbackFontAssetRoot = "Assets/_AlgoMon/Fonts/NicoBitmap";
+    [SerializeField] private NicoBitmapFontReference normalBitmapFont =
+        new NicoBitmapFontReference("BoldBasic", Color.white);
+    [SerializeField] private NicoBitmapFontReference waterBitmapFont =
+        new NicoBitmapFontReference("DigitalPup", Color.white);
+    [SerializeField] private NicoBitmapFontReference fireBitmapFont =
+        new NicoBitmapFontReference("CakeIcing", Color.white);
+    [SerializeField] private NicoBitmapFontReference grassBitmapFont =
+        new NicoBitmapFontReference("PaintBasic", new Color(0.45f, 1f, 0.58f));
+    [SerializeField] private NicoBitmapFontReference iceBitmapFont =
+        new NicoBitmapFontReference("PoolParty", Color.white);
+    [SerializeField] private NicoBitmapFontReference electricBitmapFont =
+        new NicoBitmapFontReference("BoldCheese", Color.white);
+    [SerializeField] private NicoBitmapFontReference groundBitmapFont =
+        new NicoBitmapFontReference("IceCream", Color.white);
+    [SerializeField] private NicoBitmapFontReference utilityBitmapFont =
+        new NicoBitmapFontReference("BoldTwilight", Color.white);
 
     [Header("Counter Clash")]
-    [SerializeField, Min(0f)] private float counterResponseDelay = 0.24f;
-    [SerializeField, Min(0f)] private float counterInterruptedHoldDuration = 1.15f;
     [Tooltip("Safety window for suppressing the real damage event's lunge after the counter clash already played it.")]
     [SerializeField, Min(0f)] private float counterActionSuppressSeconds = 12f;
 
@@ -38,6 +72,24 @@ public class BattlePresentationController : MonoBehaviour
         new Vector3( 0.18f, 0.72f, 0f),
     };
 
+    private static readonly Vector3[] RightSideDamageFeedbackOffsets =
+    {
+        new Vector3( 0.00f,  0.00f, 0f),
+        new Vector3( 0.18f,  0.16f, 0f),
+        new Vector3(-0.08f,  0.30f, 0f),
+        new Vector3( 0.14f, -0.14f, 0f),
+        new Vector3(-0.12f,  0.08f, 0f),
+    };
+
+    private static readonly Vector3[] LeftSidePlayerFeedbackOffsets =
+    {
+        new Vector3( 0.00f,  0.00f, 0f),
+        new Vector3(-0.16f,  0.12f, 0f),
+        new Vector3( 0.08f,  0.24f, 0f),
+        new Vector3(-0.12f, -0.10f, 0f),
+        new Vector3( 0.10f,  0.06f, 0f),
+    };
+
     private readonly Dictionary<BattleSpriteAnimator, int> feedbackSlots =
         new Dictionary<BattleSpriteAnimator, int>();
     private readonly Dictionary<BattleSpriteAnimator, float> feedbackTimes =
@@ -46,10 +98,20 @@ public class BattlePresentationController : MonoBehaviour
         new Dictionary<string, float>();
     private readonly Dictionary<string, int> counterActionSuppressCounts =
         new Dictionary<string, int>();
+    private readonly Dictionary<string, float> actionMarkerFeedbackTimes =
+        new Dictionary<string, float>();
+    private readonly Dictionary<string, float> hitReactionSuppressUntil =
+        new Dictionary<string, float>();
 
     private void Awake()
     {
+        EnsureBitmapFontDefaults();
         AutoBind();
+    }
+
+    private void OnValidate()
+    {
+        EnsureBitmapFontDefaults();
     }
 
     private void OnEnable()
@@ -58,18 +120,24 @@ public class BattlePresentationController : MonoBehaviour
         feedbackTimes.Clear();
         counterActionSuppressUntil.Clear();
         counterActionSuppressCounts.Clear();
+        actionMarkerFeedbackTimes.Clear();
+        hitReactionSuppressUntil.Clear();
+        EventBus.Subscribe<BattleActionEvent>(OnBattleAction);
         EventBus.Subscribe<DamageEvent>(OnDamage);
         EventBus.Subscribe<BattleFeedbackEvent>(OnFeedback);
         EventBus.Subscribe<StatusAppliedEvent>(OnStatusApplied);
         EventBus.Subscribe<CounterEvent>(OnCounter);
+        EventBus.Subscribe<UnitFaintedEvent>(OnUnitFainted);
     }
 
     private void OnDisable()
     {
+        EventBus.Unsubscribe<BattleActionEvent>(OnBattleAction);
         EventBus.Unsubscribe<DamageEvent>(OnDamage);
         EventBus.Unsubscribe<BattleFeedbackEvent>(OnFeedback);
         EventBus.Unsubscribe<StatusAppliedEvent>(OnStatusApplied);
         EventBus.Unsubscribe<CounterEvent>(OnCounter);
+        EventBus.Unsubscribe<UnitFaintedEvent>(OnUnitFainted);
     }
 
     private void AutoBind()
@@ -89,24 +157,184 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
-    public void RegisterCombatants(string playerCombatantId, string enemyCombatantId)
+    private void EnsureBitmapFontDefaults()
+    {
+        if (normalBitmapFont == null || (!normalBitmapFont.HasFontName && !normalBitmapFont.HasAssignedAssets))
+            normalBitmapFont = new NicoBitmapFontReference("BoldBasic", Color.white);
+        if (waterBitmapFont == null || (!waterBitmapFont.HasFontName && !waterBitmapFont.HasAssignedAssets))
+            waterBitmapFont = new NicoBitmapFontReference("DigitalPup", Color.white);
+        if (fireBitmapFont == null || (!fireBitmapFont.HasFontName && !fireBitmapFont.HasAssignedAssets))
+            fireBitmapFont = new NicoBitmapFontReference("CakeIcing", Color.white);
+        if (grassBitmapFont == null || (!grassBitmapFont.HasFontName && !grassBitmapFont.HasAssignedAssets))
+            grassBitmapFont = new NicoBitmapFontReference("PaintBasic", new Color(0.45f, 1f, 0.58f));
+        if (iceBitmapFont == null || (!iceBitmapFont.HasFontName && !iceBitmapFont.HasAssignedAssets))
+            iceBitmapFont = new NicoBitmapFontReference("PoolParty", Color.white);
+
+        bool electricUsesIceDefault =
+            electricBitmapFont != null &&
+            !electricBitmapFont.HasAssignedAssets &&
+            string.Equals(electricBitmapFont.FontName, "PoolParty", System.StringComparison.OrdinalIgnoreCase);
+        if (electricBitmapFont == null ||
+            electricUsesIceDefault ||
+            (!electricBitmapFont.HasFontName && !electricBitmapFont.HasAssignedAssets))
+        {
+            electricBitmapFont = new NicoBitmapFontReference("BoldCheese", Color.white);
+        }
+
+        if (groundBitmapFont == null || (!groundBitmapFont.HasFontName && !groundBitmapFont.HasAssignedAssets))
+            groundBitmapFont = new NicoBitmapFontReference("IceCream", Color.white);
+        if (utilityBitmapFont == null || (!utilityBitmapFont.HasFontName && !utilityBitmapFont.HasAssignedAssets))
+            utilityBitmapFont = new NicoBitmapFontReference("BoldTwilight", Color.white);
+
+        if (bitmapFeedbackScale <= 0f)
+            bitmapFeedbackScale = 1.25f;
+        if (textFeedbackCharacterSize <= 0f)
+            textFeedbackCharacterSize = 0.21f;
+        if (textFeedbackFontSize <= 0)
+            textFeedbackFontSize = 64;
+    }
+
+    public void RegisterCombatants(
+        string playerCombatantId,
+        string enemyCombatantId,
+        BattleAnimationProfile playerProfile = null,
+        BattleAnimationProfile enemyProfile = null,
+        string playerCodeName = null,
+        string enemyCodeName = null)
     {
         if (!string.IsNullOrWhiteSpace(playerCombatantId))
             playerId = playerCombatantId;
         if (!string.IsNullOrWhiteSpace(enemyCombatantId))
             enemyId = enemyCombatantId;
+
+        if (playerAnimator != null)
+            playerAnimator.SetAnimationProfile(ResolveProfile(playerAnimationProfileOverride, playerProfile, playerCodeName, playerId));
+        if (enemyAnimator != null)
+            enemyAnimator.SetAnimationProfile(ResolveProfile(enemyAnimationProfileOverride, enemyProfile, enemyCodeName, enemyId));
+    }
+
+    private BattleAnimationProfile ResolveProfile(
+        BattleAnimationProfile overrideProfile,
+        BattleAnimationProfile dataProfile,
+        string codeName,
+        string fallbackId)
+    {
+        if (overrideProfile != null)
+            return overrideProfile;
+        if (dataProfile != null)
+            return dataProfile;
+        if (!autoLoadAnimationProfilesInEditor)
+            return null;
+
+        string resolvedCodeName = !string.IsNullOrWhiteSpace(codeName) ? codeName : fallbackId;
+        return BattleAnimationProfileLoader.TryLoadEditorProfile(resolvedCodeName, defaultAnimationForm);
+    }
+
+    private void OnBattleAction(BattleActionEvent evt)
+    {
+        BattleSpriteAnimator actor = AnimatorFor(evt.ActorId);
+        BattleSpriteAnimator target = AnimatorFor(evt.TargetId);
+        if (actor == null)
+            return;
+        if (ConsumeSuppressedCounterAction(evt.ActorId))
+        {
+            actionMarkerFeedbackTimes.Remove(evt.ActorId);
+            return;
+        }
+
+        Vector3 targetPosition = target != null ? target.ContactWorldPosition : actor.ContactWorldPosition;
+        switch (evt.InstructionType)
+        {
+            case InstructionType.Attack:
+                RecordActionMarkerTime(evt.ActorId, actor, BattleAnimationState.Attack);
+                actor.PlayAttackToward(targetPosition, target);
+                break;
+            case InstructionType.Defense:
+                RecordActionMarkerTime(evt.ActorId, actor, BattleAnimationState.Defense);
+                actor.PlayDefense();
+                break;
+            case InstructionType.Status:
+                RecordActionMarkerTime(evt.ActorId, actor, BattleAnimationState.Status);
+                actor.PlayStatusAction(new Color(0.64f, 0.82f, 1f));
+                break;
+        }
     }
 
     private void OnDamage(DamageEvent evt)
     {
+        float delay = DelayUntilRecordedMarker(evt.AttackerId);
+        if (delay > 0f)
+            StartCoroutine(PlayDamageFeedbackAfterDelay(evt, delay));
+        else
+            PlayDamageFeedback(evt);
+    }
+
+    private void PlayDamageFeedback(DamageEvent evt)
+    {
         BattleSpriteAnimator target = AnimatorFor(evt.TargetId);
-        BattleSpriteAnimator attacker = AnimatorFor(evt.AttackerId);
-        if (attacker != null && target != null && !ConsumeSuppressedCounterAction(evt.AttackerId))
-            attacker.PlayActionToward(target.FeedbackWorldPosition);
-        if (target != null)
+        if (target != null && !ShouldSuppressHitReaction(evt.TargetId))
             target.PlayHit();
 
-        SpawnFeedback(target, $"-{evt.Amount}", new Color(1f, 0.36f, 0.32f));
+        SpawnFeedback(
+            target,
+            DamageLabel(evt),
+            DamageColor(evt.ElementMultiplier),
+            evt.SkillElement,
+            false,
+            ShouldUseEnemyDamageSidePosition(target));
+    }
+
+    public float ExpectedDamageFeedbackRemaining(string attackerId, string targetId)
+    {
+        float markerDelay = PeekDelayUntilRecordedMarker(attackerId);
+        BattleSpriteAnimator target = AnimatorFor(targetId);
+        if (target == null || ShouldSuppressHitReaction(targetId))
+            return markerDelay;
+
+        return markerDelay + target.HitPlaybackDurationSeconds;
+    }
+
+    private IEnumerator PlayDamageFeedbackAfterDelay(DamageEvent evt, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        PlayDamageFeedback(evt);
+    }
+
+    private void RecordActionMarkerTime(string actorId, BattleSpriteAnimator actor, BattleAnimationState state)
+    {
+        if (string.IsNullOrEmpty(actorId) || actor == null)
+            return;
+
+        if (actor.TryGetActionMarkerDelay(state, out float delay))
+            actionMarkerFeedbackTimes[actorId] = Time.time + delay;
+        else
+            actionMarkerFeedbackTimes.Remove(actorId);
+    }
+
+    private float DelayUntilRecordedMarker(string actorId)
+    {
+        if (string.IsNullOrEmpty(actorId))
+            return 0f;
+        if (!actionMarkerFeedbackTimes.TryGetValue(actorId, out float markerTime))
+            return 0f;
+        float delay = markerTime - Time.time;
+        if (delay <= 0f)
+        {
+            actionMarkerFeedbackTimes.Remove(actorId);
+            return 0f;
+        }
+
+        return delay;
+    }
+
+    private float PeekDelayUntilRecordedMarker(string actorId)
+    {
+        if (string.IsNullOrEmpty(actorId))
+            return 0f;
+        if (!actionMarkerFeedbackTimes.TryGetValue(actorId, out float markerTime))
+            return 0f;
+
+        return Mathf.Max(0f, markerTime - Time.time);
     }
 
     private void OnFeedback(BattleFeedbackEvent evt)
@@ -119,34 +347,62 @@ public class BattlePresentationController : MonoBehaviour
         {
             case BattleFeedbackType.Damage:
                 target.PlayHit();
-                SpawnFeedback(target, evt.Label, new Color(1f, 0.36f, 0.32f));
+                SpawnFeedback(
+                    target,
+                    evt.Label,
+                    new Color(1f, 0.36f, 0.32f),
+                    null,
+                    true,
+                    ShouldUseEnemyDamageSidePosition(target));
                 break;
             case BattleFeedbackType.Heal:
-                SpawnFeedback(target, evt.Label, new Color(0.45f, 1f, 0.58f));
+                SpawnUtilityFeedback(target, evt.Label, new Color(0.45f, 1f, 0.58f));
                 break;
             case BattleFeedbackType.CPGain:
-                SpawnFeedback(target, evt.Label, new Color(0.42f, 0.78f, 1f));
+                SpawnUtilityFeedback(target, evt.Label, new Color(0.42f, 0.78f, 1f));
                 break;
             case BattleFeedbackType.CPDrain:
-                SpawnFeedback(target, evt.Label, new Color(1f, 0.76f, 0.28f));
+                SpawnUtilityFeedback(target, evt.Label, new Color(1f, 0.76f, 0.28f));
                 break;
             case BattleFeedbackType.Counter:
-                SpawnFeedback(target, evt.Label, new Color(1f, 0.92f, 0.45f));
+                SpawnUtilityFeedback(target, evt.Label, new Color(1f, 0.92f, 0.45f));
                 break;
             case BattleFeedbackType.Status:
-                SpawnFeedback(target, evt.Label, StatusColor(StatusType.Corrupted));
+                SpawnUtilityFeedback(target, evt.Label, StatusColor(StatusType.Corrupted));
                 break;
         }
     }
 
     private void OnStatusApplied(StatusAppliedEvent evt)
     {
+        float delay = DelayUntilRecordedMarker(evt.SourceId);
+        if (delay > 0f)
+            StartCoroutine(PlayStatusAppliedFeedbackAfterDelay(evt, delay));
+        else
+            PlayStatusAppliedFeedback(evt);
+    }
+
+    private void PlayStatusAppliedFeedback(StatusAppliedEvent evt)
+    {
         BattleSpriteAnimator target = AnimatorFor(evt.TargetId);
         Color color = StatusColor(evt.Status);
         if (target != null)
             target.PlayStatus(color);
 
-        SpawnFeedback(target, $"{evt.Status} +{evt.Stacks}", color);
+        SpawnUtilityFeedback(target, $"{evt.Status} +{evt.Stacks}", color);
+    }
+
+    private IEnumerator PlayStatusAppliedFeedbackAfterDelay(StatusAppliedEvent evt, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        PlayStatusAppliedFeedback(evt);
+    }
+
+    private void OnUnitFainted(UnitFaintedEvent evt)
+    {
+        BattleSpriteAnimator target = AnimatorFor(evt.UnitId);
+        if (target != null)
+            target.PlayFaint();
     }
 
     private void OnCounter(CounterEvent evt)
@@ -155,19 +411,27 @@ public class BattlePresentationController : MonoBehaviour
         BattleSpriteAnimator countered = AnimatorFor(evt.CounteredId);
         if (counter != null && countered != null)
         {
-            if (evt.CounterHasDamage)
-                SuppressNextCounterAttack(evt.CounterId);
-            if (evt.CounteredHasDamage)
-                SuppressNextCounterAttack(evt.CounteredId);
-            countered.PlayCounterInterruptedToward(counter.FeedbackWorldPosition, counterInterruptedHoldDuration);
-            StartCoroutine(PlayCounterResponse(counter, countered));
+            SuppressNextCounterAction(evt.CounterId);
+            SuppressNextCounterAction(evt.CounteredId);
+            actionMarkerFeedbackTimes.Remove(evt.CounterId);
+            actionMarkerFeedbackTimes.Remove(evt.CounteredId);
+
+            if (evt.CounterInstructionType == InstructionType.Defense &&
+                evt.CounteredInstructionType == InstructionType.Attack)
+            {
+                StartCoroutine(PlayDefenseBlocksAttackCounter(evt, counter, countered));
+            }
+            else
+            {
+                StartCoroutine(PlayProfileCounterSequence(evt, counter, countered));
+            }
             return;
         }
 
-        SpawnFeedback(counter, "COUNTER", new Color(1f, 0.92f, 0.45f));
+        SpawnUtilityFeedback(counter, "COUNTER", new Color(1f, 0.92f, 0.45f));
     }
 
-    private void SuppressNextCounterAttack(string combatantId)
+    private void SuppressNextCounterAction(string combatantId)
     {
         if (string.IsNullOrEmpty(combatantId))
             return;
@@ -190,19 +454,68 @@ public class BattlePresentationController : MonoBehaviour
 
     private void SpawnFeedback(BattleSpriteAnimator target, string label, Color color)
     {
+        SpawnFeedback(target, label, color, null, false);
+    }
+
+    private void SpawnUtilityFeedback(BattleSpriteAnimator target, string label, Color color)
+    {
+        SpawnFeedback(target, label, color, null, true);
+    }
+
+    private void SpawnFeedback(BattleSpriteAnimator target, string label, Color color, ElementType? skillElement)
+    {
+        SpawnFeedback(target, label, color, skillElement, false);
+    }
+
+    private void SpawnFeedback(
+        BattleSpriteAnimator target,
+        string label,
+        Color color,
+        ElementType? skillElement,
+        bool useUtilityBitmapFont)
+    {
+        SpawnFeedback(target, label, color, skillElement, useUtilityBitmapFont, false);
+    }
+
+    private void SpawnFeedback(
+        BattleSpriteAnimator target,
+        string label,
+        Color color,
+        ElementType? skillElement,
+        bool useUtilityBitmapFont,
+        bool useEnemyDamageSidePosition)
+    {
         if (target == null || string.IsNullOrEmpty(label))
             return;
 
         GameObject go = new GameObject($"Feedback_{label}");
         go.transform.SetParent(transform, false);
-        go.transform.position = target.FeedbackWorldPosition + NextFeedbackOffset(target);
+        bool usePlayerLeftPosition = ShouldUsePlayerLeftPosition(target);
+        Vector3 feedbackPosition = FeedbackPositionFor(target, useEnemyDamageSidePosition, usePlayerLeftPosition);
+        go.transform.position = feedbackPosition + NextFeedbackOffset(
+            target,
+            useEnemyDamageSidePosition,
+            usePlayerLeftPosition);
+
+        NicoBitmapFontReference bitmapSource = null;
+        if (skillElement.HasValue)
+            bitmapSource = BitmapFontForElement(skillElement.Value);
+        else if (useUtilityBitmapFont)
+            bitmapSource = utilityBitmapFont;
+
+        if (bitmapSource != null &&
+            TryCreateBitmapFeedback(go.transform, label, bitmapSource, out List<SpriteRenderer> glyphRenderers))
+        {
+            StartCoroutine(FloatAndFade(go, glyphRenderers));
+            return;
+        }
 
         TextMesh text = go.AddComponent<TextMesh>();
         text.text = label;
         text.anchor = TextAnchor.MiddleCenter;
         text.alignment = TextAlignment.Center;
-        text.characterSize = 0.14f;
-        text.fontSize = 48;
+        text.characterSize = textFeedbackCharacterSize;
+        text.fontSize = textFeedbackFontSize;
         text.color = color;
         if (feedbackFont != null)
             text.font = feedbackFont;
@@ -214,14 +527,183 @@ public class BattlePresentationController : MonoBehaviour
         StartCoroutine(FloatAndFade(go, text, color));
     }
 
-    private IEnumerator PlayCounterResponse(BattleSpriteAnimator counter, BattleSpriteAnimator countered)
+    private bool ShouldUseEnemyDamageSidePosition(BattleSpriteAnimator target)
     {
-        if (counterResponseDelay > 0f)
-            yield return new WaitForSeconds(counterResponseDelay);
+        return moveEnemyDamageFeedbackRight && target != null && target == enemyAnimator;
+    }
 
-        if (counter != null && countered != null)
-            counter.PlayActionToward(countered.FeedbackWorldPosition);
-        SpawnFeedback(counter, "COUNTER", new Color(1f, 0.92f, 0.45f));
+    private bool ShouldUsePlayerLeftPosition(BattleSpriteAnimator target)
+    {
+        return movePlayerFeedbackLeft && target != null && target == playerAnimator;
+    }
+
+    private Vector3 FeedbackPositionFor(
+        BattleSpriteAnimator target,
+        bool useEnemyDamageSidePosition,
+        bool usePlayerLeftPosition)
+    {
+        if (useEnemyDamageSidePosition)
+            return target.SideFeedbackWorldPosition(1f, enemyDamageFeedbackRightPadding, enemyDamageFeedbackVerticalOffset);
+        if (usePlayerLeftPosition)
+            return target.SideFeedbackWorldPosition(-1f, playerFeedbackLeftPadding, playerFeedbackVerticalOffset);
+        return target.FeedbackWorldPosition;
+    }
+
+    private bool TryCreateBitmapFeedback(
+        Transform root,
+        string label,
+        NicoBitmapFontReference source,
+        out List<SpriteRenderer> glyphRenderers)
+    {
+        glyphRenderers = null;
+        if (!useElementBitmapFeedbackFonts || source == null)
+            return false;
+
+        if (!TryGetBitmapFont(source, out NicoBitmapFont font))
+            return false;
+
+        glyphRenderers = font.CreateRenderers(root, label, feedbackSortingOrder);
+        if (glyphRenderers.Count > 0)
+            root.localScale = Vector3.one * bitmapFeedbackScale;
+        return glyphRenderers.Count > 0;
+    }
+
+    private bool TryGetBitmapFont(NicoBitmapFontReference source, out NicoBitmapFont font)
+    {
+        if (source.TryGetAssignedFont(out font))
+            return true;
+
+#if UNITY_EDITOR
+        if (autoLoadBitmapFeedbackFontsInEditor)
+            return source.TryGetEditorAutoFont(bitmapFeedbackFontAssetRoot, out font);
+#endif
+
+        font = null;
+        return false;
+    }
+
+    private NicoBitmapFontReference BitmapFontForElement(ElementType element)
+    {
+        switch (element)
+        {
+            case ElementType.Water:
+                return waterBitmapFont;
+            case ElementType.Fire:
+                return fireBitmapFont;
+            case ElementType.Grass:
+                return grassBitmapFont;
+            case ElementType.Ice:
+                return iceBitmapFont;
+            case ElementType.Electric:
+                return electricBitmapFont;
+            case ElementType.Ground:
+                return groundBitmapFont;
+            case ElementType.Normal:
+            default:
+                return normalBitmapFont;
+        }
+    }
+
+    private IEnumerator PlayDefenseBlocksAttackCounter(
+        CounterEvent evt,
+        BattleSpriteAnimator defender,
+        BattleSpriteAnimator attacker)
+    {
+        if (defender == null || attacker == null)
+            yield break;
+
+        attacker.TryGetClipTiming(BattleAnimationState.Attack, out float attackMarkerDelay, out float attackDuration);
+        defender.TryGetClipTiming(BattleAnimationState.Defense, out float defenseMarkerDelay, out float defenseDuration);
+        float totalShieldSequenceDuration = Mathf.Max(attackDuration, attackMarkerDelay + defenseMarkerDelay) +
+            Mathf.Max(0f, defenseDuration - defenseMarkerDelay);
+        if (totalShieldSequenceDuration > 0f)
+            hitReactionSuppressUntil[evt.CounterId] = Time.time + totalShieldSequenceDuration;
+
+        if (attackMarkerDelay > 0f)
+            actionMarkerFeedbackTimes[evt.CounteredId] = Time.time + attackMarkerDelay;
+
+        attacker.PlayAttackToward(defender.ContactWorldPosition, defender);
+
+        if (attackMarkerDelay > 0f)
+            yield return new WaitForSeconds(attackMarkerDelay);
+
+        bool heldDefense = defender.PlayStateToActionMarkerAndHold(
+            BattleAnimationState.Defense,
+            defender.FeedbackWorldPosition,
+            false);
+
+        if (defenseMarkerDelay > 0f)
+            yield return new WaitForSeconds(defenseMarkerDelay);
+
+        SpawnUtilityFeedback(defender, "COUNTER", new Color(1f, 0.92f, 0.45f));
+
+        float attackRemainingAfterShield = Mathf.Max(0f, attackDuration - attackMarkerDelay - defenseMarkerDelay);
+        if (attackRemainingAfterShield > 0f)
+            yield return new WaitForSeconds(attackRemainingAfterShield);
+
+        if (heldDefense)
+        {
+            defender.ContinueHeldProfileClip();
+            float defenseRemaining = Mathf.Max(0f, defenseDuration - defenseMarkerDelay);
+            if (defenseRemaining > 0f)
+                yield return new WaitForSeconds(defenseRemaining);
+        }
+    }
+
+    private IEnumerator PlayProfileCounterSequence(
+        CounterEvent evt,
+        BattleSpriteAnimator counter,
+        BattleSpriteAnimator countered)
+    {
+        if (counter == null || countered == null)
+            yield break;
+
+        BattleAnimationState counteredState = StateForInstruction(evt.CounteredInstructionType);
+        countered.TryGetActionMarkerDelay(counteredState, out float counteredMarkerDelay);
+        PlayCounterInstruction(countered, evt.CounteredInstructionType, counter);
+
+        if (counteredMarkerDelay > 0f)
+            yield return new WaitForSeconds(counteredMarkerDelay);
+
+        PlayCounterInstruction(counter, evt.CounterInstructionType, countered);
+        SpawnUtilityFeedback(counter, "COUNTER", new Color(1f, 0.92f, 0.45f));
+    }
+
+    private void PlayCounterInstruction(
+        BattleSpriteAnimator actor,
+        InstructionType instruction,
+        BattleSpriteAnimator target)
+    {
+        if (actor == null)
+            return;
+
+        switch (instruction)
+        {
+            case InstructionType.Attack:
+                Vector3 targetPosition = target != null ? target.ContactWorldPosition : actor.ContactWorldPosition;
+                actor.PlayAttackToward(targetPosition, target);
+                break;
+            case InstructionType.Defense:
+                actor.PlayDefense();
+                break;
+            case InstructionType.Status:
+                actor.PlayStatusAction(new Color(0.64f, 0.82f, 1f));
+                break;
+        }
+    }
+
+    private static BattleAnimationState StateForInstruction(InstructionType instruction)
+    {
+        switch (instruction)
+        {
+            case InstructionType.Attack:
+                return BattleAnimationState.Attack;
+            case InstructionType.Defense:
+                return BattleAnimationState.Defense;
+            case InstructionType.Status:
+            default:
+                return BattleAnimationState.Status;
+        }
     }
 
     private bool ConsumeSuppressedCounterAction(string attackerId)
@@ -253,15 +735,54 @@ public class BattlePresentationController : MonoBehaviour
         return true;
     }
 
-    private Vector3 NextFeedbackOffset(BattleSpriteAnimator target)
+    private bool ShouldSuppressHitReaction(string combatantId)
+    {
+        if (string.IsNullOrEmpty(combatantId))
+            return false;
+        if (!hitReactionSuppressUntil.TryGetValue(combatantId, out float until))
+            return false;
+        if (Time.time <= until)
+            return true;
+
+        hitReactionSuppressUntil.Remove(combatantId);
+        return false;
+    }
+
+    private static string DamageLabel(DamageEvent evt)
+    {
+        if (evt.ElementMultiplier > 1.01f)
+            return $"WEAK -{evt.Amount}";
+        if (evt.ElementMultiplier < 0.99f)
+            return $"RESIST -{evt.Amount}";
+        return $"-{evt.Amount}";
+    }
+
+    private static Color DamageColor(float elementMultiplier)
+    {
+        if (elementMultiplier > 1.01f)
+            return new Color(1f, 0.82f, 0.24f);
+        if (elementMultiplier < 0.99f)
+            return new Color(0.42f, 0.78f, 1f);
+        return new Color(1f, 0.36f, 0.32f);
+    }
+
+    private Vector3 NextFeedbackOffset(
+        BattleSpriteAnimator target,
+        bool useRightSideDamageOffsets = false,
+        bool useLeftSidePlayerOffsets = false)
     {
         if (!feedbackTimes.TryGetValue(target, out float lastTime) || Time.time - lastTime > 0.3f)
             feedbackSlots[target] = 0;
 
         feedbackTimes[target] = Time.time;
         feedbackSlots.TryGetValue(target, out int slot);
-        feedbackSlots[target] = (slot + 1) % FeedbackOffsets.Length;
-        return FeedbackOffsets[slot % FeedbackOffsets.Length];
+        Vector3[] offsets = useRightSideDamageOffsets
+            ? RightSideDamageFeedbackOffsets
+            : useLeftSidePlayerOffsets
+                ? LeftSidePlayerFeedbackOffsets
+                : FeedbackOffsets;
+        feedbackSlots[target] = (slot + 1) % offsets.Length;
+        return offsets[slot % offsets.Length];
     }
 
     private IEnumerator FloatAndFade(GameObject go, TextMesh text, Color startColor)
@@ -281,6 +802,36 @@ public class BattlePresentationController : MonoBehaviour
                 color.a = 1f - p;
                 text.color = color;
             }
+            yield return null;
+        }
+
+        if (go != null)
+            Destroy(go);
+    }
+
+    private IEnumerator FloatAndFade(GameObject go, List<SpriteRenderer> renderers)
+    {
+        Vector3 start = go.transform.position;
+        Vector3 end = start + Vector3.up * feedbackRise;
+        float elapsed = 0f;
+        float startAlpha = renderers.Count > 0 && renderers[0] != null ? renderers[0].color.a : 1f;
+
+        while (elapsed < feedbackLifetime && go != null)
+        {
+            elapsed += Time.deltaTime;
+            float p = feedbackLifetime <= 0f ? 1f : Mathf.Clamp01(elapsed / feedbackLifetime);
+            go.transform.position = Vector3.Lerp(start, end, EaseOutCubic(p));
+
+            for (int i = 0; i < renderers.Count; i++)
+            {
+                if (renderers[i] == null)
+                    continue;
+
+                Color color = renderers[i].color;
+                color.a = startAlpha * (1f - p);
+                renderers[i].color = color;
+            }
+
             yield return null;
         }
 

@@ -1,0 +1,30 @@
+{
+  "profileId": "Nullbyte_Base",
+  "idle": {
+    "fps": 8,
+    "loop": true
+  },
+  "attack": {
+    "fps": 10,
+    "actionFrame": 4,
+    "holdLastFrame": false
+  },
+  "defense": {
+    "fps": 10,
+    "actionFrame": 9,
+    "holdLastFrame": false
+  },
+  "status": {
+    "fps": 10,
+    "actionFrame": 4,
+    "holdLastFrame": false
+  },
+  "hit": {
+    "fps": 12,
+    "holdLastFrame": false
+  },
+  "faint": {
+    "fps": 8,
+    "holdLastFrame": true
+  }
+}
