@@ -1,0 +1,310 @@
+# Sprint 4 - May 25 to May 31
+
+## Goal
+
+Deliver the **run difficulty and route-choice pass** for AlgoMon. Sprint 3 made
+the roguelite loop playable end to end; Sprint 4 makes that loop feel tuned:
+node depth should raise pressure, Threat Tier should control level ranges and
+rewards, and TheGrid should clearly communicate what kind of risk the player is
+choosing.
+
+When Sprint 4 closes, a player should be able to start a run, understand the
+difference between wild AlgoMon, hacker, shop, elite, and boss nodes, and feel
+that later nodes are harder without losing the positive feedback from leveling.
+
+---
+
+## Sprint Context
+
+Sprint 3 delivered MainTerminal -> TheGrid -> TheArena -> RunResult as a full
+playable loop. The current gap is not basic flow, but **run structure**:
+encounters need level bands, rewards need different identities, and route
+choices need clearer information.
+
+Sprint 4 runs for one week (`May 25 - May 31`). The main scope is gameplay
+design and implementation around run difficulty. UI work is intentionally
+limited to TheGrid readability. Full visual polish, full TheLab, evolution
+animations, and broad VFX content are deferred.
+
+---
+
+## Planned Issues
+
+| # | Title | Status |
+|---|---|---|
+| #29 | [Progression] Add Threat Tier 1-5 and Lv1-Lv50 encounter bands | Planned |
+| #30 | [Grid] Apply node-depth difficulty scaling within each Threat Tier | Planned |
+| #31 | [Rewards] Define wild, hacker, elite, boss, and shop reward identities | Planned |
+| #32 | [Battle] Add party switch action with absolute-first priority | Planned |
+| #33 | [Encounters] Add hacker encounter v1 with multi-AlgoMon pressure | Planned |
+| #34 | [Shop] Add compute currency and first-pass shop buff choices | Planned |
+| #35 | [UI] Improve TheGrid node readability for risk and route planning | Planned |
+
+### Stretch Goals
+
+Only pick these up if the main Sprint 4 difficulty pass is playable.
+
+| # | Title | Status |
+|---|---|---|
+| #36 | [Polish] Add first-pass danger icons / color accents per node type | Stretch |
+| #37 | [Polish] Add route preview text for expected rewards | Stretch |
+| #38 | [Design] Draft TheLab gene merge rules for Sprint 5 | Stretch |
+
+---
+
+## Issue Briefs
+
+### #29 - [Progression] Add Threat Tier 1-5 and Lv1-Lv50 encounter bands
+
+**Objective:** Introduce a simple difficulty framework that supports long-term
+progression without making enemies mirror the player's level exactly.
+
+**Acceptance Criteria**
+
+- [ ] AlgoMon level cap is treated as Lv50 for Sprint 4 planning.
+- [ ] Threat Tier values 1-5 exist as run difficulty settings.
+- [ ] Each Threat Tier maps to a 10-level band:
+  - Tier 1: Lv1-Lv10
+  - Tier 2: Lv11-Lv20
+  - Tier 3: Lv21-Lv30
+  - Tier 4: Lv31-Lv40
+  - Tier 5: Lv41-Lv50
+- [ ] The player can only enter the highest unlocked Threat Tier or a lower one.
+- [ ] Lower-tier runs remain playable for farming, but use lower reward
+  multipliers than the current highest tier.
+
+**Scope Notes**
+
+- Unlock rules can be simple in Sprint 4, such as defaulting to Tier 1 or using
+  a debug/configured max tier.
+- Do not build a full account progression UI unless required for testing.
+
+### #30 - [Grid] Apply node-depth difficulty scaling within each Threat Tier
+
+**Objective:** Make every run ramp up from early pressure to a boss challenge.
+
+**Acceptance Criteria**
+
+- [ ] Encounter level is primarily based on Threat Tier plus node depth.
+- [ ] Early, middle, and late nodes inside a tier produce visibly different
+  enemy levels.
+- [ ] Wild AlgoMon are slightly easier than hacker or elite encounters at the
+  same depth.
+- [ ] Boss encounters use the top of the tier band and an evolved species.
+- [ ] Player level may influence tuning only as a small correction, not as full
+  enemy level matching.
+
+**Design Target**
+
+```text
+enemyLevel = tierStartLevel + depthProgressWithinTier + nodeTypeModifier
+```
+
+Player growth should still matter. Upgrading should make early nodes easier,
+while later nodes and bosses continue to create pressure.
+
+### #31 - [Rewards] Define wild, hacker, elite, boss, and shop reward identities
+
+**Objective:** Give each node type a clear strategic reason to exist.
+
+**Acceptance Criteria**
+
+- [ ] Wild AlgoMon nodes grant small player EXP, small AlgoMon EXP, and base
+  AlgoMon data.
+- [ ] Hacker nodes grant higher player EXP, higher AlgoMon EXP, and more compute,
+  but do not grant captured AlgoMon data.
+- [ ] Elite nodes grant above-average EXP and compute, and may use harder
+  encounter rules.
+- [ ] Boss nodes grant high EXP, high-quality base data, and evolution data for
+  the defeated evolved species.
+- [ ] Shop nodes spend compute on buffs instead of starting a battle.
+
+**Scope Notes**
+
+- Evolution data only needs to be defined as a reward contract in Sprint 4.
+  Full evolution UI belongs to Sprint 5.
+- Base data quality can be represented with a placeholder quality tier if the
+  final gene system is not ready.
+
+### #32 - [Battle] Add party switch action with absolute-first priority
+
+**Objective:** Add the missing switch rule so multi-AlgoMon battles can work
+cleanly for the player and hacker encounters.
+
+**Acceptance Criteria**
+
+- [ ] Switching is represented as its own battle action, separate from Attack,
+  Status, and Defense skills.
+- [ ] Switching resolves before every other battle priority system.
+- [ ] Switch priority is higher than ASD counter wins, `ForceAfter`, skill
+  priority, and ClockSpeed.
+- [ ] A switch action consumes that combatant's action for the round.
+- [ ] Switching does not trigger ASD counter checks and does not spend skill CP.
+- [ ] If one side switches and the other side uses a skill, the skill resolves
+  against the newly active AlgoMon after the switch.
+- [ ] If both sides switch, both switches resolve before any skill action;
+  presentation can show player switch first, then opponent switch.
+
+**Design Rule**
+
+```text
+Round action order:
+  1. Resolve all switch actions
+  2. Resolve ASD counter checks for remaining skill actions
+  3. Build normal skill turn order
+  4. Apply ForceAfter / priority / ClockSpeed rules
+  5. Execute skills
+```
+
+### #33 - [Encounters] Add hacker encounter v1 with multi-AlgoMon pressure
+
+**Objective:** Make hacker encounters feel distinct from wild AlgoMon battles.
+
+**Acceptance Criteria**
+
+- [ ] Hacker encounters can field more than one AlgoMon.
+- [ ] Hacker parties use the current Threat Tier and node-depth level rules.
+- [ ] Hacker AI may switch when its active AlgoMon is low HP or has a poor
+  matchup, using the Sprint 4 switch action.
+- [ ] Hacker victories award higher EXP and compute than wild nodes.
+- [ ] Hacker victories do not add defeated AlgoMon to the player's Payload.
+
+**Scope Notes**
+
+- AI can be simple and rule-based. It only needs to demonstrate the identity of
+  hacker battles.
+- Full smart AI is not required for Sprint 4.
+
+### #34 - [Shop] Add compute currency and first-pass shop buff choices
+
+**Objective:** Give run routes a non-battle economy and a reason to take harder
+or hacker nodes.
+
+**Acceptance Criteria**
+
+- [ ] Completing battle nodes grants compute.
+- [ ] Shop nodes spend compute on run-limited buffs.
+- [ ] At least three basic buffs exist, such as heal, damage boost, CP support,
+  shield, or experience boost.
+- [ ] At least one high-risk option trades a debuff for a stronger buff.
+- [ ] Shop buffs apply only to the current run unless explicitly marked
+  permanent in later sprints.
+
+**Scope Notes**
+
+- Shop UI can be functional and minimal.
+- Buff balance is first-pass only; final tuning belongs to Sprint 6.
+
+### #35 - [UI] Improve TheGrid node readability for risk and route planning
+
+**Objective:** Keep Sprint 4 UI work tied directly to level design needs.
+
+**Acceptance Criteria**
+
+- [ ] Node type is readable without opening another menu.
+- [ ] Available, current, visited, and locked nodes are visually distinct.
+- [ ] Higher-risk nodes communicate danger through label, color, icon, or
+  compact text.
+- [ ] Boss node gives enough information for the player to understand it is the
+  run target.
+- [ ] Selected node details show expected encounter type and broad reward
+  identity.
+
+**Scope Notes**
+
+- This is not a full visual redesign.
+- Do not polish MainTerminal, TheArena, RunResult, or TheLab unless needed to
+  support the Sprint 4 loop.
+
+---
+
+## Dependency Map
+
+```text
+#29 Threat Tier bands
+  -> #30 Node-depth scaling
+  -> #31 Reward identities
+  -> #35 TheGrid readability
+
+#32 Party switch action
+  -> #33 Hacker encounter v1
+
+#31 Reward identities
+  -> #34 Compute shop
+```
+
+Recommended priority path:
+
+```text
+#29 -> #30 -> #31 -> #32 -> #33 -> #34 -> #35
+```
+
+If the sprint slips, finish #29-#33 first. Shop and UI can be narrowed, but the
+run needs level bands, reward identities, and switch-capable hacker battles to
+support the Sprint 4 goal.
+
+---
+
+## Scope Notes - Explicit Non-Goals
+
+- **Full TheLab gene merge UI** - moved to Sprint 5. Sprint 4 may define reward
+  contracts that TheLab will later consume.
+- **Four evolved animation sets** - Sprint 5 content-complete work.
+- **Full skill VFX library** - Sprint 5 content-complete work.
+- **Global UI polish** - Sprint 6 final pass. Sprint 4 UI is limited to TheGrid
+  readability.
+- **Complex adaptive AI** - out of scope. Hacker AI only needs simple switching
+  and skill-choice pressure.
+- **Final economy balance** - Sprint 4 establishes the structure; Sprint 6 tunes
+  numbers for the final build.
+
+---
+
+## Decisions & Notes
+
+### Threat Tier Philosophy
+
+Enemies should not fully copy the player's level. Full level matching removes
+the reward of leveling. Instead, the run uses tier and depth as the main source
+of enemy level, with only small correction if needed.
+
+The player should feel stronger after leveling because earlier nodes become
+easier, but a deeper route, elite fight, hacker party, or boss should still
+create pressure.
+
+### Reward Identity Philosophy
+
+Wild AlgoMon are for collection and gene material. Hackers are for experience
+and compute. Bosses are for evolution progress. Shops turn compute into run
+power and risky build choices.
+
+This keeps the route map from becoming a list of identical battles.
+
+### Switch Priority Rule
+
+Switching is absolute-first. It is not just another high-priority skill.
+
+Switching resolves before ASD counters, `ForceAfter`, skill priority, and
+ClockSpeed. It consumes the actor's action for the round and causes incoming
+single-target skills to hit the newly active AlgoMon.
+
+### Documentation Targets
+
+- `Docs/BattleDesign.md` - add party switch timing above ASD and priority.
+- `Docs/GridDesign.md` - add Threat Tier, node-depth difficulty, and reward
+  identity notes.
+- `Docs/Sprints/Sprint4.md` - track Sprint 4 planned work and closure outcome.
+
+---
+
+## Outcome
+
+*(To be filled at sprint close.)*
+
+---
+
+## Carry-over
+
+*(To be filled at sprint close. Likely candidates if scope slips: shop buff
+variety, TheGrid visual polish accents, TheLab gene merge draft, advanced hacker
+AI.)*
