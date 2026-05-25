@@ -37,11 +37,13 @@ public class GameManager : MonoBehaviour
     public bool IsRunActive { get; private set; }
 
     [Header("Threat Tier")]
+    // Serialized ints are Inspector/debug-facing; enum properties below are the clamped logic API.
     [Range(ThreatTierRules.MinTier, ThreatTierRules.MaxTier)]
     public int highestUnlockedThreatTier = ThreatTierRules.MinTier;
     [Range(ThreatTierRules.MinTier, ThreatTierRules.MaxTier)]
     public int selectedThreatTier = ThreatTierRules.MinTier;
     public int currentThreatTier = ThreatTierRules.MinTier;
+    // TODO #31: Apply this multiplier when reward grants land; currently it is surfaced for run reporting.
     public float currentRewardMultiplier = 1f;
 
     [Header("Run Result")]
@@ -51,6 +53,7 @@ public class GameManager : MonoBehaviour
     public NodeType completedRunNodeType;
     public int completedRunVisitedCount;
     public int completedRunThreatTier = ThreatTierRules.MinTier;
+    // TODO #31: Use this when RunResult shows concrete EXP/data/compute rewards.
     public float completedRunRewardMultiplier = 1f;
 
     // ----------------------------------------------------------------
@@ -142,6 +145,7 @@ public class GameManager : MonoBehaviour
         GridGraph graph = new GridGenerator(gridSettings).Generate(seed);
         graph.threatTier = currentThreatTier;
         graph.rewardMultiplierPercent = ThreatTierRules.RewardMultiplierPercent(runTier, HighestUnlockedThreatTier);
+        // Party level is sampled once so later growth does not turn this into full level matching.
         ThreatTierRules.ApplyDifficultyToGraph(graph, runTier, AveragePartyLevel());
 
         IsRunActive = true;

@@ -98,11 +98,6 @@ public static class ThreatTierRules
         }
     }
 
-    public static int EncounterLevel(ThreatTier tier, NodeType nodeType, int nodeLayer, int randomBonus)
-    {
-        return EncounterLevel(tier, nodeType, nodeLayer, Mathf.Max(nodeLayer + 1, 1), 0, randomBonus);
-    }
-
     public static int EncounterLevel(
         ThreatTier tier,
         NodeType nodeType,

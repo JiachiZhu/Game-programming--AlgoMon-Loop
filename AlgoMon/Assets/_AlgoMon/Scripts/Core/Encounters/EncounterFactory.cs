@@ -53,7 +53,7 @@ public static class EncounterFactory
             usesTransientData = usesTransientData,
             level = node.encounterLevel > 0
                 ? node.encounterLevel
-                : ThreatTierRules.EncounterLevel(threatTier, node.nodeType, node.layer, rng.Next(0, LevelRandomExclusiveMax)),
+                : FallbackEncounterLevel(threatTier, node, rng),
             iv_Battery = RollEncounterStat(rng, baseIv + BatteryIvBonus, BatteryIvSpread),
             iv_ClockSpeed = RollEncounterStat(rng, baseIv, SpeedIvSpread),
             iv_ComputingPower = RollEncounterStat(rng, baseIv + encounterGrade * TierStatBonus, OffenseIvSpread),
@@ -156,6 +156,20 @@ public static class EncounterFactory
     private static string BattleFormName(GridNode node)
     {
         return node != null && node.nodeType == NodeType.Boss ? "Evolved" : "Base";
+    }
+
+    private static int FallbackEncounterLevel(ThreatTier threatTier, GridNode node, System.Random rng)
+    {
+        int assumedBossLayer = Mathf.Max(node != null ? node.layer + 3 : 3, 3);
+        int nodeLayer = node != null ? node.layer : 1;
+        NodeType nodeType = node != null ? node.nodeType : NodeType.Combat;
+        return ThreatTierRules.EncounterLevel(
+            threatTier,
+            nodeType,
+            nodeLayer,
+            assumedBossLayer,
+            0,
+            rng.Next(0, LevelRandomExclusiveMax));
     }
 
     private static int StableHash(string value)

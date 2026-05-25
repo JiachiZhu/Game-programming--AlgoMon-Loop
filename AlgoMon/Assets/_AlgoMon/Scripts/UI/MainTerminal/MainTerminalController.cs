@@ -202,9 +202,12 @@ public class MainTerminalController : MonoBehaviour
         {
             int payloadCount = manager.payload != null ? manager.payload.Count : 0;
             string runStatus = manager.IsRunActive ? "ACTV" : "STBY";
+            int rewardPercent = manager.IsRunActive
+                ? Mathf.RoundToInt(manager.currentRewardMultiplier * 100f)
+                : ThreatTierRules.RewardMultiplierPercent(manager.SelectedThreatTier, manager.HighestUnlockedThreatTier);
             statsText.text =
                 $"PAYLOAD// {payloadCount:00}\n" +
-                $"RUN// {runStatus} T{manager.SelectedThreatTierNumber:00}/{manager.HighestUnlockedThreatTierNumber:00}\n" +
+                $"RUN// {runStatus} T{manager.SelectedThreatTierNumber:00}/{manager.HighestUnlockedThreatTierNumber:00} x{rewardPercent:000}%\n" +
                 $"SQUAD// {PartyCount(manager):00}/{GameManager.MaxPartySize:00}";
         }
 

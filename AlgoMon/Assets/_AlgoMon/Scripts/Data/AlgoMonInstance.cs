@@ -21,6 +21,7 @@ public class AlgoMonInstance
 
     public AlgoMonData data;
     public string nickname;
+    // TODO: Persist this when permanent evolution/form state lands.
     [NonSerialized] public string battleFormName = "Base";
 
     [Header("Hardware IVs — Upper Limits")]
