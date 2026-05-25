@@ -6,6 +6,10 @@
 **Engine:** Unity 2022.3 LTS &nbsp;|&nbsp; **Language:** C# &nbsp;|&nbsp; **Genre:** Roguelite / Tactical Simulator  
 **Status:** `Pre-production — System Prototyping Complete`
 
+**Related coursework:** In-class activity projects have been moved to
+[Game-programming--Inclass-Activities](https://github.com/JiachiZhu/Game-programming--Inclass-Activities)
+so this repository can stay focused on AlgoMon.
+
 ---
 
 ## 🧬 Concept

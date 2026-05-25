@@ -1,4 +1,0 @@
-repository "SolarSystem_Assignment_2026@tj_k1ller8@cloud.cn"
-  path "/"
-    br "/main"
-    co "/main"
