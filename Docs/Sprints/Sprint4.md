@@ -158,6 +158,11 @@ while later nodes and bosses continue to create pressure.
   base data, and optional evolution data through `GameManager`.
 - Combat nodes grant base data; Hacker and Elite reward EXP/compute without
   capture data; Boss rewards high-quality base data plus evolution data.
+- Compute is run-scoped shop currency in Sprint 4. It resets at run start/end,
+  while RunResult keeps the earned-compute summary for player feedback.
+- Party EXP grants now refresh unlocked learnset skills into empty slots after
+  level-up. EXP bar animation, learn prompts, and replace-skill UI are later UI
+  work.
 - MainTerminal now surfaces player EXP, compute, evolution-data count, and
   Payload data quality. RunResult shows the accumulated run reward summary.
 

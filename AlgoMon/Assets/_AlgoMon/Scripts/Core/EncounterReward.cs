@@ -15,6 +15,7 @@ public class EncounterReward
     public int threatTier;
     public int encounterLevel;
     public int rewardMultiplierPercent = 100;
+    public bool calculated;
     public int playerExp;
     public int algoMonExp;
     public int compute;
@@ -29,7 +30,8 @@ public class EncounterReward
     {
         get
         {
-            return playerExp > 0 ||
+            return calculated ||
+                   playerExp > 0 ||
                    algoMonExp > 0 ||
                    compute > 0 ||
                    baseDataGranted ||
@@ -39,6 +41,7 @@ public class EncounterReward
 
     public EncounterReward Clone()
     {
+        // All fields are value types or strings; switch to a deep copy if reference fields are added.
         return (EncounterReward)MemberwiseClone();
     }
 
@@ -133,6 +136,7 @@ public class RunRewardSummary
 
 public static class EncounterRewardCalculator
 {
+    // First-pass tuning numbers; final economy balance belongs to Sprint 6.
     public static EncounterReward Build(
         GridNode node,
         AlgoMonInstance defeatedOpponent,
@@ -152,6 +156,7 @@ public static class EncounterRewardCalculator
         reward.rewardMultiplierPercent = Mathf.RoundToInt(Mathf.Max(0f, rewardMultiplier) * 100f);
         reward.speciesCodeName = SpeciesCodeName(defeatedOpponent);
         ApplyMultiplier(reward, rewardMultiplier);
+        reward.calculated = true;
         return reward;
     }
 

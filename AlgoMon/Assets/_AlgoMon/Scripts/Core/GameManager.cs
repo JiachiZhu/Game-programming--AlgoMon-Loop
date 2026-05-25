@@ -28,6 +28,7 @@ public class GameManager : MonoBehaviour
     public List<AlgoMonInstance> party = new List<AlgoMonInstance>();
     public const int MaxPartySize = 4;
 
+    // Player EXP and evolution data persist; compute is run-scoped shop currency.
     [Header("Player Progress")]
     public int playerExp;
     public int computeBalance;
@@ -146,6 +147,7 @@ public class GameManager : MonoBehaviour
         ClearRunResult();
         EnsureRewardContainers();
         currentRunRewards.Reset();
+        computeBalance = 0;
         lastEncounterReward = new EncounterReward();
 
         ThreatTier runTier = SelectedThreatTier;
@@ -178,6 +180,7 @@ public class GameManager : MonoBehaviour
         currentOpponent = null;
         currentThreatTier = ThreatTierRules.MinTier;
         currentRewardMultiplier = 1f;
+        computeBalance = 0;
         EnsureRewardContainers();
         currentRunRewards.Reset();
         lastEncounterReward = new EncounterReward();
@@ -382,13 +385,14 @@ public class GameManager : MonoBehaviour
         GrantPartyExp(reward.algoMonExp);
 
         if (reward.shouldGrantBaseData &&
-            TryRegisterCapture(defeatedOpponent, reward.baseDataQuality, out AlgoMonInstance captured))
+            TryRegisterCapture(defeatedOpponent, reward.baseDataQuality, out _))
         {
-            reward.baseDataGranted = captured != null;
+            reward.baseDataGranted = true;
         }
 
         if (reward.shouldGrantEvolutionData)
         {
+            // TODO Sprint 5: store evolved codeName once evolved species become distinct assets.
             string code = !string.IsNullOrWhiteSpace(reward.speciesCodeName)
                 ? reward.speciesCodeName.Trim()
                 : "UNKNOWN";
@@ -405,8 +409,16 @@ public class GameManager : MonoBehaviour
         for (int i = 0; i < party.Count; i++)
         {
             AlgoMonInstance mon = party[i];
-            if (mon != null)
-                mon.GainExp(amount);
+            if (mon == null)
+                continue;
+
+            int beforeLevel = mon.level;
+            mon.GainExp(amount);
+            if (mon.level > beforeLevel)
+            {
+                // Backend auto-fills empty slots; prompt/replace UI can read learnset later.
+                mon.EnsureKnownSkillsFromLearnset();
+            }
         }
     }
 
