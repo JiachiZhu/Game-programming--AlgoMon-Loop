@@ -19,8 +19,8 @@ using UnityEngine;
 /// - SubroutineData triggers are applied at supported battle timing hooks
 /// - former special counter skills use generic SkillData fields
 ///
-/// Party switching, bag items, and ally-faint Subroutine hooks are intentionally
-/// left for follow-up battle issues.
+/// Bag items and ally-faint Subroutine hooks are intentionally left for follow-up
+/// battle issues.
 /// </summary>
 [DisallowMultipleComponent]
 public class BattleManager : MonoBehaviour
@@ -35,6 +35,12 @@ public class BattleManager : MonoBehaviour
         WaitingForPlayer,
         Resolving,
         BattleOver
+    }
+
+    private enum BattleActionKind
+    {
+        Skill,
+        Switch
     }
 
     [Serializable]
@@ -129,16 +135,32 @@ public class BattleManager : MonoBehaviour
 
     private sealed class BattleAction
     {
-        public BattleAction(BattleUnit actor, BattleUnit target, SkillData skill)
+        private BattleAction(BattleActionKind kind, BattleUnit actor, BattleUnit target, SkillData skill, BattleUnit switchTarget)
         {
+            Kind = kind;
             Actor = actor;
             Target = target;
             Skill = skill;
+            SwitchTarget = switchTarget;
         }
 
+        public static BattleAction SkillAction(BattleUnit actor, BattleUnit target, SkillData skill)
+        {
+            return new BattleAction(BattleActionKind.Skill, actor, target, skill, null);
+        }
+
+        public static BattleAction SwitchAction(BattleUnit actor, BattleUnit switchTarget)
+        {
+            return new BattleAction(BattleActionKind.Switch, actor, null, null, switchTarget);
+        }
+
+        public BattleActionKind Kind { get; }
         public BattleUnit Actor { get; }
-        public BattleUnit Target { get; }
+        public BattleUnit Target { get; set; }
         public SkillData Skill { get; }
+        public BattleUnit SwitchTarget { get; }
+        public bool IsSkill => Kind == BattleActionKind.Skill;
+        public bool IsSwitch => Kind == BattleActionKind.Switch;
         public bool WonCounter { get; set; }
         public bool WasCountered { get; set; }
         public bool Cancelled { get; set; }
@@ -294,11 +316,14 @@ public class BattleManager : MonoBehaviour
     private readonly TurnQueue turnQueue = new TurnQueue();
     private readonly List<ScriptableObject> transientData = new List<ScriptableObject>();
     private readonly List<string> battleLogLines = new List<string>();
+    private readonly List<BattleUnit> playerParty = new List<BattleUnit>();
+    private readonly List<BattleUnit> enemyParty = new List<BattleUnit>();
 
     private BattleUnit player;
     private BattleUnit enemy;
     private BattlePhase phase = BattlePhase.WaitingForPlayer;
     private int currentRound = 1;
+    private bool selectingSwitchTarget;
     private bool battleEndPublished;
     private bool playerFaintPublished;
     private bool enemyFaintPublished;
@@ -371,9 +396,11 @@ public class BattleManager : MonoBehaviour
         DestroyTransientData();
         battleLogLines.Clear();
         activeActionAnnouncementLine = null;
+        selectingSwitchTarget = false;
 
-        player = CreateUnit(playerConfig, ResolveRunPlayerInstance());
-        enemy = CreateUnit(enemyConfig, ResolveRunOpponentInstance());
+        BuildBattleParties();
+        player = FirstAvailableUnit(playerParty);
+        enemy = FirstAvailableUnit(enemyParty);
         RegisterPresentationCombatants();
         currentRound = 1;
         battleEndPublished = false;
@@ -397,6 +424,12 @@ public class BattleManager : MonoBehaviour
 
     public void ResolvePlayerSkill(int slotIndex)
     {
+        if (selectingSwitchTarget)
+        {
+            ResolvePlayerSwitch(slotIndex);
+            return;
+        }
+
         if (phase != BattlePhase.WaitingForPlayer || player == null || enemy == null)
             return;
 
@@ -420,8 +453,9 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        SkillData enemySkill = ChooseEnemySkill();
-        StartRoundResolution(playerSkill, enemySkill);
+        StartRoundResolution(
+            BattleAction.SkillAction(player, enemy, playerSkill),
+            ChooseEnemyAction());
     }
 
     public void ResolveRecharge()
@@ -429,20 +463,24 @@ public class BattleManager : MonoBehaviour
         if (phase != BattlePhase.WaitingForPlayer || player == null || enemy == null)
             return;
 
+        selectingSwitchTarget = false;
+
         if (rechargeSkill == null)
         {
             SetDetail("Recharge", "Recharge skill asset is not assigned.");
             return;
         }
 
-        StartRoundResolution(rechargeSkill, ChooseEnemySkill());
+        StartRoundResolution(
+            BattleAction.SkillAction(player, enemy, rechargeSkill),
+            ChooseEnemyAction());
     }
 
-    private void StartRoundResolution(SkillData playerSkill, SkillData enemySkill)
+    private void StartRoundResolution(BattleAction playerAction, BattleAction enemyAction)
     {
         StopActiveResolution();
 
-        IEnumerator round = ResolveRoundCoroutine(playerSkill, enemySkill);
+        IEnumerator round = ResolveRoundCoroutine(playerAction, enemyAction);
         if (UsesInstantResolution)
         {
             RunImmediate(round);
@@ -496,13 +534,40 @@ public class BattleManager : MonoBehaviour
         hud.ActionClicked += HandleActionClicked;
     }
 
-    private AlgoMonInstance ResolveRunPlayerInstance()
+    private void BuildBattleParties()
     {
+        playerParty.Clear();
+        enemyParty.Clear();
+
         GameManager manager = GameManager.Instance;
-        if (manager == null || manager.party == null || manager.party.Count == 0)
+        if (manager != null && manager.party != null)
+        {
+            for (int i = 0; i < manager.party.Count && i < GameManager.MaxPartySize; i++)
+            {
+                AlgoMonInstance instance = manager.party[i];
+                if (instance != null)
+                    playerParty.Add(CreateUnit(playerConfig, instance));
+            }
+        }
+
+        if (playerParty.Count == 0)
+            playerParty.Add(CreateFallbackUnit(playerConfig));
+
+        enemyParty.Add(CreateUnit(enemyConfig, ResolveRunOpponentInstance()));
+    }
+
+    private static BattleUnit FirstAvailableUnit(List<BattleUnit> party)
+    {
+        if (party == null || party.Count == 0)
             return null;
 
-        return manager.party[0];
+        for (int i = 0; i < party.Count; i++)
+        {
+            if (party[i] != null && party[i].CurrentBattery > 0)
+                return party[i];
+        }
+
+        return party[0];
     }
 
     private AlgoMonInstance ResolveRunOpponentInstance()
@@ -643,17 +708,72 @@ public class BattleManager : MonoBehaviour
                 break;
 
             case BattleHudController.ActionButton.Bag:
+                selectingSwitchTarget = false;
                 SetDetail("Bag", "Not yet implemented.");
+                RefreshHud();
                 break;
 
             case BattleHudController.ActionButton.Switch:
-                SetDetail("Switch", "Not yet implemented.");
+                ToggleSwitchSelection();
                 break;
 
             case BattleHudController.ActionButton.Flee:
+                selectingSwitchTarget = false;
                 FinishBattle(false, $"{player.Name} fled from the battle.");
                 break;
         }
+    }
+
+    private void ToggleSwitchSelection()
+    {
+        if (selectingSwitchTarget)
+        {
+            selectingSwitchTarget = false;
+            SetDetail("Skill Details", "Choose a skill.");
+            RefreshHud();
+            return;
+        }
+
+        if (!CanSwitchOut(player))
+        {
+            SetDetail("Switch", $"{player.Name} cannot switch right now.");
+            RefreshHud();
+            return;
+        }
+
+        if (!HasSwitchTarget(playerParty, player))
+        {
+            SetDetail("Switch", "No reserve AlgoMon is ready.");
+            RefreshHud();
+            return;
+        }
+
+        selectingSwitchTarget = true;
+        SetDetail("Switch", "Choose a reserve AlgoMon.");
+        RefreshHud();
+    }
+
+    private void ResolvePlayerSwitch(int partyIndex)
+    {
+        if (phase != BattlePhase.WaitingForPlayer || player == null || enemy == null)
+            return;
+
+        if (!TryGetSwitchTarget(playerParty, player, partyIndex, out BattleUnit switchTarget, out string reason))
+        {
+            SetDetail("Switch", reason);
+            RefreshHud();
+            return;
+        }
+
+        selectingSwitchTarget = false;
+        StartRoundResolution(
+            BattleAction.SwitchAction(player, switchTarget),
+            ChooseEnemyAction());
+    }
+
+    private BattleAction ChooseEnemyAction()
+    {
+        return BattleAction.SkillAction(enemy, player, ChooseEnemySkill());
     }
 
     private SkillData ChooseEnemySkill()
@@ -688,29 +808,106 @@ public class BattleManager : MonoBehaviour
         return rechargeSkill;
     }
 
-    private IEnumerator ResolveRoundCoroutine(SkillData playerSkill, SkillData enemySkill)
+    private static bool CanSwitchOut(BattleUnit unit)
     {
-        if (playerSkill == null || enemySkill == null)
+        return unit != null &&
+               unit.CurrentBattery > 0 &&
+               unit.Statuses.GetStacks(StatusType.Ensnare) <= 0;
+    }
+
+    private static bool HasSwitchTarget(List<BattleUnit> party, BattleUnit activeUnit)
+    {
+        if (!CanSwitchOut(activeUnit) || party == null)
+            return false;
+
+        for (int i = 0; i < party.Count; i++)
+        {
+            BattleUnit unit = party[i];
+            if (unit != null &&
+                !ReferenceEquals(unit, activeUnit) &&
+                unit.CurrentBattery > 0)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetSwitchTarget(
+        List<BattleUnit> party,
+        BattleUnit activeUnit,
+        int partyIndex,
+        out BattleUnit switchTarget,
+        out string reason)
+    {
+        switchTarget = null;
+
+        if (!CanSwitchOut(activeUnit))
+        {
+            reason = activeUnit != null && activeUnit.Statuses.GetStacks(StatusType.Ensnare) > 0
+                ? $"{activeUnit.Name} is ensnared and cannot switch."
+                : "The active AlgoMon cannot switch.";
+            return false;
+        }
+
+        if (party == null || partyIndex < 0 || partyIndex >= party.Count)
+        {
+            reason = "No party slot is loaded there.";
+            return false;
+        }
+
+        switchTarget = party[partyIndex];
+        if (switchTarget == null)
+        {
+            reason = "No AlgoMon is loaded there.";
+            return false;
+        }
+
+        if (ReferenceEquals(switchTarget, activeUnit))
+        {
+            reason = $"{switchTarget.Name} is already active.";
+            return false;
+        }
+
+        if (switchTarget.CurrentBattery <= 0)
+        {
+            reason = $"{switchTarget.Name} is offline.";
+            return false;
+        }
+
+        reason = string.Empty;
+        return true;
+    }
+
+    private IEnumerator ResolveRoundCoroutine(BattleAction playerAction, BattleAction enemyAction)
+    {
+        if (!IsValidDeclaredAction(playerAction) || !IsValidDeclaredAction(enemyAction))
+        {
+            phase = BattlePhase.WaitingForPlayer;
+            SetDetail("Battle", "No valid action was declared.");
+            RefreshHud();
+            activeResolution = null;
             yield break;
+        }
 
         phase = BattlePhase.Resolving;
         player.StatusText = "Ready";
         enemy.StatusText = "Ready";
 
-        BattleAction playerAction = new BattleAction(player, enemy, playerSkill);
-        BattleAction enemyAction = new BattleAction(enemy, player, enemySkill);
-        playerAction.DefenderInstructionType = enemySkill.instructionType;
-        enemyAction.DefenderInstructionType = playerSkill.instructionType;
-
         EmitLog($"-- Round {currentRound} --");
-        EmitLog($"{player.Name} commits {SkillName(playerSkill)}.");
-        EmitLog($"{enemy.Name} commits {SkillName(enemySkill)}.");
+        EmitLog($"{playerAction.Actor.Name} commits {ActionName(playerAction)}.");
+        EmitLog($"{enemyAction.Actor.Name} commits {ActionName(enemyAction)}.");
         Announce(
             $"Round {currentRound}",
-            $"{player.Name}: {SkillName(playerSkill)}  |  {enemy.Name}: {SkillName(enemySkill)}");
+            $"{playerAction.Actor.Name}: {ActionName(playerAction)}  |  {enemyAction.Actor.Name}: {ActionName(enemyAction)}");
         RefreshHud();
         if (logLineDelay > 0f)
             yield return new WaitForSeconds(logLineDelay);
+
+        yield return ResolveSwitchesCoroutine(playerAction, enemyAction);
+        RetargetSkillActions(playerAction, enemyAction);
+        SetDefenderInstructionTypes(playerAction, enemyAction);
 
         yield return ResolveCounterCoroutine(playerAction, enemyAction);
         TryFinishBattle();
@@ -727,6 +924,8 @@ public class BattleManager : MonoBehaviour
         {
             AlgoMonInstance next = turnQueue.Dequeue();
             BattleAction action = ActionFor(next, playerAction, enemyAction);
+            if (action == null)
+                continue;
             yield return ExecuteActionCoroutine(action);
             if (phase != BattlePhase.BattleOver && action.WonCounter)
                 yield return ApplySubroutineTriggerCoroutine(action.Actor, action.Target, SubroutineTrigger.OnCounterWin);
@@ -754,8 +953,87 @@ public class BattleManager : MonoBehaviour
         activeResolution = null;
     }
 
+    private static bool IsValidDeclaredAction(BattleAction action)
+    {
+        if (action == null || action.Actor == null)
+            return false;
+        if (action.IsSwitch)
+            return action.SwitchTarget != null;
+        return action.Skill != null;
+    }
+
+    private static string ActionName(BattleAction action)
+    {
+        if (action == null)
+            return "None";
+        if (action.IsSwitch)
+            return action.SwitchTarget != null ? $"Switch to {action.SwitchTarget.Name}" : "Switch";
+        return SkillName(action.Skill);
+    }
+
+    private IEnumerator ResolveSwitchesCoroutine(BattleAction playerAction, BattleAction enemyAction)
+    {
+        if (playerAction != null && playerAction.IsSwitch)
+            yield return ExecuteSwitchCoroutine(playerAction, true);
+
+        if (enemyAction != null && enemyAction.IsSwitch)
+            yield return ExecuteSwitchCoroutine(enemyAction, false);
+    }
+
+    private IEnumerator ExecuteSwitchCoroutine(BattleAction action, bool playerSide)
+    {
+        if (action == null || !action.IsSwitch || action.Actor == null || action.SwitchTarget == null)
+            yield break;
+
+        BattleUnit previous = action.Actor;
+        BattleUnit next = action.SwitchTarget;
+        if (ReferenceEquals(previous, next))
+            yield break;
+
+        int cleared = previous.Statuses.ClearSwapLimitedEffects();
+        previous.StatusText = "Benched";
+        next.StatusText = "Switched in";
+
+        if (playerSide)
+            player = next;
+        else
+            enemy = next;
+
+        RegisterPresentationCombatants();
+        EmitLog($"{previous.Name} switches out. {next.Name} enters.");
+        if (cleared > 0)
+            EmitLog($"{previous.Name}'s temporary effects clear on switch.");
+        Announce("Switch", $"{previous.Name} -> {next.Name}");
+        RefreshHud();
+        if (logLineDelay > 0f)
+            yield return new WaitForSeconds(logLineDelay);
+    }
+
+    private void RetargetSkillActions(BattleAction playerAction, BattleAction enemyAction)
+    {
+        if (playerAction != null && playerAction.IsSkill)
+            playerAction.Target = enemy;
+        if (enemyAction != null && enemyAction.IsSkill)
+            enemyAction.Target = player;
+    }
+
+    private static void SetDefenderInstructionTypes(BattleAction playerAction, BattleAction enemyAction)
+    {
+        if (playerAction == null || enemyAction == null)
+            return;
+
+        if (playerAction.IsSkill && enemyAction.IsSkill)
+        {
+            playerAction.DefenderInstructionType = enemyAction.Skill.instructionType;
+            enemyAction.DefenderInstructionType = playerAction.Skill.instructionType;
+        }
+    }
+
     private IEnumerator ResolveCounterCoroutine(BattleAction playerAction, BattleAction enemyAction)
     {
+        if (playerAction == null || enemyAction == null || !playerAction.IsSkill || !enemyAction.IsSkill)
+            yield break;
+
         bool playerCounters = CanCounter(playerAction.Skill, enemyAction.Skill);
         bool enemyCounters = CanCounter(enemyAction.Skill, playerAction.Skill);
 
@@ -988,7 +1266,9 @@ public class BattleManager : MonoBehaviour
     {
         turnQueue.Clear();
 
-        if (playerAction.WonCounter)
+        if (playerAction != null && enemyAction != null &&
+            playerAction.IsSkill && enemyAction.IsSkill &&
+            playerAction.WonCounter)
         {
             float priority = CounterPriority(playerAction);
             turnQueue.Enqueue(playerAction.Actor.Instance, priority);
@@ -996,7 +1276,9 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        if (enemyAction.WonCounter)
+        if (playerAction != null && enemyAction != null &&
+            playerAction.IsSkill && enemyAction.IsSkill &&
+            enemyAction.WonCounter)
         {
             float priority = CounterPriority(enemyAction);
             turnQueue.Enqueue(enemyAction.Actor.Instance, priority);
@@ -1004,8 +1286,14 @@ public class BattleManager : MonoBehaviour
             return;
         }
 
-        turnQueue.Enqueue(playerAction.Actor.Instance, EffectivePriority(playerAction));
-        turnQueue.Enqueue(enemyAction.Actor.Instance, EffectivePriority(enemyAction));
+        EnqueueSkillAction(playerAction);
+        EnqueueSkillAction(enemyAction);
+    }
+
+    private void EnqueueSkillAction(BattleAction action)
+    {
+        if (action != null && action.IsSkill)
+            turnQueue.Enqueue(action.Actor.Instance, EffectivePriority(action));
     }
 
     private float CounterPriority(BattleAction action)
@@ -1022,14 +1310,16 @@ public class BattleManager : MonoBehaviour
 
     private BattleAction ActionFor(AlgoMonInstance instance, BattleAction playerAction, BattleAction enemyAction)
     {
-        if (ReferenceEquals(instance, playerAction.Actor.Instance))
+        if (playerAction != null && playerAction.IsSkill && ReferenceEquals(instance, playerAction.Actor.Instance))
             return playerAction;
-        return enemyAction;
+        if (enemyAction != null && enemyAction.IsSkill && ReferenceEquals(instance, enemyAction.Actor.Instance))
+            return enemyAction;
+        return null;
     }
 
     private IEnumerator ExecuteActionCoroutine(BattleAction action)
     {
-        if (action == null || action.Actor.CurrentBattery <= 0)
+        if (action == null || !action.IsSkill || action.Actor.CurrentBattery <= 0)
             yield break;
 
         if (action.Cancelled)
@@ -1681,6 +1971,33 @@ public class BattleManager : MonoBehaviour
         hud.SetCP(BattleHudController.Side.Enemy, enemy.CurrentCP, MaxCP);
         hud.SetStatus(BattleHudController.Side.Enemy, $"Status: {FormatUnitStatus(enemy)}");
 
+        bool canAct = phase == BattlePhase.WaitingForPlayer;
+        if (selectingSwitchTarget && canAct)
+            RenderSwitchSlots();
+        else
+            RenderSkillSlots(canAct);
+
+        bool canSwitch = canAct && HasSwitchTarget(playerParty, player);
+        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Recharge, canAct);
+        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Bag, canAct);
+        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Switch, canAct);
+        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Flee, canAct);
+
+        hud.SetActionHover(BattleHudController.ActionButton.Recharge, "Recharge", "+5 CP\nSpend the turn to restore CP.");
+        hud.SetActionHover(BattleHudController.ActionButton.Bag, "Bag", "Not yet implemented.");
+        hud.SetActionHover(
+            BattleHudController.ActionButton.Switch,
+            selectingSwitchTarget ? "Cancel Switch" : "Switch",
+            selectingSwitchTarget
+                ? "Return to skill selection."
+                : canSwitch
+                    ? "Choose a reserve AlgoMon. Switching resolves before every skill."
+                    : "No reserve AlgoMon is ready.");
+        hud.SetActionHover(BattleHudController.ActionButton.Flee, "Flee", "End this battle immediately.");
+    }
+
+    private void RenderSkillSlots(bool canAct)
+    {
         for (int i = 0; i < MaxSkillSlots; i++)
         {
             SkillData skill = player.GetSkill(i);
@@ -1692,19 +2009,37 @@ public class BattleManager : MonoBehaviour
 
             hud.SetSkillSlot(i, skill);
             hud.SetSkillHover(i, SkillName(skill), BuildSkillHover(player, skill));
-            hud.SetSkillSlotAvailable(i, phase == BattlePhase.WaitingForPlayer && CanUseSkill(player, skill));
+            hud.SetSkillSlotAvailable(i, canAct && CanUseSkill(player, skill));
         }
+    }
 
-        bool canAct = phase == BattlePhase.WaitingForPlayer;
-        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Recharge, canAct);
-        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Bag, canAct);
-        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Switch, canAct);
-        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Flee, canAct);
+    private void RenderSwitchSlots()
+    {
+        for (int i = 0; i < MaxSkillSlots; i++)
+        {
+            if (playerParty == null || i >= playerParty.Count || playerParty[i] == null)
+            {
+                hud.ClearSkillSlot(i);
+                continue;
+            }
 
-        hud.SetActionHover(BattleHudController.ActionButton.Recharge, "Recharge", "+5 CP\nSpend the turn to restore CP.");
-        hud.SetActionHover(BattleHudController.ActionButton.Bag, "Bag", "Not yet implemented.");
-        hud.SetActionHover(BattleHudController.ActionButton.Switch, "Switch", "Not yet implemented.");
-        hud.SetActionHover(BattleHudController.ActionButton.Flee, "Flee", "End this battle immediately.");
+            BattleUnit unit = playerParty[i];
+            bool isActive = ReferenceEquals(unit, player);
+            bool available = CanSwitchOut(player) && !isActive && unit.CurrentBattery > 0;
+            string state = isActive
+                ? "ACTIVE"
+                : unit.CurrentBattery <= 0
+                    ? "OFFLINE"
+                    : "READY";
+
+            hud.SetSwitchSlot(
+                i,
+                unit.Name,
+                $"Lv {unit.DisplayLevel}",
+                $"BAT {unit.CurrentBattery}/{unit.MaxBattery}",
+                state,
+                available);
+        }
     }
 
     private string PhaseLabel()

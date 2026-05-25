@@ -3,6 +3,7 @@ using System.Collections.Generic;
 /// <summary>
 /// Manages battle turn order for a set of AlgoMon combatants.
 /// Wraps PriorityQueue and maps each AlgoMon's effective priority as the heap key.
+/// Switch actions are resolved by BattleManager before this queue is built.
 ///
 /// Three-tier priority (highest to lowest):
 ///   1. ASD counter winner  — ForceAfter() hard-overrides, always wins

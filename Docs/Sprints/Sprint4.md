@@ -35,7 +35,7 @@ animations, and broad VFX content are deferred.
 | #29 | [Progression] Add Threat Tier 1-5 and Lv1-Lv50 encounter bands | Done |
 | #30 | [Grid] Apply node-depth difficulty scaling within each Threat Tier | Done |
 | #31 | [Rewards] Define wild, hacker, elite, boss, and shop reward identities | Done |
-| #32 | [Battle] Add party switch action with absolute-first priority | Planned |
+| #32 | [Battle] Add party switch action with absolute-first priority | Done |
 | #33 | [Encounters] Add hacker encounter v1 with multi-AlgoMon pressure | Planned |
 | #34 | [Shop] Add compute currency and first-pass shop buff choices | Planned |
 | #35 | [UI] Improve TheGrid node readability for risk and route planning | Planned |
@@ -173,16 +173,16 @@ cleanly for the player and hacker encounters.
 
 **Acceptance Criteria**
 
-- [ ] Switching is represented as its own battle action, separate from Attack,
+- [x] Switching is represented as its own battle action, separate from Attack,
   Status, and Defense skills.
-- [ ] Switching resolves before every other battle priority system.
-- [ ] Switch priority is higher than ASD counter wins, `ForceAfter`, skill
+- [x] Switching resolves before every other battle priority system.
+- [x] Switch priority is higher than ASD counter wins, `ForceAfter`, skill
   priority, and ClockSpeed.
-- [ ] A switch action consumes that combatant's action for the round.
-- [ ] Switching does not trigger ASD counter checks and does not spend skill CP.
-- [ ] If one side switches and the other side uses a skill, the skill resolves
+- [x] A switch action consumes that combatant's action for the round.
+- [x] Switching does not trigger ASD counter checks and does not spend skill CP.
+- [x] If one side switches and the other side uses a skill, the skill resolves
   against the newly active AlgoMon after the switch.
-- [ ] If both sides switch, both switches resolve before any skill action;
+- [x] If both sides switch, both switches resolve before any skill action;
   presentation can show player switch first, then opponent switch.
 
 **Design Rule**
@@ -195,6 +195,17 @@ Round action order:
   4. Apply ForceAfter / priority / ClockSpeed rules
   5. Execute skills
 ```
+
+**Implementation Notes**
+
+- Battle actions now distinguish skill actions from switch actions.
+- The player can click Switch, choose a reserve AlgoMon from the command slots,
+  and spend the round switching before any skill, ASD counter, or priority rule.
+- Skill actions are retargeted after switch resolution, so single-target skills
+  hit the newly active AlgoMon.
+- Swapping clears temporary/while-on-field effects and respects Ensnare.
+- Enemy switch declarations are supported in the action model for #33, though
+  the first enemy AI still chooses skills only.
 
 ### #33 - [Encounters] Add hacker encounter v1 with multi-AlgoMon pressure
 

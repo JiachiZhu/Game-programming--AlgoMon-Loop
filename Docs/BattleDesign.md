@@ -11,7 +11,9 @@
 ```
 Round start
   ↓
-Both sides declare instruction (A / S / D) + select a skill
+Both sides declare either Switch or a skill instruction (A / S / D)
+  ↓
+Resolve all Switch actions first (player presentation first, then enemy)
   ↓
 ASD check (only if BOTH or EITHER acting skill has canCounter = true)
   ↓
@@ -32,6 +34,12 @@ Next round
 
 ## 2. Turn Order — Three-Tier Priority
 
+Switching is absolute-first. It is not a high-priority skill and does not enter
+the ASD / `TurnQueue` priority stack. A switch action consumes that combatant's
+action for the round, spends no CP, does not trigger ASD counter checks, and
+causes incoming single-target skill actions to retarget the newly active
+AlgoMon.
+
 | Tier | Mechanism | Implementation |
 |------|-----------|---------------|
 | 1 (highest) | ASD counter winner | `TurnQueue.ForceAfter(countered, counter)` |
@@ -41,6 +49,7 @@ Next round
 - **`TurnQueue.Enqueue(mon, effectivePriority)`** — use this overload when a skill has non-zero priority.
 - **`TurnQueue.Enqueue(mon)`** — fallback, uses ClockSpeed only (priority = 0 assumed).
 - `ForceAfter()` hard-overrides both tier 2 and tier 3.
+- Switch actions resolve before this table and never enter `TurnQueue`.
 
 ---
 

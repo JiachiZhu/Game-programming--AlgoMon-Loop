@@ -441,6 +441,30 @@ public class BattleHudController : MonoBehaviour
         skillHoverBodies[index] = string.IsNullOrEmpty(skill.description) ? string.Empty : skill.description;
     }
 
+    public void SetSwitchSlot(
+        int index,
+        string displayName,
+        string levelText,
+        string batteryText,
+        string stateText,
+        bool available)
+    {
+        if (!IndexInRange(index)) return;
+
+        if (skillButtons[index] != null)
+            skillButtons[index].interactable = available;
+        if (skillNameTexts[index] != null)
+            skillNameTexts[index].text = string.IsNullOrWhiteSpace(displayName) ? "-" : displayName;
+
+        SetTag(skillCPTagObjects[index], skillCPTexts[index], !string.IsNullOrWhiteSpace(levelText), levelText);
+        SetTag(skillPowerTagObjects[index], skillPowerTexts[index], !string.IsNullOrWhiteSpace(batteryText), batteryText);
+        SetTag(skillCounterTagObjects[index], skillCounterTexts[index], !string.IsNullOrWhiteSpace(stateText), stateText);
+        SetSkillSlotBadges(index, null);
+
+        skillHoverTitles[index] = string.IsNullOrWhiteSpace(displayName) ? "Switch" : displayName;
+        skillHoverBodies[index] = $"{levelText}\n{batteryText}\n{stateText}".Trim();
+    }
+
     public void SetSkillSlotAvailable(int index, bool available)
     {
         if (!IndexInRange(index)) return;

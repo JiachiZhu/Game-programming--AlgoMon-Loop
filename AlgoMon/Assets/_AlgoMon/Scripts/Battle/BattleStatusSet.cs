@@ -176,6 +176,41 @@ public sealed class BattleStatusSet
         return removed;
     }
 
+    public int ClearSwapLimitedEffects()
+    {
+        int removed = 0;
+        var remove = new List<StatusType>();
+
+        foreach (KeyValuePair<StatusType, StatusState> pair in states)
+        {
+            if (pair.Value.DurationType != StatusDurationType.Permanent)
+                remove.Add(pair.Key);
+        }
+
+        for (int i = 0; i < remove.Count; i++)
+        {
+            states.Remove(remove[i]);
+            removed++;
+        }
+
+        if (ClearTemporaryModifier(ref cpDiscount))
+            removed++;
+        if (ClearTemporaryModifier(ref firewallShred))
+            removed++;
+        if (nextPriorityBonus.Amount != 0)
+        {
+            nextPriorityBonus = default;
+            removed++;
+        }
+        if (nextBasePowerBonus.Amount != 0)
+        {
+            nextBasePowerBonus = default;
+            removed++;
+        }
+
+        return removed;
+    }
+
     public BattleStats ApplyToStats(BattleStats stats)
     {
         stats.ClockSpeed = BattleStats.ApplyPercent(
@@ -519,5 +554,23 @@ public sealed class BattleStatusSet
             modifier = default;
             expired.Add(label);
         }
+    }
+
+    private static bool ClearTemporaryModifier(ref TimedIntModifier modifier)
+    {
+        if (modifier.Amount <= 0 || modifier.DurationType == StatusDurationType.Permanent)
+            return false;
+
+        modifier = default;
+        return true;
+    }
+
+    private static bool ClearTemporaryModifier(ref TimedFloatModifier modifier)
+    {
+        if (modifier.Amount <= 0f || modifier.DurationType == StatusDurationType.Permanent)
+            return false;
+
+        modifier = default;
+        return true;
     }
 }
