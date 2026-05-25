@@ -49,8 +49,11 @@ public static class EncounterFactory
         {
             data = species,
             nickname = BuildOpponentName(species, node),
+            battleFormName = BattleFormName(node),
             usesTransientData = usesTransientData,
-            level = ThreatTierRules.EncounterLevel(threatTier, node.nodeType, node.layer, rng.Next(0, LevelRandomExclusiveMax)),
+            level = node.encounterLevel > 0
+                ? node.encounterLevel
+                : ThreatTierRules.EncounterLevel(threatTier, node.nodeType, node.layer, rng.Next(0, LevelRandomExclusiveMax)),
             iv_Battery = RollEncounterStat(rng, baseIv + BatteryIvBonus, BatteryIvSpread),
             iv_ClockSpeed = RollEncounterStat(rng, baseIv, SpeedIvSpread),
             iv_ComputingPower = RollEncounterStat(rng, baseIv + encounterGrade * TierStatBonus, OffenseIvSpread),
@@ -148,6 +151,11 @@ public static class EncounterFactory
             default:
                 return speciesName;
         }
+    }
+
+    private static string BattleFormName(GridNode node)
+    {
+        return node != null && node.nodeType == NodeType.Boss ? "Evolved" : "Base";
     }
 
     private static int StableHash(string value)

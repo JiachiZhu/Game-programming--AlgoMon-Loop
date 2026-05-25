@@ -8,6 +8,8 @@ public static class GridNodeTypeDisplay
                 return "Start";
             case NodeType.Combat:
                 return "Combat";
+            case NodeType.Hacker:
+                return "Hacker";
             case NodeType.Elite:
                 return "Elite";
             case NodeType.Rest:
@@ -36,6 +38,8 @@ public static class GridNodeTypeDisplay
                 return ">_";
             case NodeType.Combat:
                 return "/";
+            case NodeType.Hacker:
+                return "H";
             case NodeType.Elite:
                 return "/";
             case NodeType.Rest:

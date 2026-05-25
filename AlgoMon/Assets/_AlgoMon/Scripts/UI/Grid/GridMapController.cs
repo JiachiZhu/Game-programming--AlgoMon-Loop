@@ -352,6 +352,8 @@ public class GridMapController : MonoBehaviour
                 return startIcon;
             case NodeType.Combat:
                 return combatIcon;
+            case NodeType.Hacker:
+                return eliteIcon != null ? eliteIcon : combatIcon;
             case NodeType.Elite:
                 return eliteIcon;
             case NodeType.Shop:

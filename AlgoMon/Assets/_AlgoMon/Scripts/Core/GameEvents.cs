@@ -111,7 +111,8 @@ public enum NodeType
     Shop,
     Boss,
     Start,
-    Reboot
+    Reboot,
+    Hacker
 }
 public enum GameScene  { MainTerminal, TheGrid, TheArena, RunResult, TheLab }
 public enum RunOutcome { None, Victory, Defeat }

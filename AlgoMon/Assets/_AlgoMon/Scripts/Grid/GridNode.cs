@@ -11,6 +11,9 @@ public class GridNode
     public int layer;
     public int indexInLayer;
     public NodeType nodeType;
+    public EncounterDepthBand depthBand = EncounterDepthBand.None;
+    public int encounterLevel;
+    public int dangerRating;
     public List<string> outgoingNodeIds = new List<string>();
 
     public GridNode()

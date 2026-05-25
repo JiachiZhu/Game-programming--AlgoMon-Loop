@@ -142,6 +142,7 @@ public class GameManager : MonoBehaviour
         GridGraph graph = new GridGenerator(gridSettings).Generate(seed);
         graph.threatTier = currentThreatTier;
         graph.rewardMultiplierPercent = ThreatTierRules.RewardMultiplierPercent(runTier, HighestUnlockedThreatTier);
+        ThreatTierRules.ApplyDifficultyToGraph(graph, runTier, AveragePartyLevel());
 
         IsRunActive = true;
         currentRunSeed = seed;
@@ -347,7 +348,27 @@ public class GameManager : MonoBehaviour
 
     private static bool IsEncounterNode(NodeType type)
     {
-        return type == NodeType.Combat || type == NodeType.Elite || type == NodeType.Boss;
+        return ThreatTierRules.IsEncounterNode(type);
+    }
+
+    private int AveragePartyLevel()
+    {
+        if (party == null || party.Count == 0)
+            return 0;
+
+        int total = 0;
+        int count = 0;
+        for (int i = 0; i < party.Count; i++)
+        {
+            AlgoMonInstance mon = party[i];
+            if (mon == null)
+                continue;
+
+            total += Mathf.Clamp(mon.level, 1, AlgoMonInstance.MAX_LEVEL);
+            count++;
+        }
+
+        return count > 0 ? Mathf.RoundToInt(total / (float)count) : 0;
     }
 
     // ----------------------------------------------------------------

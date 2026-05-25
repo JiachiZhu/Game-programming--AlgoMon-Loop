@@ -21,6 +21,7 @@ public class AlgoMonInstance
 
     public AlgoMonData data;
     public string nickname;
+    [NonSerialized] public string battleFormName = "Base";
 
     [Header("Hardware IVs — Upper Limits")]
     [Range(1, 255)] public int iv_Battery;

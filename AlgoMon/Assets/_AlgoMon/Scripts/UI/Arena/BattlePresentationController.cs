@@ -200,7 +200,9 @@ public class BattlePresentationController : MonoBehaviour
         BattleAnimationProfile playerProfile = null,
         BattleAnimationProfile enemyProfile = null,
         string playerCodeName = null,
-        string enemyCodeName = null)
+        string enemyCodeName = null,
+        string playerFormName = null,
+        string enemyFormName = null)
     {
         if (!string.IsNullOrWhiteSpace(playerCombatantId))
             playerId = playerCombatantId;
@@ -208,16 +210,17 @@ public class BattlePresentationController : MonoBehaviour
             enemyId = enemyCombatantId;
 
         if (playerAnimator != null)
-            playerAnimator.SetAnimationProfile(ResolveProfile(playerAnimationProfileOverride, playerProfile, playerCodeName, playerId));
+            playerAnimator.SetAnimationProfile(ResolveProfile(playerAnimationProfileOverride, playerProfile, playerCodeName, playerId, playerFormName));
         if (enemyAnimator != null)
-            enemyAnimator.SetAnimationProfile(ResolveProfile(enemyAnimationProfileOverride, enemyProfile, enemyCodeName, enemyId));
+            enemyAnimator.SetAnimationProfile(ResolveProfile(enemyAnimationProfileOverride, enemyProfile, enemyCodeName, enemyId, enemyFormName));
     }
 
     private BattleAnimationProfile ResolveProfile(
         BattleAnimationProfile overrideProfile,
         BattleAnimationProfile dataProfile,
         string codeName,
-        string fallbackId)
+        string fallbackId,
+        string formName = null)
     {
         if (overrideProfile != null)
             return overrideProfile;
@@ -227,7 +230,15 @@ public class BattlePresentationController : MonoBehaviour
             return null;
 
         string resolvedCodeName = !string.IsNullOrWhiteSpace(codeName) ? codeName : fallbackId;
-        return BattleAnimationProfileLoader.TryLoadEditorProfile(resolvedCodeName, defaultAnimationForm);
+        string resolvedFormName = !string.IsNullOrWhiteSpace(formName) ? formName : defaultAnimationForm;
+        BattleAnimationProfile profile = BattleAnimationProfileLoader.TryLoadEditorProfile(resolvedCodeName, resolvedFormName);
+        if (profile == null &&
+            !string.Equals(resolvedFormName, defaultAnimationForm, System.StringComparison.OrdinalIgnoreCase))
+        {
+            profile = BattleAnimationProfileLoader.TryLoadEditorProfile(resolvedCodeName, defaultAnimationForm);
+        }
+
+        return profile;
     }
 
     private void OnBattleAction(BattleActionEvent evt)

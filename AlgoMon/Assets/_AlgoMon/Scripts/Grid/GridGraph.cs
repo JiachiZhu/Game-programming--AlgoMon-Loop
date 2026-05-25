@@ -14,6 +14,22 @@ public class GridGraph
     public string bossNodeId;
     public List<GridNode> nodes = new List<GridNode>();
 
+    public int MaxLayer()
+    {
+        int maxLayer = 0;
+        if (nodes == null)
+            return maxLayer;
+
+        for (int i = 0; i < nodes.Count; i++)
+        {
+            GridNode node = nodes[i];
+            if (node != null && node.layer > maxLayer)
+                maxLayer = node.layer;
+        }
+
+        return maxLayer;
+    }
+
     public GridNode GetNode(string nodeId)
     {
         if (string.IsNullOrEmpty(nodeId))

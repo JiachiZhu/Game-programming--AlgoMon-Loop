@@ -608,7 +608,9 @@ public class BattleManager : MonoBehaviour
             player.Instance.data != null ? player.Instance.data.battleAnimationProfile : null,
             enemy.Instance.data != null ? enemy.Instance.data.battleAnimationProfile : null,
             player.Instance.data != null ? player.Instance.data.codeName : null,
-            enemy.Instance.data != null ? enemy.Instance.data.codeName : null);
+            enemy.Instance.data != null ? enemy.Instance.data.codeName : null,
+            player.Instance.battleFormName,
+            enemy.Instance.battleFormName);
     }
 
     private static int ClampStat(int value) => Mathf.Clamp(value, 1, 255);
