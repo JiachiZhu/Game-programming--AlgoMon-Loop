@@ -29,6 +29,9 @@ public class BattleManager : MonoBehaviour
     private const int MaxSkillSlots = 4;
     private const float CounterPriorityBase = 1000000f;
     private const int ForceLastPriorityPenalty = -10000;
+    private const float EnemyLowBatterySwitchRatio = 0.35f;
+    private const float MatchupSwitchMargin = 0.25f;
+    private const float LowBatterySwitchTolerance = 0.25f;
 
     private enum BattlePhase
     {
@@ -325,10 +328,9 @@ public class BattleManager : MonoBehaviour
     private int currentRound = 1;
     private bool selectingSwitchTarget;
     private bool battleEndPublished;
-    private bool playerFaintPublished;
-    private bool enemyFaintPublished;
     private string activeActionAnnouncementLine;
     private Coroutine activeResolution;
+    private readonly HashSet<BattleUnit> faintedUnits = new HashSet<BattleUnit>();
 
     public int CurrentRound => currentRound;
     public bool IsBattleOver => phase == BattlePhase.BattleOver;
@@ -404,8 +406,7 @@ public class BattleManager : MonoBehaviour
         RegisterPresentationCombatants();
         currentRound = 1;
         battleEndPublished = false;
-        playerFaintPublished = false;
-        enemyFaintPublished = false;
+        faintedUnits.Clear();
         phase = BattlePhase.Resolving;
 
         EmitLog("Battle started.");
@@ -553,7 +554,19 @@ public class BattleManager : MonoBehaviour
         if (playerParty.Count == 0)
             playerParty.Add(CreateFallbackUnit(playerConfig));
 
-        enemyParty.Add(CreateUnit(enemyConfig, ResolveRunOpponentInstance()));
+        List<AlgoMonInstance> runOpponentParty = ResolveRunOpponentParty();
+        if (runOpponentParty != null && runOpponentParty.Count > 0)
+        {
+            for (int i = 0; i < runOpponentParty.Count && i < GameManager.MaxPartySize; i++)
+            {
+                AlgoMonInstance instance = runOpponentParty[i];
+                if (instance != null)
+                    enemyParty.Add(CreateUnit(enemyConfig, instance));
+            }
+        }
+
+        if (enemyParty.Count == 0)
+            enemyParty.Add(CreateUnit(enemyConfig, ResolveRunOpponentInstance()));
     }
 
     private static BattleUnit FirstAvailableUnit(List<BattleUnit> party)
@@ -574,6 +587,12 @@ public class BattleManager : MonoBehaviour
     {
         GameManager manager = GameManager.Instance;
         return manager != null ? manager.currentOpponent : null;
+    }
+
+    private List<AlgoMonInstance> ResolveRunOpponentParty()
+    {
+        GameManager manager = GameManager.Instance;
+        return manager != null ? manager.currentOpponentParty : null;
     }
 
     private BattleUnit CreateUnit(BattleCombatantConfig config, AlgoMonInstance runtimeInstance)
@@ -773,6 +792,9 @@ public class BattleManager : MonoBehaviour
 
     private BattleAction ChooseEnemyAction()
     {
+        if (TryChooseEnemySwitchTarget(out BattleUnit switchTarget))
+            return BattleAction.SwitchAction(enemy, switchTarget);
+
         return BattleAction.SkillAction(enemy, player, ChooseEnemySkill());
     }
 
@@ -806,6 +828,87 @@ public class BattleManager : MonoBehaviour
         if (bestFallback != null)
             return bestFallback;
         return rechargeSkill;
+    }
+
+    private bool TryChooseEnemySwitchTarget(out BattleUnit switchTarget)
+    {
+        switchTarget = null;
+        if (enemy == null || player == null || !CanSwitchOut(enemy) || !HasSwitchTarget(enemyParty, enemy))
+            return false;
+
+        float currentScore = MatchupScore(enemy, player);
+        bool lowBattery = BatteryRatio(enemy) <= EnemyLowBatterySwitchRatio;
+        bool poorMatchup = BestDamageMultiplier(enemy, player) < 1f ||
+                            BestDamageMultiplier(player, enemy) > 1f;
+        if (!lowBattery && !poorMatchup)
+            return false;
+
+        BattleUnit best = null;
+        float bestScore = currentScore;
+        for (int i = 0; i < enemyParty.Count; i++)
+        {
+            BattleUnit candidate = enemyParty[i];
+            if (candidate == null ||
+                ReferenceEquals(candidate, enemy) ||
+                candidate.CurrentBattery <= 0)
+            {
+                continue;
+            }
+
+            float score = MatchupScore(candidate, player);
+            if (best == null || score > bestScore)
+            {
+                best = candidate;
+                bestScore = score;
+            }
+        }
+
+        if (best == null)
+            return false;
+
+        bool matchupUpgrade = bestScore >= currentScore + MatchupSwitchMargin;
+        bool lowBatteryPivot = lowBattery && bestScore >= currentScore - LowBatterySwitchTolerance;
+        if (!matchupUpgrade && !lowBatteryPivot)
+            return false;
+
+        switchTarget = best;
+        return true;
+    }
+
+    private static float MatchupScore(BattleUnit attacker, BattleUnit defender)
+    {
+        return BestDamageMultiplier(attacker, defender) - BestDamageMultiplier(defender, attacker);
+    }
+
+    private static float BestDamageMultiplier(BattleUnit attacker, BattleUnit defender)
+    {
+        if (attacker == null || defender == null)
+            return 1f;
+
+        ElementType defenderElement = UnitElement(defender);
+        float best = CombatResolver.GetElementMultiplier(UnitElement(attacker), defenderElement);
+        for (int i = 0; i < MaxSkillSlots; i++)
+        {
+            SkillData skill = attacker.GetSkill(i);
+            if (skill == null || skill.damageType == DamageType.None)
+                continue;
+
+            best = Mathf.Max(best, CombatResolver.GetElementMultiplier(skill.elementType, defenderElement));
+        }
+
+        return best;
+    }
+
+    private static ElementType UnitElement(BattleUnit unit)
+    {
+        return unit?.Instance?.data != null ? unit.Instance.data.elementType : ElementType.Normal;
+    }
+
+    private static float BatteryRatio(BattleUnit unit)
+    {
+        if (unit == null || unit.MaxBattery <= 0)
+            return 0f;
+        return unit.CurrentBattery / (float)unit.MaxBattery;
     }
 
     private static bool CanSwitchOut(BattleUnit unit)
@@ -1885,6 +1988,9 @@ public class BattleManager : MonoBehaviour
         {
             enemy.StatusText = "Offline";
             PublishFaint(enemy);
+            if (TryAutoSwitchAfterFaint(false))
+                return;
+
             FinishBattle(true, $"{enemy.Name} is offline. Victory.");
             return;
         }
@@ -1893,6 +1999,9 @@ public class BattleManager : MonoBehaviour
         {
             player.StatusText = "Offline";
             PublishFaint(player);
+            if (TryAutoSwitchAfterFaint(true))
+                return;
+
             FinishBattle(false, $"{player.Name} is offline. Defeat.");
         }
     }
@@ -1901,22 +2010,53 @@ public class BattleManager : MonoBehaviour
     {
         if (unit == null)
             return;
+        if (faintedUnits.Contains(unit))
+            return;
 
-        bool isPlayer = ReferenceEquals(unit, player);
-        if (isPlayer)
-        {
-            if (playerFaintPublished)
-                return;
-            playerFaintPublished = true;
-        }
-        else
-        {
-            if (enemyFaintPublished)
-                return;
-            enemyFaintPublished = true;
-        }
-
+        faintedUnits.Add(unit);
         EventBus.Publish(new UnitFaintedEvent { UnitId = unit.Instance.nickname });
+    }
+
+    private bool TryAutoSwitchAfterFaint(bool playerSide)
+    {
+        BattleUnit previous = playerSide ? player : enemy;
+        BattleUnit next = FirstAvailableReserve(playerSide ? playerParty : enemyParty, previous);
+        if (previous == null || next == null)
+            return false;
+
+        previous.StatusText = "Offline";
+        previous.Statuses.ClearSwapLimitedEffects();
+        next.StatusText = "Switched in";
+
+        if (playerSide)
+            player = next;
+        else
+            enemy = next;
+
+        RegisterPresentationCombatants();
+        EmitLog($"{previous.Name} is offline. {next.Name} enters.");
+        Announce("Next AlgoMon", $"{previous.Name} -> {next.Name}");
+        RefreshHud();
+        return true;
+    }
+
+    private static BattleUnit FirstAvailableReserve(List<BattleUnit> party, BattleUnit activeUnit)
+    {
+        if (party == null)
+            return null;
+
+        for (int i = 0; i < party.Count; i++)
+        {
+            BattleUnit unit = party[i];
+            if (unit != null &&
+                !ReferenceEquals(unit, activeUnit) &&
+                unit.CurrentBattery > 0)
+            {
+                return unit;
+            }
+        }
+
+        return null;
     }
 
     private void FinishBattle(bool playerWon, string message)

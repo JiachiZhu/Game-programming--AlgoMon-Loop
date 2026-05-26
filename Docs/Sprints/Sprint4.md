@@ -36,7 +36,7 @@ animations, and broad VFX content are deferred.
 | #30 | [Grid] Apply node-depth difficulty scaling within each Threat Tier | Done |
 | #31 | [Rewards] Define wild, hacker, elite, boss, and shop reward identities | Done |
 | #32 | [Battle] Add party switch action with absolute-first priority | Done |
-| #33 | [Encounters] Add hacker encounter v1 with multi-AlgoMon pressure | Planned |
+| #33 | [Encounters] Add hacker encounter v1 with multi-AlgoMon pressure | Done |
 | #34 | [Shop] Add compute currency and first-pass shop buff choices | Planned |
 | #35 | [UI] Improve TheGrid node readability for risk and route planning | Planned |
 
@@ -213,18 +213,34 @@ Round action order:
 
 **Acceptance Criteria**
 
-- [ ] Hacker encounters can field more than one AlgoMon.
-- [ ] Hacker parties use the current Threat Tier and node-depth level rules.
-- [ ] Hacker AI may switch when its active AlgoMon is low HP or has a poor
+- [x] Hacker encounters can field more than one AlgoMon.
+- [x] Hacker parties use the current Threat Tier and node-depth level rules.
+- [x] Hacker AI may switch when its active AlgoMon is low HP or has a poor
   matchup, using the Sprint 4 switch action.
-- [ ] Hacker victories award higher EXP and compute than wild nodes.
-- [ ] Hacker victories do not add defeated AlgoMon to the player's Payload.
+- [x] Hacker victories award higher EXP and compute than wild nodes.
+- [x] Hacker victories do not add defeated AlgoMon to the player's Payload.
 
 **Scope Notes**
 
 - AI can be simple and rule-based. It only needs to demonstrate the identity of
   hacker battles.
 - Full smart AI is not required for Sprint 4.
+
+**Implementation Notes**
+
+- Default Grid generation now includes Hacker nodes as a weighted intermediate
+  node type.
+- `EncounterFactory.CreateParty` builds 2-member Hacker parties by default and
+  3-member parties for late / high-danger Hacker nodes.
+- Hacker party members use the same Threat Tier, node-depth encounter level,
+  deterministic species pool, and encounter stat rules as other run opponents.
+- `BattleManager` now loads enemy parties from `GameManager.currentOpponentParty`.
+  When the active enemy is defeated, the next available enemy switches in; the
+  battle only ends after the full enemy party is offline.
+- Hacker AI uses the existing absolute-first switch action when the active
+  AlgoMon is low Battery or has a clearly worse element matchup.
+- Hacker rewards already use the Sprint 4 reward identity: higher EXP/compute
+  than wild Combat nodes and no Payload capture data.
 
 ### #34 - [Shop] Add compute currency and first-pass shop buff choices
 

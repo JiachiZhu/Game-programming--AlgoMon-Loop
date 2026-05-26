@@ -177,6 +177,7 @@ public sealed class GridGenerator
     private NodeType RollEncounterNodeType()
     {
         int totalWeight = settings.combatWeight
+            + settings.hackerWeight
             + settings.eliteWeight
             + settings.shopWeight
             + settings.rebootWeight;
@@ -188,6 +189,10 @@ public sealed class GridGenerator
         if (roll < settings.combatWeight)
             return NodeType.Combat;
         roll -= settings.combatWeight;
+
+        if (roll < settings.hackerWeight)
+            return NodeType.Hacker;
+        roll -= settings.hackerWeight;
 
         if (roll < settings.eliteWeight)
             return NodeType.Elite;

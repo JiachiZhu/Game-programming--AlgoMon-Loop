@@ -40,6 +40,7 @@ public class GameManager : MonoBehaviour
     public GridGraph currentRunGraph;
     public List<string> visitedNodeIds = new List<string>();
     public AlgoMonInstance currentOpponent;
+    public List<AlgoMonInstance> currentOpponentParty = new List<AlgoMonInstance>();
     public bool IsRunActive { get; private set; }
 
     [Header("Threat Tier")]
@@ -168,6 +169,7 @@ public class GameManager : MonoBehaviour
         visitedNodeIds.Clear();
         visitedNodeIds.Add(currentNodeId);
         currentOpponent = null;
+        ClearCurrentOpponentParty();
     }
 
     public void EndRun()
@@ -178,6 +180,7 @@ public class GameManager : MonoBehaviour
         currentNodeId = string.Empty;
         visitedNodeIds.Clear();
         currentOpponent = null;
+        ClearCurrentOpponentParty();
         currentThreatTier = ThreatTierRules.MinTier;
         currentRewardMultiplier = 1f;
         computeBalance = 0;
@@ -430,13 +433,15 @@ public class GameManager : MonoBehaviour
         if (!IsEncounterNode(e.Type))
         {
             currentOpponent = null;
+            ClearCurrentOpponentParty();
             return;
         }
 
         ThreatTier threatTier = currentRunGraph != null
             ? ThreatTierRules.ClampTier(currentRunGraph.threatTier)
             : ThreatTierRules.ClampTier(currentThreatTier);
-        currentOpponent = EncounterFactory.Create(currentRunSeed, e.Node, threatTier);
+        currentOpponentParty = EncounterFactory.CreateParty(currentRunSeed, e.Node, threatTier);
+        currentOpponent = currentOpponentParty.Count > 0 ? currentOpponentParty[0] : null;
         GoTo(GameScene.TheArena);
     }
 
@@ -447,6 +452,7 @@ public class GameManager : MonoBehaviour
 
         GridNode completedNode = CurrentRunNode();
         currentOpponent = null;
+        ClearCurrentOpponentParty();
 
         if (e.PlayerWon && completedNode != null && completedNode.nodeType != NodeType.Boss)
         {
@@ -465,6 +471,14 @@ public class GameManager : MonoBehaviour
             return null;
 
         return currentRunGraph.GetNode(currentNodeId);
+    }
+
+    private void ClearCurrentOpponentParty()
+    {
+        if (currentOpponentParty == null)
+            currentOpponentParty = new List<AlgoMonInstance>();
+        else
+            currentOpponentParty.Clear();
     }
 
     private void RecordRunResult(RunOutcome outcome, GridNode completedNode)

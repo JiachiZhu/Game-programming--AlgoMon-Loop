@@ -37,6 +37,7 @@ A DAG guarantees the player always has a valid route to the Boss node, while pre
 |---|---|---|
 | Start | Terminal | Entry point into the run network. |
 | Combat | Sword | Standard battle encounter. |
+| Hacker | Terminal | Multi-AlgoMon trainer-style battle; higher EXP/compute, no capture data. |
 | Elite | Sword | Harder battle encounter. |
 | Shop | CPU | Trading node; separate from Reboot/reset logic. |
 | Reboot | Refresh | Route-control node that offers an optional return to Start without clearing visited nodes. |

@@ -16,7 +16,8 @@ public class GridGenerationSettings
     [Min(1)] public int maxGenerationAttempts = 10;
 
     [Header("Node Type Weights")]
-    [Min(0)] public int combatWeight = 70;
+    [Min(0)] public int combatWeight = 60;
+    [Min(0)] public int hackerWeight = 10;
     [Min(0)] public int eliteWeight = 15;
     [Min(0)] public int shopWeight = 10;
     [Min(0)] public int rebootWeight = 5;
@@ -32,6 +33,7 @@ public class GridGenerationSettings
             maxOutgoingEdges = Mathf.Max(Mathf.Max(1, minOutgoingEdges), maxOutgoingEdges),
             maxGenerationAttempts = Mathf.Max(1, maxGenerationAttempts),
             combatWeight = Mathf.Max(0, combatWeight),
+            hackerWeight = Mathf.Max(0, hackerWeight),
             eliteWeight = Mathf.Max(0, eliteWeight),
             shopWeight = Mathf.Max(0, shopWeight),
             rebootWeight = Mathf.Max(0, rebootWeight)

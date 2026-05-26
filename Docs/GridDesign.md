@@ -22,7 +22,7 @@ this graph.
 | `id` | Stable string id. Current format is `start`, `L{layer}N{index}`, `boss`. |
 | `layer` | Integer depth. Edges must point to a higher layer. |
 | `indexInLayer` | Stable sort position for future UI layout. |
-| `nodeType` | Active values are `Start`, `Combat`, `Elite`, `Shop`, `Reboot`, and `Boss`. `Rest` is kept only as a legacy enum value for serialized compatibility. |
+| `nodeType` | Active values are `Start`, `Combat`, `Hacker`, `Elite`, `Shop`, `Reboot`, and `Boss`. `Rest` is kept only as a legacy enum value for serialized compatibility. |
 | `outgoingNodeIds` | Forward outgoing edges by node id. No reverse edges are stored. |
 
 Reverse links are intentionally omitted. Reachability checks use temporary BFS
@@ -40,7 +40,8 @@ Defaults live in `GridGenerationSettings`.
 | `minOutgoingEdges` | 1 | Every non-final node gets at least one outgoing edge. |
 | `maxOutgoingEdges` | 3 | Used as the edge-density target and capacity limit. |
 | `maxGenerationAttempts` | 10 | Regenerate retry cap if validation fails. |
-| `combatWeight` | 70 | Intermediate node type weight. |
+| `combatWeight` | 60 | Intermediate node type weight. |
+| `hackerWeight` | 10 | Intermediate node type weight; creates multi-AlgoMon hacker battles. |
 | `eliteWeight` | 15 | Intermediate node type weight. |
 | `shopWeight` | 10 | Reserved slot; Shop behavior is out of Sprint 3 scope. |
 | `rebootWeight` | 5 | Route-control node; from Reboot, Start becomes an optional target while visited nodes are preserved. |
@@ -61,7 +62,7 @@ Generate(seed):
 
     create nodes
       start node type = Start
-      intermediate node type = weighted Combat / Elite / Shop / Reboot
+      intermediate node type = weighted Combat / Hacker / Elite / Shop / Reboot
       final node type = Boss
 
     for each adjacent layer pair:
@@ -113,6 +114,9 @@ before the Boss, and no unreachable UI nodes.
 - Rest nodes are intentionally not generated. Battle encounters start from
   full per-battle Battery/CP runtime state, keeping the route map focused on
   encounter choice rather than attrition management.
+- `NodeType.Hacker` can appear in generated maps now. Selecting it creates a
+  multi-AlgoMon enemy party that uses the same Threat Tier and node-depth level
+  rules as other encounters.
 - `NodeType.Shop` can appear in generated maps now, but selecting it should use
   placeholder behavior until Shop logic is scheduled.
 - `NodeType.Reboot` is not a stored backward graph edge. Selecting a Reboot

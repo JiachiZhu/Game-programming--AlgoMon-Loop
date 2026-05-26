@@ -15,6 +15,9 @@ public static class EncounterFactory
     private const string EncounterSpeciesCatalogResourcePath = "EncounterSpeciesCatalog";
 
     private const int LevelRandomExclusiveMax = 3;
+    private const int DefaultPartySize = 1;
+    private const int HackerBasePartySize = 2;
+    private const int HackerLatePartySize = 3;
 
     private const int BaseIvFloor = 138;
     private const int IvPerLayer = 7;
@@ -35,20 +38,46 @@ public static class EncounterFactory
 
     public static AlgoMonInstance Create(int runSeed, GridNode node, ThreatTier threatTier)
     {
-        if (node == null)
-            return null;
+        List<AlgoMonInstance> party = CreateParty(runSeed, node, threatTier);
+        return party.Count > 0 ? party[0] : null;
+    }
 
-        int hash = StableHash($"{runSeed}:{node.id}:{node.nodeType}:T{ThreatTierRules.ToInt(threatTier)}");
+    public static List<AlgoMonInstance> CreateParty(int runSeed, GridNode node, ThreatTier threatTier)
+    {
+        var party = new List<AlgoMonInstance>();
+        if (node == null)
+            return party;
+
+        int partySize = EncounterPartySize(node);
+        for (int i = 0; i < partySize; i++)
+        {
+            AlgoMonInstance member = CreateMember(runSeed, node, threatTier, i, partySize);
+            if (member != null)
+                party.Add(member);
+        }
+
+        return party;
+    }
+
+    private static AlgoMonInstance CreateMember(
+        int runSeed,
+        GridNode node,
+        ThreatTier threatTier,
+        int partyIndex,
+        int partySize)
+    {
+        int hash = StableHash($"{runSeed}:{node.id}:{node.nodeType}:T{ThreatTierRules.ToInt(threatTier)}:P{partyIndex}");
         var rng = new System.Random(hash);
         int encounterGrade = EncounterGrade(node.nodeType);
         int threatIndex = ThreatTierRules.ToInt(threatTier) - 1;
         int baseIv = BaseIvFloor + node.layer * IvPerLayer + encounterGrade * IvPerEncounterGrade + threatIndex * IvPerThreatTier;
-        AlgoMonData species = PickEncounterSpecies(node, hash, out bool usesTransientData);
+        int speciesHash = StableHash($"{runSeed}:{node.id}:{node.nodeType}:T{ThreatTierRules.ToInt(threatTier)}:species");
+        AlgoMonData species = PickEncounterSpecies(node, speciesHash, partyIndex, out bool usesTransientData);
 
         var opponent = new AlgoMonInstance
         {
             data = species,
-            nickname = BuildOpponentName(species, node),
+            nickname = BuildOpponentName(species, node, partyIndex, partySize),
             battleFormName = BattleFormName(node),
             usesTransientData = usesTransientData,
             level = node.encounterLevel > 0
@@ -64,6 +93,18 @@ public static class EncounterFactory
 
         opponent.EnsureKnownSkillsFromLearnset();
         return opponent;
+    }
+
+    private static int EncounterPartySize(GridNode node)
+    {
+        if (node == null)
+            return DefaultPartySize;
+        if (node.nodeType != NodeType.Hacker)
+            return DefaultPartySize;
+
+        return node.depthBand == EncounterDepthBand.Late || node.dangerRating >= 4
+            ? HackerLatePartySize
+            : HackerBasePartySize;
     }
 
     private static int EncounterGrade(NodeType type)
@@ -84,7 +125,7 @@ public static class EncounterFactory
         return Mathf.Clamp(baseValue + rng.Next(-spread, spread + 1), 1, 255);
     }
 
-    private static AlgoMonData PickEncounterSpecies(GridNode node, int hash, out bool usesTransientData)
+    private static AlgoMonData PickEncounterSpecies(GridNode node, int hash, int partyIndex, out bool usesTransientData)
     {
         AlgoMonData[] pool = LoadEncounterSpecies();
         if (pool.Length == 0)
@@ -94,7 +135,7 @@ public static class EncounterFactory
         }
 
         usesTransientData = false;
-        int index = Mathf.Abs(hash) % pool.Length;
+        int index = (Mathf.Abs(hash) + partyIndex) % pool.Length;
         return pool[index];
     }
 
@@ -136,7 +177,7 @@ public static class EncounterFactory
         return data;
     }
 
-    private static string BuildOpponentName(AlgoMonData species, GridNode node)
+    private static string BuildOpponentName(AlgoMonData species, GridNode node, int partyIndex, int partySize)
     {
         string speciesName = species != null && !string.IsNullOrWhiteSpace(species.codeName)
             ? species.codeName.Trim()
@@ -148,6 +189,10 @@ public static class EncounterFactory
                 return $"{speciesName} Prime";
             case NodeType.Elite:
                 return $"{speciesName} Elite";
+            case NodeType.Hacker:
+                return partySize > 1
+                    ? $"Hacker {speciesName} #{partyIndex + 1}"
+                    : $"Hacker {speciesName}";
             default:
                 return speciesName;
         }
