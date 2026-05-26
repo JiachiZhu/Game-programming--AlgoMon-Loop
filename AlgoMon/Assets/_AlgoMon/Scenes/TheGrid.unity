@@ -705,7 +705,8 @@ MonoBehaviour:
     minOutgoingEdges: 1
     maxOutgoingEdges: 3
     maxGenerationAttempts: 10
-    combatWeight: 70
+    combatWeight: 60
+    hackerWeight: 10
     eliteWeight: 15
     shopWeight: 10
     rebootWeight: 5

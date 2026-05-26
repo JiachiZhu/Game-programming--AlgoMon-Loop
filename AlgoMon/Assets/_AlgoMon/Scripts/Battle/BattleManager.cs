@@ -1961,10 +1961,30 @@ public class BattleManager : MonoBehaviour
     {
         if (instance == null)
             return null;
-        if (player != null && ReferenceEquals(player.Instance, instance))
-            return player;
-        if (enemy != null && ReferenceEquals(enemy.Instance, instance))
-            return enemy;
+
+        BattleUnit playerUnit = UnitFor(instance, playerParty);
+        if (playerUnit != null)
+            return playerUnit;
+
+        BattleUnit enemyUnit = UnitFor(instance, enemyParty);
+        if (enemyUnit != null)
+            return enemyUnit;
+
+        return null;
+    }
+
+    private static BattleUnit UnitFor(AlgoMonInstance instance, List<BattleUnit> party)
+    {
+        if (instance == null || party == null)
+            return null;
+
+        for (int i = 0; i < party.Count; i++)
+        {
+            BattleUnit unit = party[i];
+            if (unit != null && ReferenceEquals(unit.Instance, instance))
+                return unit;
+        }
+
         return null;
     }
 
