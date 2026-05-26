@@ -192,4 +192,6 @@ AlgoMon-Loop/
 | Asset | Tool | Notes |
 |---|---|---|
 | AlgoMon sprite artwork (12 images) | Google Gemini 3.1 Pro (image generation) | All portraits generated specifically for this project |
+| Visual concept and generated image support | ChatGPT Image 2 | Used for project-specific visual ideation and image iteration |
+| Pixel-art asset generation support | PixelLab | Used for pixel-style sprite and animation asset iteration |
 | Development Guidelines | [Karpathy Cursor Rules](https://github.com/forrestchang/andrej-karpathy-skills/blob/main/.cursor/rules/karpathy-guidelines.mdc) | Used to configure Cursor IDE to maintain code quality and avoid AI generation pitfalls |
