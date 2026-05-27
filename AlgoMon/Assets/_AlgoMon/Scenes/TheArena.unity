@@ -2439,6 +2439,9 @@ MonoBehaviour:
   moveEnemyDamageFeedbackRight: 0
   enemyDamageFeedbackRightPadding: 0.55
   enemyDamageFeedbackVerticalOffset: 0.15
+  movePlayerFeedbackLeft: 1
+  playerFeedbackLeftPadding: 0.45
+  playerFeedbackVerticalOffset: -0.28
   useElementBitmapFeedbackFonts: 1
   autoLoadBitmapFeedbackFontsInEditor: 1
   bitmapFeedbackFontAssetRoot: Assets/_AlgoMon/Fonts/NicoBitmap
