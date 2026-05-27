@@ -1,0 +1,34 @@
+{
+  "profileId": "Heapion_Evolved",
+  "idle": {
+    "fps": 8,
+    "loop": true
+  },
+  "attack": {
+    "fps": 10,
+    "actionFrame": 9,
+    "contactFrame": 2,
+    "returnFrame": 18,
+    "contactDistanceFromTarget": 0.65,
+    "contactOffset": { "x": 0, "y": 0 },
+    "holdLastFrame": false
+  },
+  "defense": {
+    "fps": 10,
+    "actionFrame": 13,
+    "holdLastFrame": false
+  },
+  "status": {
+    "fps": 10,
+    "actionFrame": 8,
+    "holdLastFrame": false
+  },
+  "hit": {
+    "fps": 12,
+    "holdLastFrame": false
+  },
+  "faint": {
+    "fps": 8,
+    "holdLastFrame": true
+  }
+}
