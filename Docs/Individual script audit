@@ -1,0 +1,87 @@
+# Individual Script Audit: `BattleManager.cs`
+
+## 1. What is your most important script?
+
+My most important script is `BattleManager.cs`.
+
+This script is the core controller for the battle system in my game. It connects player input, enemy actions, turn order, damage calculation, status effects, passive abilities, victory/defeat conditions, and rewards.
+
+## 2. Which GameObject is it attached to?
+
+`BattleManager.cs` is attached to the GameObject named `BattleManager` in the `TheArena` scene.
+
+## 3. What is the script responsible for?
+
+`BattleManager.cs` is responsible for controlling the complete battle loop.
+
+Its main responsibilities include:
+
+- Building the player and enemy battle parties.
+- Receiving player input from the battle HUD.
+- Choosing enemy actions.
+- Resolving skill use, switching, recharge, and flee actions.
+- Handling ASD counter logic.
+- Managing turn order through priority and speed.
+- Spending and restoring CP.
+- Applying damage, healing, status effects, and subroutine effects.
+- Checking victory and defeat conditions.
+- Granting rewards after the enemy is defeated.
+- Publishing battle events for the UI and animation systems.
+
+## 4. How many classes are inside the file?
+
+There are **4 classes** inside the file:
+
+- `BattleManager`
+- `BattleCombatantConfig`
+- `BattleUnit`
+- `BattleAction`
+
+There are also **2 enums** and **2 structs** inside the file.
+
+## 5. How many lines is it?
+
+After adding the script audit comment, `BattleManager.cs` has **1976 lines**.
+
+Before adding the audit comment, it had **1965 lines**.
+
+## 6. What are the two most important methods?
+
+### `StartBattleCoroutine()`
+
+This method sets up the battle. It clears old battle data, builds the player and enemy parties, selects the active combatants, resets the round number, registers the visual presentation, triggers battle-start passive effects, and prepares the player to choose an action.
+
+### `ResolveRoundCoroutine()`
+
+This is the main round-resolution method. It processes the actions chosen by the player and enemy, resolves switching, applies ASD counter checks, queues actions by priority, executes skills, applies end-of-round status effects, checks for victory or defeat, and then returns control to the player if the battle is still active.
+
+## 7. Does it have comments?
+
+Yes. The script already had summary comments explaining the battle system, and I added a `Script Audit` comment block at the top of the file.
+
+The audit comment explains:
+
+- Purpose
+- Attached GameObject
+- Main responsibilities
+- Important variables
+- Inputs
+- Outputs or effects
+- AI/tutorial/template assistance
+- Testing notes
+
+## 8. What needs to be cleaned?
+
+The main thing that needs to be cleaned is the size of the file.
+
+`BattleManager.cs` is very important, but it is also very large. In the future, it could be split into smaller scripts to make it easier to read, test, and maintain.
+
+Possible cleanup ideas:
+
+- Move reward logic into a separate `BattleRewardHandler`.
+- Move status effect resolution into a separate `BattleStatusResolver`.
+- Move action and counter resolution into a separate `BattleActionResolver`.
+- Move HUD update formatting into a separate presentation/helper class.
+- Keep `BattleManager` focused mainly on controlling the battle flow.
+
+This would make the battle system easier to debug and easier to extend later.
