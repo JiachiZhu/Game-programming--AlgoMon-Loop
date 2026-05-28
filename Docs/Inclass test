@@ -56,3 +56,7 @@ The feedback I received was that animation may be difficult to produce, sprite b
 
 Based on this feedback, I will keep the first version focused on single-player gameplay, use simple sprite animations first, and avoid multiplayer until the core battle loop is working.
 By Session 4, I will improve the battle skill UI by making the skill buttons clearer and adding CP/element information, and I will show evidence by pushing the updated scripts, prefab, scene changes, and screenshots to GitHub.
+
+By Session 6, I will add a Compute Shop to AlgoMon so Hacker/Elite rewards can be spent on temporary run buffs such as healing, CP support, or damage boosts, and I will show evidence by updating GitHub, closing the related issue, and showing screenshots of the Shop UI and the buff effect in battle.
+
+By Session 7, I will refine my battle encounter and animation system by making Hacker encounters visible on the grid, fixing Sortex and Heapion attack movement, and improving sprite layering during contact-frame attacks. I will show evidence by pushing the updated scripts and animation manifests to GitHub, and by recording a short test video of a Sortex vs Heapion battle.
