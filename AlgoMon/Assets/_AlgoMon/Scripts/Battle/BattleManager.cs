@@ -1887,7 +1887,17 @@ public class BattleManager : MonoBehaviour
         int reducedBaseCost = Mathf.Max(0, skill.cpCost - unit.CostReductionFor(skill, currentRound));
         if (IsPlayerUnit(unit))
             reducedBaseCost = Mathf.Max(0, reducedBaseCost - PlayerRunSkillCostReduction());
+        if (IsRechargeSkill(skill))
+            return reducedBaseCost;
         return unit.Statuses.EffectiveSkillCost(reducedBaseCost, currentRound);
+    }
+
+    private static bool IsRechargeSkill(SkillData skill)
+    {
+        return skill != null &&
+               skill.isUniversal &&
+               skill.cpCost <= 0 &&
+               skill.baseHealCPAmount > 0;
     }
 
     private void EmitRunBuffSummary()

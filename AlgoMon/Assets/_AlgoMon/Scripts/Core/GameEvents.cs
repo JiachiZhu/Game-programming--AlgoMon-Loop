@@ -124,7 +124,9 @@ public enum RunOutcome { None, Victory, Defeat }
 /// Stacking model (additive percentage per layer):
 ///   Burn    — each layer deals 2% max-Battery damage at round end, then halves. No stack cap.
 ///   Leech   — each layer steals 3% max-Battery HP per turn from target to user. Max 3 layers.
-///   Freeze  — each layer reduces ClockSpeed by 15% and adds +1 CP cost.
+///   Freeze  — each layer reduces ClockSpeed by 15% and adds +1 CP cost
+///             to normal skills. Recharge remains free so the player cannot
+///             be locked out of CP recovery.
 ///             Max 3 layers; cleared by swap or special skills.
 ///   Ensnare — target cannot swap out for duration turns.
 ///   Concurrent — next skill can execute twice; each execution pays CP separately.
@@ -141,7 +143,7 @@ public enum StatusType
 {
     // --- Active debuffs ---
     Burn,           // 2% max-HP damage per layer at round end, then stacks halve; no cap
-    Freeze,         // -15% ClockSpeed/layer and +1 CP cost/layer, max 3 layers
+    Freeze,         // -15% ClockSpeed/layer and +1 CP cost/layer to normal skills, max 3 layers
     Leech,          // 3% max-HP stolen/turn per layer (heals caster), max 3 layers
     Ensnare,        // cannot swap out AlgoMon for N turns
 
