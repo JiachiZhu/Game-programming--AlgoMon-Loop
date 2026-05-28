@@ -45,6 +45,9 @@ public class GameManager : MonoBehaviour
     public int computeBalance;
     public List<string> evolutionDataSpeciesCodes = new List<string>();
     public List<RunBuffType> currentRunBuffs = new List<RunBuffType>();
+    public List<RunBuffType> currentShopOfferTypes = new List<RunBuffType>();
+    public string currentShopNodeId;
+    public int currentShopRefreshCount;
 
     [Header("Run State")]
     public string currentNodeId;
@@ -163,6 +166,7 @@ public class GameManager : MonoBehaviour
         computeBalance = 0;
         if (currentRunBuffs != null)
             currentRunBuffs.Clear();
+        ResetShopState();
         lastEncounterReward = new EncounterReward();
 
         ThreatTier runTier = SelectedThreatTier;
@@ -200,6 +204,7 @@ public class GameManager : MonoBehaviour
         computeBalance = 0;
         if (currentRunBuffs != null)
             currentRunBuffs.Clear();
+        ResetShopState();
         EnsureRewardContainers();
         currentRunRewards.Reset();
         lastEncounterReward = new EncounterReward();
@@ -385,6 +390,14 @@ public class GameManager : MonoBehaviour
             return false;
         }
 
+        if (currentShopOfferTypes != null &&
+            currentShopOfferTypes.Count > 0 &&
+            !currentShopOfferTypes.Contains(offer.BuffType))
+        {
+            reason = "Offer is not available in this shop roll.";
+            return false;
+        }
+
         if (!CanAffordCompute(offer.ComputeCost))
         {
             reason = $"Need {offer.ComputeCost - computeBalance} more compute.";
@@ -407,6 +420,83 @@ public class GameManager : MonoBehaviour
 
         currentRunBuffs.Add(offer.BuffType);
         message = $"Purchased {offer.DisplayName}.";
+        return true;
+    }
+
+    public void EnsureShopOffersForNode(string nodeId)
+    {
+        EnsureRewardContainers();
+        if (string.IsNullOrEmpty(nodeId))
+            nodeId = "SHOP";
+
+        if (currentShopOfferTypes.Count > 0 &&
+            string.Equals(currentShopNodeId, nodeId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        currentShopNodeId = nodeId;
+        currentShopRefreshCount = 0;
+        GenerateShopOffers();
+    }
+
+    public List<RunShopOffer> CurrentShopOffers()
+    {
+        EnsureRewardContainers();
+        var offers = new List<RunShopOffer>(currentShopOfferTypes.Count);
+        for (int i = 0; i < currentShopOfferTypes.Count; i++)
+        {
+            RunShopOffer offer = RunShopCatalog.Find(currentShopOfferTypes[i]);
+            if (offer != null)
+                offers.Add(offer);
+        }
+
+        return offers;
+    }
+
+    public int CurrentShopRefreshCost
+    {
+        get
+        {
+            int exponent = Mathf.Clamp(currentShopRefreshCount, 0, 10);
+            return RunShopCatalog.BaseRefreshCost * (1 << exponent);
+        }
+    }
+
+    public bool CanRefreshShopOffers(out string reason)
+    {
+        reason = string.Empty;
+        if (!IsRunActive)
+        {
+            reason = "Shop refresh requires an active run.";
+            return false;
+        }
+
+        int cost = CurrentShopRefreshCost;
+        if (!CanAffordCompute(cost))
+        {
+            reason = $"Need {cost - computeBalance} more compute.";
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryRefreshShopOffers(out string message)
+    {
+        if (!CanRefreshShopOffers(out message))
+            return false;
+
+        int cost = CurrentShopRefreshCost;
+        if (!TrySpendCompute(cost))
+        {
+            message = "Compute spend failed.";
+            return false;
+        }
+
+        currentShopRefreshCount++;
+        GenerateShopOffers();
+        message = $"Shop refreshed for {cost} compute. Next refresh costs {CurrentShopRefreshCost}.";
         return true;
     }
 
@@ -434,6 +524,15 @@ public class GameManager : MonoBehaviour
         {
             EnsureRewardContainers();
             return RunShopCatalog.SkillCostReduction(currentRunBuffs);
+        }
+    }
+
+    public float PlayerRunClockSpeedMultiplier
+    {
+        get
+        {
+            EnsureRewardContainers();
+            return RunShopCatalog.ClockSpeedMultiplier(currentRunBuffs);
         }
     }
 
@@ -654,12 +753,112 @@ public class GameManager : MonoBehaviour
         return count > 0 ? Mathf.RoundToInt(total / (float)count) : 0;
     }
 
+    private void GenerateShopOffers()
+    {
+        EnsureRewardContainers();
+        currentShopOfferTypes.Clear();
+
+        RunShopOffer[] allOffers = RunShopCatalog.Offers;
+        var candidates = new List<RunShopOffer>(allOffers.Length);
+        var tradeoffCandidates = new List<RunShopOffer>(allOffers.Length);
+
+        for (int i = 0; i < allOffers.Length; i++)
+        {
+            RunShopOffer offer = allOffers[i];
+            if (offer == null || HasRunBuff(offer.BuffType))
+                continue;
+
+            candidates.Add(offer);
+            if (offer.HasTradeoff)
+                tradeoffCandidates.Add(offer);
+        }
+
+        System.Random random = new System.Random(ShopRollSeed());
+        if (tradeoffCandidates.Count > 0)
+            AddRandomOffer(tradeoffCandidates, candidates, random);
+
+        while (currentShopOfferTypes.Count < RunShopCatalog.OfferSlots && candidates.Count > 0)
+            AddRandomOffer(candidates, candidates, random);
+
+        for (int i = 0; currentShopOfferTypes.Count < RunShopCatalog.OfferSlots && i < allOffers.Length; i++)
+        {
+            if (allOffers[i] != null && !currentShopOfferTypes.Contains(allOffers[i].BuffType))
+                currentShopOfferTypes.Add(allOffers[i].BuffType);
+        }
+    }
+
+    private void AddRandomOffer(
+        List<RunShopOffer> source,
+        List<RunShopOffer> sharedCandidatePool,
+        System.Random random)
+    {
+        if (source == null || source.Count == 0 || random == null)
+            return;
+
+        int index = random.Next(source.Count);
+        RunShopOffer offer = source[index];
+        if (offer == null)
+            return;
+
+        currentShopOfferTypes.Add(offer.BuffType);
+        RemoveOffer(source, offer.BuffType);
+        if (!ReferenceEquals(source, sharedCandidatePool))
+            RemoveOffer(sharedCandidatePool, offer.BuffType);
+    }
+
+    private static void RemoveOffer(List<RunShopOffer> offers, RunBuffType type)
+    {
+        if (offers == null)
+            return;
+
+        for (int i = offers.Count - 1; i >= 0; i--)
+        {
+            if (offers[i] != null && offers[i].BuffType == type)
+                offers.RemoveAt(i);
+        }
+    }
+
+    private int ShopRollSeed()
+    {
+        unchecked
+        {
+            int seed = currentRunSeed;
+            seed = seed * 397 ^ StableHash(currentShopNodeId);
+            seed = seed * 397 ^ currentShopRefreshCount;
+            return seed & int.MaxValue;
+        }
+    }
+
+    private static int StableHash(string value)
+    {
+        unchecked
+        {
+            int hash = 23;
+            if (string.IsNullOrEmpty(value))
+                return hash;
+
+            for (int i = 0; i < value.Length; i++)
+                hash = hash * 31 + value[i];
+            return hash;
+        }
+    }
+
+    private void ResetShopState()
+    {
+        if (currentShopOfferTypes != null)
+            currentShopOfferTypes.Clear();
+        currentShopNodeId = string.Empty;
+        currentShopRefreshCount = 0;
+    }
+
     private void EnsureRewardContainers()
     {
         if (evolutionDataSpeciesCodes == null)
             evolutionDataSpeciesCodes = new List<string>();
         if (currentRunBuffs == null)
             currentRunBuffs = new List<RunBuffType>();
+        if (currentShopOfferTypes == null)
+            currentShopOfferTypes = new List<RunBuffType>();
         if (lastEncounterReward == null)
             lastEncounterReward = new EncounterReward();
         if (currentRunRewards == null)

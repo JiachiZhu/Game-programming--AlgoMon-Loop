@@ -87,6 +87,7 @@ public class GridMapController : MonoBehaviour
     private Text shopTitleText;
     private Text shopBalanceText;
     private Text shopBodyText;
+    private Button shopRefreshButton;
     private Button shopCloseButton;
     private GridNode activeShopNode;
 
@@ -581,6 +582,10 @@ public class GridMapController : MonoBehaviour
         if (shopPanel == null)
             return;
 
+        manager = ResolveManager();
+        if (manager != null)
+            manager.EnsureShopOffersForNode(shopNode != null ? shopNode.id : string.Empty);
+
         shopPanel.SetAsLastSibling();
         shopPanel.gameObject.SetActive(true);
         RefreshShopPanel();
@@ -633,29 +638,37 @@ public class GridMapController : MonoBehaviour
         shopBalanceText.color = warning;
 
         shopBodyText = GetOrCreateText("Body", shopPanel, 12, FontStyle.Normal, TextAnchor.UpperLeft);
-        shopBodyText.rectTransform.anchorMin = new Vector2(0.06f, 0.41f);
+        shopBodyText.rectTransform.anchorMin = new Vector2(0.06f, 0.43f);
         shopBodyText.rectTransform.anchorMax = new Vector2(0.94f, 0.86f);
         shopBodyText.rectTransform.offsetMin = Vector2.zero;
         shopBodyText.rectTransform.offsetMax = Vector2.zero;
         shopBodyText.verticalOverflow = VerticalWrapMode.Truncate;
 
         shopOfferButtons.Clear();
-        RunShopOffer[] offers = RunShopCatalog.Offers;
-        for (int i = 0; i < offers.Length; i++)
+        for (int i = 0; i < RunShopCatalog.OfferSlots; i++)
         {
             Button button = GetOrCreateButton($"Offer{i + 1}", shopPanel, string.Empty);
             RectTransform rect = button.GetComponent<RectTransform>();
-            float top = 0.36f - i * 0.071f;
-            rect.anchorMin = new Vector2(0.06f, top - 0.055f);
+            float top = 0.37f - i * 0.082f;
+            rect.anchorMin = new Vector2(0.06f, top - 0.062f);
             rect.anchorMax = new Vector2(0.94f, top);
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
             shopOfferButtons.Add(button);
         }
 
+        shopRefreshButton = GetOrCreateButton("RefreshButton", shopPanel, "REFRESH");
+        RectTransform refreshRect = shopRefreshButton.GetComponent<RectTransform>();
+        refreshRect.anchorMin = new Vector2(0.06f, 0.03f);
+        refreshRect.anchorMax = new Vector2(0.48f, 0.105f);
+        refreshRect.offsetMin = Vector2.zero;
+        refreshRect.offsetMax = Vector2.zero;
+        shopRefreshButton.onClick.RemoveAllListeners();
+        shopRefreshButton.onClick.AddListener(TryRefreshShopOffers);
+
         shopCloseButton = GetOrCreateButton("CloseButton", shopPanel, "CLOSE");
         RectTransform closeRect = shopCloseButton.GetComponent<RectTransform>();
-        closeRect.anchorMin = new Vector2(0.70f, 0.03f);
+        closeRect.anchorMin = new Vector2(0.62f, 0.03f);
         closeRect.anchorMax = new Vector2(0.94f, 0.095f);
         closeRect.offsetMin = Vector2.zero;
         closeRect.offsetMax = Vector2.zero;
@@ -677,22 +690,24 @@ public class GridMapController : MonoBehaviour
         manager = ResolveManager();
         if (manager == null)
             return;
+        if (activeShopNode != null)
+            manager.EnsureShopOffersForNode(activeShopNode.id);
 
         if (shopTitleText != null)
             shopTitleText.text = activeShopNode != null ? "Compute Shop" : "Shop Offline";
         if (shopBalanceText != null)
-            shopBalanceText.text = $"CMP {manager.computeBalance:000}";
+            shopBalanceText.text = $"CMP {manager.computeBalance:000} | REROLL {manager.CurrentShopRefreshCost}";
         if (shopBodyText != null)
             shopBodyText.text = BuildShopBody();
 
-        RunShopOffer[] offers = RunShopCatalog.Offers;
+        List<RunShopOffer> offers = manager.CurrentShopOffers();
         for (int i = 0; i < shopOfferButtons.Count; i++)
         {
             Button button = shopOfferButtons[i];
             if (button == null)
                 continue;
 
-            bool hasOffer = i < offers.Length;
+            bool hasOffer = i < offers.Count;
             button.gameObject.SetActive(hasOffer);
             if (!hasOffer)
                 continue;
@@ -705,6 +720,14 @@ public class GridMapController : MonoBehaviour
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(() => TryPurchaseShopOffer(offer));
         }
+
+        if (shopRefreshButton != null)
+        {
+            string reason;
+            bool canRefresh = manager.CanRefreshShopOffers(out reason);
+            shopRefreshButton.interactable = canRefresh;
+            SetButtonText(shopRefreshButton, $"REFRESH {manager.CurrentShopRefreshCost} CMP");
+        }
     }
 
     private string BuildShopBody()
@@ -713,10 +736,10 @@ public class GridMapController : MonoBehaviour
         builder.AppendLine("ACTIVE RUN BUFFS");
         builder.AppendLine(manager != null ? manager.CurrentRunBuffSummary() : "No run data.");
         builder.AppendLine();
-        builder.AppendLine("OFFERS");
+        builder.AppendLine($"OFFERS: choose 1 of {RunShopCatalog.OfferSlots}. Refresh cost doubles.");
 
-        RunShopOffer[] offers = RunShopCatalog.Offers;
-        for (int i = 0; i < offers.Length; i++)
+        List<RunShopOffer> offers = manager != null ? manager.CurrentShopOffers() : new List<RunShopOffer>();
+        for (int i = 0; i < offers.Count; i++)
         {
             RunShopOffer offer = offers[i];
             string state = string.Empty;
@@ -737,6 +760,9 @@ public class GridMapController : MonoBehaviour
             builder.AppendLine(offer.Description);
         }
 
+        if (manager != null)
+            builder.AppendLine($"Refresh: {manager.CurrentShopRefreshCost} CMP now; next refresh doubles.");
+
         return builder.ToString();
     }
 
@@ -756,12 +782,28 @@ public class GridMapController : MonoBehaviour
         RefreshNodeStates();
     }
 
+    private void TryRefreshShopOffers()
+    {
+        manager = ResolveManager();
+        if (manager == null)
+            return;
+
+        string message;
+        if (manager.TryRefreshShopOffers(out message))
+            SetHint($"> {message} Remaining compute: {manager.computeBalance:000}.");
+        else
+            SetHint($"> Refresh rejected: {message}");
+
+        RefreshShopPanel();
+        RefreshNodeStates();
+    }
+
     private string BuildShopHint()
     {
         if (manager == null)
             return "> Shop node online.";
 
-        return $"> Shop node online. Spend compute on run-limited buffs, then choose a connected route.";
+        return "> Shop node online. Three offers loaded; refresh costs compute and doubles each time.";
     }
 
     private static void SetButtonText(Button button, string label)
@@ -1147,7 +1189,7 @@ public class GridMapController : MonoBehaviour
             if (selectedNode.nodeType == NodeType.Reboot)
                 return "> Reboot node online. Choose a forward route or return to terminal entry.";
             if (selectedNode.nodeType == NodeType.Shop)
-                return "> Shop node online. Spend compute on run-limited buffs.";
+                return "> Shop node online. Three run-limited offers loaded.";
 
             return $"> Enter [{selectedNode.nodeType.ToGridLabel()}] node... acquiring route data.";
         }

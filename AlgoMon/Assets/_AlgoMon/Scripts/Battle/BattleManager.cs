@@ -1877,7 +1877,10 @@ public class BattleManager : MonoBehaviour
 
     private BattleStats EffectiveStats(BattleUnit unit)
     {
-        return unit.Statuses.ApplyToStats(BattleStats.From(unit.Instance));
+        BattleStats stats = unit.Statuses.ApplyToStats(BattleStats.From(unit.Instance));
+        if (IsPlayerUnit(unit))
+            stats.ClockSpeed = BattleStats.ApplyPercent(stats.ClockSpeed, PlayerRunClockSpeedMultiplier());
+        return stats;
     }
 
     private int EffectiveSkillCost(BattleUnit unit, SkillData skill)
@@ -1932,6 +1935,12 @@ public class BattleManager : MonoBehaviour
     {
         GameManager manager = GameManager.Instance;
         return manager != null ? manager.PlayerRunSkillCostReduction : 0;
+    }
+
+    private float PlayerRunClockSpeedMultiplier()
+    {
+        GameManager manager = GameManager.Instance;
+        return manager != null ? manager.PlayerRunClockSpeedMultiplier : 1f;
     }
 
     private bool IsPlayerUnit(BattleUnit unit)

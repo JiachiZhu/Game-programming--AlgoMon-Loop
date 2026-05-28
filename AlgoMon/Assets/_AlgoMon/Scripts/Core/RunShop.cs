@@ -9,7 +9,9 @@ public enum RunBuffType
     CpCache,
     ShieldLayer,
     DataSiphon,
-    VolatileOverclock
+    VolatileOverclock,
+    BorrowedCycles,
+    BugBountyContract
 }
 
 [Serializable]
@@ -24,6 +26,7 @@ public sealed class RunShopOffer
         float outgoingDamageBonus,
         float incomingDamageBonus,
         int skillCostReduction,
+        float clockSpeedBonus,
         float expRewardBonus,
         bool highRisk)
     {
@@ -35,6 +38,7 @@ public sealed class RunShopOffer
         OutgoingDamageBonus = outgoingDamageBonus;
         IncomingDamageBonus = incomingDamageBonus;
         SkillCostReduction = skillCostReduction;
+        ClockSpeedBonus = clockSpeedBonus;
         ExpRewardBonus = expRewardBonus;
         HighRisk = highRisk;
     }
@@ -47,12 +51,27 @@ public sealed class RunShopOffer
     public float OutgoingDamageBonus { get; private set; }
     public float IncomingDamageBonus { get; private set; }
     public int SkillCostReduction { get; private set; }
+    public float ClockSpeedBonus { get; private set; }
     public float ExpRewardBonus { get; private set; }
     public bool HighRisk { get; private set; }
+
+    public bool HasTradeoff
+    {
+        get
+        {
+            return HighRisk ||
+                   IncomingDamageBonus > 0f ||
+                   SkillCostReduction < 0 ||
+                   ClockSpeedBonus < 0f;
+        }
+    }
 }
 
 public static class RunShopCatalog
 {
+    public const int OfferSlots = 3;
+    public const int BaseRefreshCost = 5;
+
     private static readonly RunShopOffer[] offers =
     {
         new RunShopOffer(
@@ -65,6 +84,7 @@ public static class RunShopCatalog
             0f,
             0,
             0f,
+            0f,
             false),
         new RunShopOffer(
             RunBuffType.CpCache,
@@ -75,6 +95,7 @@ public static class RunShopCatalog
             0f,
             0f,
             1,
+            0f,
             0f,
             false),
         new RunShopOffer(
@@ -87,6 +108,7 @@ public static class RunShopCatalog
             -0.15f,
             0,
             0f,
+            0f,
             false),
         new RunShopOffer(
             RunBuffType.DataSiphon,
@@ -97,18 +119,44 @@ public static class RunShopCatalog
             0f,
             0f,
             0,
+            0f,
             0.25f,
             false),
         new RunShopOffer(
             RunBuffType.VolatileOverclock,
             "Volatile Overclock",
-            "RISK DMG+35%",
-            "High risk: player attacks deal 35% more damage, but incoming damage rises by 20%.",
-            4,
-            0.35f,
+            "TRADE DMG+45%",
+            "Trade-off: player attacks deal 45% more damage, but incoming damage rises by 20%.",
+            6,
+            0.45f,
             0.20f,
             0,
             0f,
+            0f,
+            true),
+        new RunShopOffer(
+            RunBuffType.BorrowedCycles,
+            "Borrowed Cycles",
+            "TRADE CP-2",
+            "Trade-off: player skills cost 2 less CP, but Clock Speed drops by 20%.",
+            7,
+            0f,
+            0f,
+            2,
+            -0.20f,
+            0f,
+            true),
+        new RunShopOffer(
+            RunBuffType.BugBountyContract,
+            "Bug Bounty Contract",
+            "TRADE EXP+50%",
+            "Trade-off: EXP rewards increase by 50%, but player skills cost 1 extra CP.",
+            5,
+            0f,
+            0f,
+            -1,
+            0f,
+            0.50f,
             true)
     };
 
@@ -148,10 +196,15 @@ public static class RunShopCatalog
         {
             RunShopOffer offer = Find(activeBuffs[i]);
             if (offer != null)
-                total += Mathf.Max(0, offer.SkillCostReduction);
+                total += offer.SkillCostReduction;
         }
 
         return total;
+    }
+
+    public static float ClockSpeedMultiplier(List<RunBuffType> activeBuffs)
+    {
+        return Mathf.Max(0.1f, 1f + Sum(activeBuffs, offer => offer.ClockSpeedBonus));
     }
 
     public static float ExpRewardMultiplier(List<RunBuffType> activeBuffs)
@@ -177,6 +230,8 @@ public static class RunShopCatalog
             builder.Append(offer.DisplayName);
             builder.Append(": ");
             builder.Append(offer.ShortLabel);
+            if (offer.HasTradeoff)
+                builder.Append(" [TRADE]");
         }
 
         return builder.Length > 0 ? builder.ToString() : "No run buffs active.";
