@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Provides the runtime API for all TheArena HUD display and button input.
+- Attached GameObject: BattleHud prefab root or TheArena Canvas_Arena object.
+- Main responsibilities: Bind UI references, raise skill/action click events, update names/levels/HP/CP/status, render skill/switch slots, show hover details, animate CP/HP and the battle announcer.
+- Important variables: SkillSlotClicked, ActionClicked, player, enemy, skillButtons, action buttons, skillHoverTitles, skillHoverBodies, announcerTitleText, roundSandclockImage.
+- Inputs: Button clicks, hover events, BattleManager state updates, SkillData, and UI sprites/fonts.
+- Outputs or effects: Updates visible HUD text/images and sends player choices back to BattleManager.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: In battle, verify all four skill slots, Recharge/Bag/Switch/Flee buttons, HP/CP bars, hover details, and announcer updates.
+*/
 using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -22,6 +33,7 @@ public class BattleHudController : MonoBehaviour
 
     public event Action<int>          SkillSlotClicked;
     public event Action<ActionButton> ActionClicked;
+    public event Action               PostBattleContinueClicked;
 
     public bool IsBound { get; private set; }
 
@@ -166,6 +178,13 @@ public class BattleHudController : MonoBehaviour
     private string restingDetailTitle = DefaultSkillDetailTitle;
     private string restingDetailBody  = DefaultSkillDetailBody;
 
+    // Runtime-created overlay shown after a node is cleared. BattleManager
+    // controls the content and waits for the Continue click before scene travel.
+    private GameObject postBattlePanel;
+    private Text postBattleTitleText;
+    private Text postBattleBodyText;
+    private Button postBattleContinueButton;
+
     private void Start()
     {
         if (!IsBound)
@@ -202,6 +221,8 @@ public class BattleHudController : MonoBehaviour
             roundSandclockImage = Find<Image>("SafeArea/TopBar/RoundSandclock");
         ApplyRoundSandclockState();
         EnsureBattleAnnouncer();
+        EnsurePostBattlePanel();
+        HidePostBattlePanel();
 
         player = BindCombatant("SafeArea/CombatLayer/PlayerCombatantPanel");
         enemy  = BindCombatant("SafeArea/CombatLayer/EnemyCombatantPanel");
@@ -336,6 +357,33 @@ public class BattleHudController : MonoBehaviour
 
         announcerPulseTimer = announcerPulseSeconds;
         ApplyAnnouncerFrameColor(1f);
+    }
+
+    public void ShowPostBattlePanel(string title, string body, string continueLabel = "CONTINUE")
+    {
+        EnsurePostBattlePanel();
+        if (postBattlePanel == null)
+            return;
+
+        if (postBattleTitleText != null)
+            postBattleTitleText.text = string.IsNullOrWhiteSpace(title) ? "NODE CLEARED" : title.Trim().ToUpperInvariant();
+        if (postBattleBodyText != null)
+            postBattleBodyText.text = body ?? string.Empty;
+
+        Text buttonText = postBattleContinueButton != null
+            ? postBattleContinueButton.GetComponentInChildren<Text>(true)
+            : null;
+        if (buttonText != null)
+            buttonText.text = string.IsNullOrWhiteSpace(continueLabel) ? "CONTINUE" : continueLabel.Trim().ToUpperInvariant();
+
+        postBattlePanel.SetActive(true);
+        postBattlePanel.transform.SetAsLastSibling();
+    }
+
+    public void HidePostBattlePanel()
+    {
+        if (postBattlePanel != null)
+            postBattlePanel.SetActive(false);
     }
 
     public void SetRoundSandclockActive(bool active)
@@ -637,6 +685,105 @@ public class BattleHudController : MonoBehaviour
             announcerBodyText = FindText("SafeArea/BattleAnnouncer/BodyText");
 
         ApplyAnnouncerFrameColor(0f);
+    }
+
+    private void EnsurePostBattlePanel()
+    {
+        Transform root = FindTransform("SafeArea/PostBattleRewardPanel");
+        if (root == null)
+            root = CreatePostBattlePanel();
+
+        if (root == null)
+            return;
+
+        postBattlePanel = root.gameObject;
+        postBattleTitleText = postBattleTitleText != null
+            ? postBattleTitleText
+            : FindText("SafeArea/PostBattleRewardPanel/TitleText");
+        postBattleBodyText = postBattleBodyText != null
+            ? postBattleBodyText
+            : FindText("SafeArea/PostBattleRewardPanel/BodyText");
+        postBattleContinueButton = postBattleContinueButton != null
+            ? postBattleContinueButton
+            : Find<Button>("SafeArea/PostBattleRewardPanel/ContinueButton");
+
+        if (postBattleContinueButton != null)
+        {
+            postBattleContinueButton.onClick.RemoveListener(HandlePostBattleContinueClicked);
+            postBattleContinueButton.onClick.AddListener(HandlePostBattleContinueClicked);
+        }
+    }
+
+    private Transform CreatePostBattlePanel()
+    {
+        Transform safeArea = FindTransform("SafeArea");
+        Transform parent = safeArea != null ? safeArea : transform;
+
+        GameObject rootObject = new GameObject("PostBattleRewardPanel", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        rootObject.layer = gameObject.layer;
+        RectTransform root = rootObject.GetComponent<RectTransform>();
+        root.SetParent(parent, false);
+        root.anchorMin = new Vector2(0.30f, 0.28f);
+        root.anchorMax = new Vector2(0.70f, 0.76f);
+        root.offsetMin = Vector2.zero;
+        root.offsetMax = Vector2.zero;
+        root.SetAsLastSibling();
+
+        Image frame = rootObject.GetComponent<Image>();
+        ConfigureFramedImage(frame, AnnouncerPanelSprite(), new Color(0.018f, 0.045f, 0.062f, 0.96f));
+
+        postBattleTitleText = CreateAnnouncerText(
+            "TitleText",
+            root,
+            24,
+            FontStyle.Bold,
+            TextAnchor.MiddleCenter,
+            Color.white,
+            new Vector2(0.08f, 0.78f),
+            new Vector2(0.92f, 0.94f));
+
+        postBattleBodyText = CreateAnnouncerText(
+            "BodyText",
+            root,
+            17,
+            FontStyle.Bold,
+            TextAnchor.UpperLeft,
+            new Color(0.92f, 1f, 0.96f, 1f),
+            new Vector2(0.10f, 0.27f),
+            new Vector2(0.90f, 0.75f));
+
+        GameObject buttonObject = new GameObject("ContinueButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.layer = gameObject.layer;
+        RectTransform buttonRect = buttonObject.GetComponent<RectTransform>();
+        buttonRect.SetParent(root, false);
+        SetStretchRect(buttonRect, new Vector2(0.32f, 0.08f), new Vector2(0.68f, 0.22f));
+
+        Image buttonImage = buttonObject.GetComponent<Image>();
+        ConfigureFramedImage(buttonImage, SkillTagFrameSprite(), new Color(0.08f, 0.50f, 0.34f, 0.92f));
+        buttonImage.raycastTarget = true;
+
+        postBattleContinueButton = buttonObject.GetComponent<Button>();
+        postBattleContinueButton.targetGraphic = buttonImage;
+        postBattleContinueButton.onClick.AddListener(HandlePostBattleContinueClicked);
+
+        Text buttonText = CreateAnnouncerText(
+            "Text",
+            buttonRect,
+            17,
+            FontStyle.Bold,
+            TextAnchor.MiddleCenter,
+            Color.white,
+            Vector2.zero,
+            Vector2.one);
+        buttonText.raycastTarget = false;
+        buttonText.text = "CONTINUE";
+
+        return root;
+    }
+
+    private void HandlePostBattleContinueClicked()
+    {
+        PostBattleContinueClicked?.Invoke();
     }
 
     private Transform CreateBattleAnnouncer()
@@ -1402,6 +1549,8 @@ public class BattleHudController : MonoBehaviour
         if (bagButton      != null) bagButton.onClick.RemoveAllListeners();
         if (switchButton   != null) switchButton.onClick.RemoveAllListeners();
         if (fleeButton     != null) fleeButton.onClick.RemoveAllListeners();
+        if (postBattleContinueButton != null)
+            postBattleContinueButton.onClick.RemoveListener(HandlePostBattleContinueClicked);
     }
 
     private static bool IndexInRange(int index) => index >= 0 && index < MaxSkillSlots;

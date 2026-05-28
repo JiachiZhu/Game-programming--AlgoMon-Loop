@@ -6,7 +6,11 @@
   },
   "attack": {
     "fps": 10,
-    "actionFrame": 5,
+    "actionFrame": 6,
+    "contactFrame": 5,
+    "returnFrame": 8,
+    "contactDistanceFromTarget": 0.50,
+    "contactOffset": { "x": -0.20, "y": 0 },
     "holdLastFrame": false
   },
   "defense": {

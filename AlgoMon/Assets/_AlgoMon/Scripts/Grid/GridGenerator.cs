@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Procedurally generates one run route graph from a seed.
+- Attached GameObject: None; GameManager and GridMapController call this as a normal C# class.
+- Main responsibilities: Create start/intermediate/boss nodes, assign node types, connect layers, and retry until validation passes.
+- Important variables: settings, rng, StartNodeId, BossNodeId.
+- Inputs: Seed integer and GridGenerationSettings.
+- Outputs or effects: Returns a validated GridGraph or throws an error if generation fails.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Generate multiple seeds and confirm every graph has a reachable boss and forward-only connections.
+*/
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,6 +65,7 @@ public sealed class GridGenerator
 
         int[] layerSizes = GenerateLayerSizes();
         CreateNodes(graph, layerSizes);
+        EnsureHackerNode(graph, true);
         ConnectLayers(graph);
         return graph;
     }
@@ -91,6 +103,114 @@ public sealed class GridGenerator
 
         int bossLayer = layerSizes.Length - 1;
         graph.nodes.Add(new GridNode(BossNodeId, bossLayer, 0, NodeType.Boss));
+    }
+
+    public static bool EnsureHackerNode(GridGraph graph, bool preferFirstSelectableLayer = false)
+    {
+        if (graph == null || graph.nodes == null)
+            return false;
+
+        if (!preferFirstSelectableLayer && HasHackerNode(graph))
+            return false;
+
+        int bossLayer = graph.MaxLayer();
+        if (preferFirstSelectableLayer && !HasHackerNodeInLayer(graph, 1))
+        {
+            GridNode early = BestHackerCandidate(graph, 1, bossLayer, true);
+            if (early != null)
+            {
+                early.nodeType = NodeType.Hacker;
+                return true;
+            }
+        }
+
+        if (HasHackerNode(graph))
+            return false;
+
+        GridNode fallback = BestHackerCandidate(graph, Math.Max(1, bossLayer / 2), bossLayer, false);
+        if (fallback == null)
+            return false;
+
+        fallback.nodeType = NodeType.Hacker;
+        return true;
+    }
+
+    private static bool HasHackerNode(GridGraph graph)
+    {
+        for (int i = 0; i < graph.nodes.Count; i++)
+        {
+            GridNode node = graph.nodes[i];
+            if (node != null && node.nodeType == NodeType.Hacker)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasHackerNodeInLayer(GridGraph graph, int layer)
+    {
+        for (int i = 0; i < graph.nodes.Count; i++)
+        {
+            GridNode node = graph.nodes[i];
+            if (node != null && node.layer == layer && node.nodeType == NodeType.Hacker)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static GridNode BestHackerCandidate(
+        GridGraph graph,
+        int preferredLayer,
+        int bossLayer,
+        bool requirePreferredLayer)
+    {
+        GridNode fallback = null;
+        int fallbackScore = int.MaxValue;
+
+        for (int i = 0; i < graph.nodes.Count; i++)
+        {
+            GridNode node = graph.nodes[i];
+            if (node == null || node.layer <= 0 || node.layer >= bossLayer)
+                continue;
+            if (requirePreferredLayer && node.layer != preferredLayer)
+                continue;
+            if (!CanConvertToHacker(node.nodeType))
+                continue;
+
+            int score = HackerCandidateTypeScore(node.nodeType) * 100
+                + Math.Abs(node.layer - preferredLayer);
+            if (fallback == null || score < fallbackScore)
+            {
+                fallback = node;
+                fallbackScore = score;
+            }
+        }
+
+        return fallback;
+    }
+
+    private static bool CanConvertToHacker(NodeType nodeType)
+    {
+        return nodeType != NodeType.Start &&
+               nodeType != NodeType.Boss &&
+               nodeType != NodeType.Hacker;
+    }
+
+    private static int HackerCandidateTypeScore(NodeType nodeType)
+    {
+        switch (nodeType)
+        {
+            case NodeType.Combat:
+                return 0;
+            case NodeType.Elite:
+                return 1;
+            case NodeType.Shop:
+            case NodeType.Reboot:
+                return 2;
+            default:
+                return 3;
+        }
     }
 
     private void ConnectLayers(GridGraph graph)
@@ -177,6 +297,7 @@ public sealed class GridGenerator
     private NodeType RollEncounterNodeType()
     {
         int totalWeight = settings.combatWeight
+            + settings.hackerWeight
             + settings.eliteWeight
             + settings.shopWeight
             + settings.rebootWeight;
@@ -188,6 +309,10 @@ public sealed class GridGenerator
         if (roll < settings.combatWeight)
             return NodeType.Combat;
         roll -= settings.combatWeight;
+
+        if (roll < settings.hackerWeight)
+            return NodeType.Hacker;
+        roll -= settings.hackerWeight;
 
         if (roll < settings.eliteWeight)
             return NodeType.Elite;

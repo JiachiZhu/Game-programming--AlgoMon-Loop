@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Animates one battle combatant sprite using data-driven clips or fallback motion.
+- Attached GameObject: Player or enemy battle sprite object in TheArena.
+- Main responsibilities: Play idle, attack, defense, status, hit, and faint animations; move toward targets; flash colors; hold/continue profile clips; and calculate feedback positions.
+- Important variables: body, primaryRenderer, bodyRenderers, shadowRenderer, animationProfile, idle settings, feedback settings, profileClipRoutine, heldProfileClip.
+- Inputs: BattleAnimationProfile data and commands from BattlePresentationController.
+- Outputs or effects: Changes sprite frames, transform movement, scale, rotation, and renderer colors.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Trigger every battle animation state and confirm fallback animation still works when no profile is assigned.
+*/
 using System.Collections;
 using UnityEngine;
 
@@ -32,20 +43,34 @@ public class BattleSpriteAnimator : MonoBehaviour
     [SerializeField, Min(0f)] private float actionDuration = 0.28f;
     [SerializeField, Min(0f)] private float statusPulseDuration = 0.35f;
     [SerializeField, Range(0f, 1f)] private float contactPerspectiveScaleBlend;
+    [SerializeField, Min(0)] private int contactSortingOrderBoost = 4;
+
+    [Header("Profile Scaling")]
+    [SerializeField] private bool normalizeProfileVisualHeight = true;
+    [SerializeField, Min(0.1f)] private float targetProfileVisualHeight = 2.25f;
+    [SerializeField, Min(0.05f)] private float minimumProfileScaleMultiplier = 0.45f;
+    [SerializeField, Min(0.05f)] private float maximumProfileScaleMultiplier = 2.20f;
+
+    [Header("Profile Movement")]
+    [SerializeField] private bool faceReturnDirectionForSmoothMovement = true;
 
     private Vector3 baseBodyLocalPosition;
     private Vector3 baseBodyLocalScale;
+    private Vector3 authoredBodyLocalScale;
     private Quaternion baseBodyLocalRotation;
     private Vector3 feedbackOffset;
     private float contactScaleMultiplier = 1f;
+    private float motionFacingSign = 1f;
     private float hitFlash;
     private float statusFlash;
     private Color statusColor = Color.white;
     private Color[] baseRendererColors;
+    private int[] baseRendererSortingOrders;
     private Color baseShadowColor;
     private Sprite basePrimarySprite;
     private bool initialized;
     private bool profileClipPlaying;
+    private bool contactSortingActive;
     private bool fainted;
     private bool faintFallbackApplied;
     private int idleFrameIndex;
@@ -101,6 +126,25 @@ public class BattleSpriteAnimator : MonoBehaviour
     {
         BattleAnimationClipData clip = animationProfile != null ? animationProfile.ClipFor(state) : null;
         return clip != null && clip.HasFrames;
+    }
+
+    public int MaxBodySortingOrder
+    {
+        get
+        {
+            Initialize();
+            int maxOrder = int.MinValue;
+            if (bodyRenderers != null)
+            {
+                for (int i = 0; i < bodyRenderers.Length; i++)
+                {
+                    if (bodyRenderers[i] != null)
+                        maxOrder = Mathf.Max(maxOrder, bodyRenderers[i].sortingOrder);
+                }
+            }
+
+            return maxOrder == int.MinValue ? 0 : maxOrder;
+        }
     }
 
     public float HitPlaybackDurationSeconds
@@ -168,7 +212,9 @@ public class BattleSpriteAnimator : MonoBehaviour
         Vector3 idleScale = new Vector3(1f + scalePulse, 1f + scalePulse, 1f);
 
         body.localPosition = baseBodyLocalPosition + idleOffset + feedbackOffset;
-        body.localScale = Vector3.Scale(baseBodyLocalScale * contactScaleMultiplier, idleScale);
+        Vector3 facingScale = baseBodyLocalScale;
+        facingScale.x *= motionFacingSign;
+        body.localScale = Vector3.Scale(facingScale * contactScaleMultiplier, idleScale);
         body.localRotation = baseBodyLocalRotation * Quaternion.Euler(0f, 0f, wave * idleTiltDegrees);
 
         if (shadowRenderer != null)
@@ -186,6 +232,7 @@ public class BattleSpriteAnimator : MonoBehaviour
     {
         Initialize();
         animationProfile = profile;
+        ApplyProfileFacing();
         if (animationProfile != null)
             DisableLegacyLoopingEffects();
         ResetToIdle();
@@ -197,6 +244,8 @@ public class BattleSpriteAnimator : MonoBehaviour
         StopProfileClip();
         feedbackOffset = Vector3.zero;
         contactScaleMultiplier = 1f;
+        motionFacingSign = 1f;
+        RestoreSortingOrders();
         fainted = false;
         faintFallbackApplied = false;
         hitFlash = 0f;
@@ -292,6 +341,8 @@ public class BattleSpriteAnimator : MonoBehaviour
         fainted = true;
         feedbackOffset = Vector3.zero;
         contactScaleMultiplier = 1f;
+        motionFacingSign = 1f;
+        RestoreSortingOrders();
         hitFlash = 0f;
         statusFlash = 0f;
 
@@ -357,14 +408,19 @@ public class BattleSpriteAnimator : MonoBehaviour
         {
             baseBodyLocalPosition = body.localPosition;
             baseBodyLocalScale = body.localScale;
+            authoredBodyLocalScale = body.localScale;
             baseBodyLocalRotation = body.localRotation;
         }
 
         if (bodyRenderers != null)
         {
             baseRendererColors = new Color[bodyRenderers.Length];
+            baseRendererSortingOrders = new int[bodyRenderers.Length];
             for (int i = 0; i < bodyRenderers.Length; i++)
+            {
                 baseRendererColors[i] = bodyRenderers[i] != null ? bodyRenderers[i].color : Color.white;
+                baseRendererSortingOrders[i] = bodyRenderers[i] != null ? bodyRenderers[i].sortingOrder : 0;
+            }
         }
 
         if (primaryRenderer != null)
@@ -374,6 +430,97 @@ public class BattleSpriteAnimator : MonoBehaviour
             baseShadowColor = shadowRenderer.color;
 
         initialized = true;
+        ApplyProfileFacing();
+    }
+
+    private void ApplyProfileFacing()
+    {
+        if (body == null)
+            return;
+
+        Vector3 scale = authoredBodyLocalScale;
+        scale *= ProfileVisualScaleMultiplier();
+        if (animationProfile != null && animationProfile.mirrorX)
+            scale.x *= -1f;
+        baseBodyLocalScale = scale;
+    }
+
+    private float ProfileVisualScaleMultiplier()
+    {
+        if (!normalizeProfileVisualHeight || animationProfile == null || targetProfileVisualHeight <= 0f)
+            return 1f;
+
+        float spriteHeight = EstimateProfileSpriteHeight(animationProfile);
+        float authoredHeight = spriteHeight * Mathf.Max(0.001f, Mathf.Abs(authoredBodyLocalScale.y));
+        if (authoredHeight <= 0.001f)
+            return 1f;
+
+        float multiplier = targetProfileVisualHeight / authoredHeight;
+        float min = Mathf.Min(minimumProfileScaleMultiplier, maximumProfileScaleMultiplier);
+        float max = Mathf.Max(minimumProfileScaleMultiplier, maximumProfileScaleMultiplier);
+        return Mathf.Clamp(multiplier, min, max);
+    }
+
+    private static float EstimateProfileSpriteHeight(BattleAnimationProfile profile)
+    {
+        if (profile == null)
+            return 0f;
+
+        float idleHeight = MaxFrameSpriteHeight(profile.idle);
+        if (idleHeight > 0f)
+            return idleHeight;
+
+        return Mathf.Max(
+            MaxFrameSpriteHeight(profile.attack),
+            MaxFrameSpriteHeight(profile.defense),
+            MaxFrameSpriteHeight(profile.status),
+            MaxFrameSpriteHeight(profile.hit),
+            MaxFrameSpriteHeight(profile.faint));
+    }
+
+    private static float MaxFrameSpriteHeight(params BattleAnimationClipData[] clips)
+    {
+        float maxHeight = 0f;
+        if (clips == null)
+            return maxHeight;
+
+        for (int c = 0; c < clips.Length; c++)
+        {
+            BattleAnimationClipData clip = clips[c];
+            if (clip == null || clip.frames == null)
+                continue;
+
+            for (int i = 0; i < clip.frames.Length; i++)
+            {
+                maxHeight = Mathf.Max(maxHeight, SpriteVisualHeight(clip.frames[i]));
+            }
+        }
+
+        return maxHeight;
+    }
+
+    private static float SpriteVisualHeight(Sprite sprite)
+    {
+        if (sprite == null)
+            return 0f;
+
+        Vector2[] vertices = sprite.vertices;
+        if (vertices != null && vertices.Length > 0)
+        {
+            float minY = vertices[0].y;
+            float maxY = vertices[0].y;
+            for (int i = 1; i < vertices.Length; i++)
+            {
+                minY = Mathf.Min(minY, vertices[i].y);
+                maxY = Mathf.Max(maxY, vertices[i].y);
+            }
+
+            float vertexHeight = maxY - minY;
+            if (vertexHeight > 0.001f)
+                return vertexHeight;
+        }
+
+        return sprite.bounds.size.y;
     }
 
     private SpriteRenderer[] FindBodyRenderers()
@@ -449,6 +596,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         bool holdAtActionMarker)
     {
         profileClipPlaying = true;
+        motionFacingSign = 1f;
         float secondsPerFrame = clip.SecondsPerFrame;
         int firstFrame = Mathf.Clamp(startFrame, 0, Mathf.Max(0, clip.FrameCount - 1));
         int holdFrame = clip.ActionFrameIndex >= 0 ? clip.ActionFrameIndex : firstFrame;
@@ -456,7 +604,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         for (int i = firstFrame; i < clip.FrameCount; i++)
         {
             SetPrimarySprite(clip.frames[i]);
-            ApplyClipMarkers(clip, i, worldTarget, useTarget, targetAnimator);
+            ApplyClipMotion(clip, i, 0f, worldTarget, useTarget, targetAnimator);
             if (holdAtActionMarker && i >= holdFrame)
             {
                 HoldProfileClip(clip, state, worldTarget, useTarget, targetAnimator, i + 1);
@@ -468,6 +616,10 @@ public class BattleSpriteAnimator : MonoBehaviour
             while (elapsed < secondsPerFrame)
             {
                 elapsed += Time.deltaTime;
+                float frameProgress = secondsPerFrame <= 0f
+                    ? 1f
+                    : Mathf.Clamp01(elapsed / secondsPerFrame);
+                ApplyClipMotion(clip, i, frameProgress, worldTarget, useTarget, targetAnimator);
                 yield return null;
             }
         }
@@ -483,28 +635,197 @@ public class BattleSpriteAnimator : MonoBehaviour
 
         feedbackOffset = Vector3.zero;
         contactScaleMultiplier = 1f;
+        motionFacingSign = 1f;
+        RestoreSortingOrders();
         ClearHeldProfileClip();
         BeginIdleClip();
     }
 
-    private void ApplyClipMarkers(
+    public bool PlayActionMarkerWindowLoop(BattleAnimationState state, float durationSeconds)
+    {
+        Initialize();
+        if (fainted && state != BattleAnimationState.Faint)
+            return true;
+
+        BattleAnimationClipData clip = animationProfile != null ? animationProfile.ClipFor(state) : null;
+        if (clip == null || !clip.HasFrames || primaryRenderer == null)
+            return false;
+
+        StopProfileClip();
+        if (actionRoutine != null)
+            StopCoroutine(actionRoutine);
+
+        profileClipRoutine = StartCoroutine(ActionMarkerWindowLoopRoutine(clip, Mathf.Max(0f, durationSeconds)));
+        return true;
+    }
+
+    private IEnumerator ActionMarkerWindowLoopRoutine(BattleAnimationClipData clip, float durationSeconds)
+    {
+        profileClipPlaying = true;
+        feedbackOffset = Vector3.zero;
+        contactScaleMultiplier = 1f;
+        motionFacingSign = 1f;
+
+        int center = clip.ActionFrameIndex >= 0 ? clip.ActionFrameIndex : 0;
+        int previous = Mathf.Clamp(center - 1, 0, clip.FrameCount - 1);
+        int current = Mathf.Clamp(center, 0, clip.FrameCount - 1);
+        int next = Mathf.Clamp(center + 1, 0, clip.FrameCount - 1);
+        int[] loopFrames = { previous, current, next };
+
+        float secondsPerFrame = clip.SecondsPerFrame;
+        float elapsed = 0f;
+        int frame = 0;
+        float minimumDuration = Mathf.Max(secondsPerFrame, secondsPerFrame * loopFrames.Length);
+        float targetDuration = durationSeconds > 0f ? durationSeconds : minimumDuration;
+
+        while (elapsed < targetDuration)
+        {
+            SetPrimarySprite(clip.frames[loopFrames[frame % loopFrames.Length]]);
+            frame++;
+
+            float frameElapsed = 0f;
+            while (frameElapsed < secondsPerFrame && elapsed < targetDuration)
+            {
+                float deltaTime = Time.deltaTime;
+                frameElapsed += deltaTime;
+                elapsed += deltaTime;
+                yield return null;
+            }
+        }
+
+        profileClipPlaying = false;
+        profileClipRoutine = null;
+        feedbackOffset = Vector3.zero;
+        contactScaleMultiplier = 1f;
+        motionFacingSign = 1f;
+        RestoreSortingOrders();
+        BeginIdleClip();
+    }
+
+    private void ApplyClipMotion(
         BattleAnimationClipData clip,
         int frameIndex,
+        float frameProgress,
         Vector3 worldTarget,
         bool useTarget,
         BattleSpriteAnimator targetAnimator)
     {
-        if (useTarget && frameIndex == clip.ContactFrameIndex)
+        bool sortAboveTarget = ShouldSortAboveTarget(clip, frameIndex, useTarget, targetAnimator);
+        ApplyContactSorting(targetAnimator, sortAboveTarget);
+
+        if (useTarget && clip.ContactFrameIndex >= 0)
         {
-            feedbackOffset = ContactOffsetFor(clip, worldTarget);
-            contactScaleMultiplier = ContactScaleMultiplierFor(targetAnimator);
+            Vector3 contactOffset = ContactOffsetFor(clip, worldTarget, targetAnimator);
+            float contactScale = ContactScaleMultiplierFor(targetAnimator);
+            if (clip.smoothContactMovement && frameIndex <= clip.ContactFrameIndex)
+            {
+                float contactT = Mathf.Clamp01((frameIndex + Mathf.Clamp01(frameProgress)) / (clip.ContactFrameIndex + 1f));
+                contactT = SmoothStep01(contactT);
+                feedbackOffset = Vector3.Lerp(Vector3.zero, contactOffset, contactT);
+                contactScaleMultiplier = Mathf.Lerp(1f, contactScale, contactT);
+                motionFacingSign = 1f;
+            }
+            else if (frameIndex >= clip.ContactFrameIndex)
+            {
+                feedbackOffset = contactOffset;
+                contactScaleMultiplier = contactScale;
+                motionFacingSign = 1f;
+            }
         }
 
-        if (frameIndex == clip.ReturnFrameIndex)
+        if (clip.ReturnFrameIndex >= 0 && frameIndex >= clip.ReturnFrameIndex)
         {
-            feedbackOffset = Vector3.zero;
-            contactScaleMultiplier = 1f;
+            if (clip.smoothReturnMovement)
+            {
+                Vector3 contactOffset = ContactOffsetFor(clip, worldTarget, targetAnimator);
+                int returnSpan = Mathf.Max(1, clip.FrameCount - clip.ReturnFrameIndex);
+                float returnT = Mathf.Clamp01((frameIndex - clip.ReturnFrameIndex + Mathf.Clamp01(frameProgress)) / returnSpan);
+                returnT = SmoothStep01(returnT);
+                feedbackOffset = Vector3.Lerp(contactOffset, Vector3.zero, returnT);
+                contactScaleMultiplier = Mathf.Lerp(ContactScaleMultiplierFor(targetAnimator), 1f, returnT);
+                motionFacingSign = faceReturnDirectionForSmoothMovement ? -1f : 1f;
+            }
+            else
+            {
+                feedbackOffset = Vector3.zero;
+                contactScaleMultiplier = 1f;
+                motionFacingSign = 1f;
+            }
         }
+    }
+
+    private static bool ShouldSortAboveTarget(
+        BattleAnimationClipData clip,
+        int frameIndex,
+        bool useTarget,
+        BattleSpriteAnimator targetAnimator)
+    {
+        if (!useTarget || targetAnimator == null || clip == null || clip.ContactFrameIndex < 0)
+            return false;
+
+        int sortingStartFrame = Mathf.Max(0, clip.ContactFrameIndex - 1);
+        if (frameIndex < sortingStartFrame)
+            return false;
+
+        return clip.ReturnFrameIndex < 0 || frameIndex < clip.ReturnFrameIndex;
+    }
+
+    private void ApplyContactSorting(BattleSpriteAnimator targetAnimator, bool active)
+    {
+        if (!active || targetAnimator == null || contactSortingOrderBoost <= 0)
+        {
+            RestoreSortingOrders();
+            return;
+        }
+
+        if (bodyRenderers == null || baseRendererSortingOrders == null)
+            return;
+
+        int delta = Mathf.Max(
+            0,
+            targetAnimator.MaxBodySortingOrder + contactSortingOrderBoost - BaseBodySortingOrder());
+        for (int i = 0; i < bodyRenderers.Length && i < baseRendererSortingOrders.Length; i++)
+        {
+            if (bodyRenderers[i] != null)
+                bodyRenderers[i].sortingOrder = baseRendererSortingOrders[i] + delta;
+        }
+
+        contactSortingActive = true;
+    }
+
+    private int BaseBodySortingOrder()
+    {
+        int minOrder = int.MaxValue;
+        if (baseRendererSortingOrders != null)
+        {
+            for (int i = 0; i < baseRendererSortingOrders.Length; i++)
+                minOrder = Mathf.Min(minOrder, baseRendererSortingOrders[i]);
+        }
+
+        return minOrder == int.MaxValue ? 0 : minOrder;
+    }
+
+    private void RestoreSortingOrders()
+    {
+        if (!contactSortingActive)
+            return;
+
+        if (bodyRenderers != null && baseRendererSortingOrders != null)
+        {
+            for (int i = 0; i < bodyRenderers.Length && i < baseRendererSortingOrders.Length; i++)
+            {
+                if (bodyRenderers[i] != null)
+                    bodyRenderers[i].sortingOrder = baseRendererSortingOrders[i];
+            }
+        }
+
+        contactSortingActive = false;
+    }
+
+    private static float SmoothStep01(float value)
+    {
+        float t = Mathf.Clamp01(value);
+        return t * t * (3f - 2f * t);
     }
 
     private float ContactScaleMultiplierFor(BattleSpriteAnimator targetAnimator)
@@ -581,9 +902,14 @@ public class BattleSpriteAnimator : MonoBehaviour
         heldProfileNextFrameIndex = 0;
     }
 
-    private Vector3 ContactOffsetFor(BattleAnimationClipData clip, Vector3 worldTarget)
+    private Vector3 ContactOffsetFor(
+        BattleAnimationClipData clip,
+        Vector3 worldTarget,
+        BattleSpriteAnimator targetAnimator)
     {
-        Vector3 delta = worldTarget - ContactWorldPosition;
+        Vector3 selfPosition = ContactWorldPosition;
+        Vector3 targetPosition = AdjustedTargetContactPoint(worldTarget, targetAnimator, selfPosition);
+        Vector3 delta = targetPosition - selfPosition;
         delta.z = 0f;
         if (delta.sqrMagnitude <= 0.0001f)
             return Vector3.zero;
@@ -593,7 +919,35 @@ public class BattleSpriteAnimator : MonoBehaviour
         float travelDistance = Mathf.Max(0f, delta.magnitude - stopDistance);
         float signedX = clip.contactOffset.x * Mathf.Sign(direction.x == 0f ? 1f : direction.x);
         Vector3 authoredOffset = new Vector3(signedX, clip.contactOffset.y, 0f);
-        return direction * travelDistance + authoredOffset;
+        Vector3 worldOffset = direction * travelDistance + authoredOffset;
+        return WorldOffsetToBodyLocal(worldOffset);
+    }
+
+    private Vector3 AdjustedTargetContactPoint(
+        Vector3 worldTarget,
+        BattleSpriteAnimator targetAnimator,
+        Vector3 selfPosition)
+    {
+        Vector3 adjusted = worldTarget;
+        if (targetAnimator == null)
+            return adjusted;
+
+        Vector3 direction = worldTarget - selfPosition;
+        if (Mathf.Abs(direction.x) <= 0.001f)
+            return adjusted;
+
+        if (targetAnimator.TryGetVisualBounds(out Bounds targetBounds))
+            adjusted.x = direction.x > 0f ? targetBounds.min.x : targetBounds.max.x;
+
+        return adjusted;
+    }
+
+    private Vector3 WorldOffsetToBodyLocal(Vector3 worldOffset)
+    {
+        Transform localSpace = body != null && body.parent != null ? body.parent : transform;
+        return localSpace != null
+            ? localSpace.InverseTransformVector(worldOffset)
+            : worldOffset;
     }
 
     private void BeginIdleClip()
@@ -639,6 +993,8 @@ public class BattleSpriteAnimator : MonoBehaviour
         profileClipRoutine = null;
         profileClipPlaying = false;
         contactScaleMultiplier = 1f;
+        motionFacingSign = 1f;
+        RestoreSortingOrders();
         ClearHeldProfileClip();
     }
 
@@ -656,6 +1012,8 @@ public class BattleSpriteAnimator : MonoBehaviour
 
         feedbackOffset = Vector3.zero;
         contactScaleMultiplier = 1f;
+        motionFacingSign = 1f;
+        RestoreSortingOrders();
         actionRoutine = null;
     }
 
@@ -684,6 +1042,7 @@ public class BattleSpriteAnimator : MonoBehaviour
 
         feedbackOffset = Vector3.zero;
         contactScaleMultiplier = 1f;
+        RestoreSortingOrders();
         hitFlash = 0f;
         hitRoutine = null;
     }

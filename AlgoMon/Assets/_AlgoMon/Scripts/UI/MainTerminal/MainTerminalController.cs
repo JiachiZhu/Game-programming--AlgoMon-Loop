@@ -1,3 +1,16 @@
+/*
+Script Audit:
+- Purpose: Controls the MainTerminal menu scene and starts the gameplay run.
+- Attached GameObject: MainTerminal scene UI/controller object, usually the terminal canvas or screen root.
+- Main responsibilities: Wire menu buttons, create starter party if needed, start a run, show payload summary, update status text, and build fallback HUD widgets.
+- Important variables: enterGridButton, geneLabButton, payloadButton, moduleText, detailText, partyPreviewText, statsText, payloadPanel, fallbackStarter, manager.
+- Inputs: Player button clicks, GameManager payload/party data, fallback starter asset, and Time.unscaledTime.
+- Outputs or effects: Updates terminal UI, starts GameManager.BeginRun, and transitions to TheGrid.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Open MainTerminal, start a run, inspect payload, and confirm starter party and TheGrid transition work.
+*/
+using System;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,6 +27,18 @@ using UnityEditor;
 public class MainTerminalController : MonoBehaviour
 {
     private const int StarterLevel = 20;
+    private const int MinimumPlayablePartySize = 2;
+    private const string AlgoMonAssetSearchFolder = "Assets/_AlgoMon/ScriptableObjects/AlgoMons";
+    private const string EncounterSpeciesCatalogResourcePath = "EncounterSpeciesCatalog";
+    private static readonly string[] PreferredReserveSpecies =
+    {
+        "Heapion",
+        "Cachelon",
+        "Recursix",
+        "Overflux",
+        "Nullbyte",
+        "Sortex"
+    };
 
     [Header("Actions")]
     [SerializeField] private Button enterGridButton;
@@ -766,26 +791,159 @@ public class MainTerminalController : MonoBehaviour
 
     private static void EnsureStarterParty(GameManager targetManager, AlgoMonData starterData)
     {
-        if (targetManager == null || targetManager.party == null || targetManager.party.Count > 0)
+        if (targetManager == null || targetManager.party == null)
             return;
 
-        if (starterData == null)
-            return;
-
-        var starter = new AlgoMonInstance
+        if (targetManager.party.Count == 0)
         {
-            data = starterData,
-            nickname = starterData.codeName,
+            AlgoMonData starterSpecies = starterData != null
+                ? starterData
+                : FindPartyCandidate(targetManager, "Sortex");
+            TryAddPartyMember(targetManager, starterSpecies, 0);
+        }
+
+        int targetCount = Mathf.Min(MinimumPlayablePartySize, GameManager.MaxPartySize);
+        while (targetManager.party.Count < targetCount)
+        {
+            AlgoMonData reserveSpecies = FindReserveCandidate(targetManager);
+            if (!TryAddPartyMember(targetManager, reserveSpecies, targetManager.party.Count))
+                break;
+        }
+    }
+
+    private static bool TryAddPartyMember(GameManager targetManager, AlgoMonData species, int slotIndex)
+    {
+        if (targetManager == null || species == null || targetManager.party == null)
+            return false;
+        if (targetManager.party.Count >= GameManager.MaxPartySize)
+            return false;
+        if (PartyContainsSpecies(targetManager, species))
+            return false;
+
+        var member = new AlgoMonInstance
+        {
+            data = species,
+            nickname = species.codeName,
             level = StarterLevel,
-            iv_Battery = 180,
-            iv_ClockSpeed = 165,
-            iv_ComputingPower = 150,
-            iv_Throughput = 145,
-            iv_Firewall = 130,
-            iv_Encryption = 135
+            iv_Battery = Mathf.Clamp(180 - slotIndex * 8, 1, 255),
+            iv_ClockSpeed = Mathf.Clamp(165 + slotIndex * 5, 1, 255),
+            iv_ComputingPower = Mathf.Clamp(150 + slotIndex * 4, 1, 255),
+            iv_Throughput = Mathf.Clamp(145 + slotIndex * 6, 1, 255),
+            iv_Firewall = Mathf.Clamp(130 + slotIndex * 7, 1, 255),
+            iv_Encryption = Mathf.Clamp(135 + slotIndex * 7, 1, 255)
         };
-        starter.EnsureKnownSkillsFromLearnset();
-        targetManager.AddToParty(starter);
+        member.EnsureKnownSkillsFromLearnset();
+        return targetManager.AddToParty(member);
+    }
+
+    private static AlgoMonData FindReserveCandidate(GameManager targetManager)
+    {
+        for (int i = 0; i < PreferredReserveSpecies.Length; i++)
+        {
+            AlgoMonData preferred = FindPartyCandidate(targetManager, PreferredReserveSpecies[i]);
+            if (preferred != null)
+                return preferred;
+        }
+
+        return FindPartyCandidate(targetManager, null);
+    }
+
+    private static AlgoMonData FindPartyCandidate(GameManager targetManager, string preferredCodeName)
+    {
+        List<AlgoMonData> candidates = LoadPartyCandidateSpecies();
+        if (!string.IsNullOrWhiteSpace(preferredCodeName))
+        {
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                AlgoMonData candidate = candidates[i];
+                if (candidate != null &&
+                    !PartyContainsSpecies(targetManager, candidate) &&
+                    string.Equals(NormalizedCodeName(candidate), preferredCodeName.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            AlgoMonData candidate = candidates[i];
+            if (candidate != null && !PartyContainsSpecies(targetManager, candidate))
+                return candidate;
+        }
+
+        return null;
+    }
+
+    private static List<AlgoMonData> LoadPartyCandidateSpecies()
+    {
+        var candidates = new List<AlgoMonData>();
+        EncounterSpeciesCatalog catalog = Resources.Load<EncounterSpeciesCatalog>(EncounterSpeciesCatalogResourcePath);
+        if (catalog != null)
+        {
+            AlgoMonData[] catalogSpecies = catalog.GetSpecies();
+            for (int i = 0; i < catalogSpecies.Length; i++)
+                AddUniqueCandidate(candidates, catalogSpecies[i]);
+        }
+
+#if UNITY_EDITOR
+        string[] guids = AssetDatabase.FindAssets("t:AlgoMonData", new[] { AlgoMonAssetSearchFolder });
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+            AddUniqueCandidate(candidates, AssetDatabase.LoadAssetAtPath<AlgoMonData>(path));
+        }
+#endif
+
+        candidates.Sort((a, b) => string.Compare(NormalizedCodeName(a), NormalizedCodeName(b), StringComparison.Ordinal));
+        return candidates;
+    }
+
+    private static void AddUniqueCandidate(List<AlgoMonData> candidates, AlgoMonData candidate)
+    {
+        if (candidate == null)
+            return;
+
+        string codeName = NormalizedCodeName(candidate);
+        for (int i = 0; i < candidates.Count; i++)
+        {
+            AlgoMonData existing = candidates[i];
+            if (existing == candidate ||
+                string.Equals(NormalizedCodeName(existing), codeName, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        candidates.Add(candidate);
+    }
+
+    private static bool PartyContainsSpecies(GameManager targetManager, AlgoMonData species)
+    {
+        if (targetManager == null || targetManager.party == null || species == null)
+            return false;
+
+        string codeName = NormalizedCodeName(species);
+        for (int i = 0; i < targetManager.party.Count; i++)
+        {
+            AlgoMonInstance mon = targetManager.party[i];
+            if (mon == null || mon.data == null)
+                continue;
+            if (mon.data == species ||
+                string.Equals(NormalizedCodeName(mon.data), codeName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static string NormalizedCodeName(AlgoMonData data)
+    {
+        if (data == null || string.IsNullOrWhiteSpace(data.codeName))
+            return string.Empty;
+        return data.codeName.Trim();
     }
 
     private static string FormatClock(float elapsed)

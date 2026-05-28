@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Listens to battle events and drives TheArena visual feedback.
+- Attached GameObject: TheArena presentation/controller object with references to player and enemy BattleSpriteAnimator components.
+- Main responsibilities: Register combatants, play attack/defense/status/hit/faint animations, show damage/status/CP floating feedback, handle counter clash visuals, and load bitmap feedback fonts.
+- Important variables: playerId, enemyId, playerAnimator, enemyAnimator, feedback settings, bitmap font references, feedbackSlots, counterActionSuppressUntil.
+- Inputs: DamageEvent, BattleActionEvent, BattleFeedbackEvent, StatusAppliedEvent, UnitFaintedEvent, CounterEvent, and animation profile data.
+- Outputs or effects: Starts sprite animations, spawns floating feedback text/sprites, and suppresses duplicate counter/hit visuals when needed.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Use attacks, counters, status skills, heals, CP changes, and fainting to confirm the correct visual feedback appears.
+*/
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -624,41 +635,34 @@ public class BattlePresentationController : MonoBehaviour
             yield break;
 
         attacker.TryGetClipTiming(BattleAnimationState.Attack, out float attackMarkerDelay, out float attackDuration);
-        defender.TryGetClipTiming(BattleAnimationState.Defense, out float defenseMarkerDelay, out float defenseDuration);
-        float totalShieldSequenceDuration = Mathf.Max(attackDuration, attackMarkerDelay + defenseMarkerDelay) +
-            Mathf.Max(0f, defenseDuration - defenseMarkerDelay);
+        float attackRemainingFromMarker = Mathf.Max(0f, attackDuration - attackMarkerDelay);
+        float totalShieldSequenceDuration = Mathf.Max(attackDuration, attackMarkerDelay + attackRemainingFromMarker);
         if (totalShieldSequenceDuration > 0f)
             hitReactionSuppressUntil[evt.CounterId] = Time.time + totalShieldSequenceDuration;
 
         if (attackMarkerDelay > 0f)
             actionMarkerFeedbackTimes[evt.CounteredId] = Time.time + attackMarkerDelay;
 
-        attacker.PlayAttackToward(defender.ContactWorldPosition, defender);
+        bool heldAttack = attacker.PlayStateToActionMarkerAndHold(
+            BattleAnimationState.Attack,
+            defender.ContactWorldPosition,
+            true,
+            defender);
+        if (!heldAttack)
+            attacker.PlayAttackToward(defender.ContactWorldPosition, defender);
 
         if (attackMarkerDelay > 0f)
             yield return new WaitForSeconds(attackMarkerDelay);
 
-        bool heldDefense = defender.PlayStateToActionMarkerAndHold(
-            BattleAnimationState.Defense,
-            defender.FeedbackWorldPosition,
-            false);
-
-        if (defenseMarkerDelay > 0f)
-            yield return new WaitForSeconds(defenseMarkerDelay);
-
+        if (!defender.PlayActionMarkerWindowLoop(BattleAnimationState.Defense, attackRemainingFromMarker))
+            defender.PlayDefense();
         SpawnUtilityFeedback(defender, "COUNTER", new Color(1f, 0.92f, 0.45f));
 
-        float attackRemainingAfterShield = Mathf.Max(0f, attackDuration - attackMarkerDelay - defenseMarkerDelay);
-        if (attackRemainingAfterShield > 0f)
-            yield return new WaitForSeconds(attackRemainingAfterShield);
+        if (attackRemainingFromMarker > 0f)
+            yield return new WaitForSeconds(attackRemainingFromMarker);
 
-        if (heldDefense)
-        {
-            defender.ContinueHeldProfileClip();
-            float defenseRemaining = Mathf.Max(0f, defenseDuration - defenseMarkerDelay);
-            if (defenseRemaining > 0f)
-                yield return new WaitForSeconds(defenseRemaining);
-        }
+        if (heldAttack)
+            attacker.ContinueHeldProfileClip();
     }
 
     private IEnumerator PlayProfileCounterSequence(

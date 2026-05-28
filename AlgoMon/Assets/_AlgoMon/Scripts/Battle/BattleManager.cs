@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Controls the complete TheArena battle loop for one encounter.
+- Attached GameObject: TheArena scene GameObject named BattleManager.
+- Main responsibilities: Build player/enemy parties, handle HUD input, choose enemy actions, resolve switching, ASD counters, turn order, CP, damage, statuses, subroutines, battle end, and rewards.
+- Important variables: hud, presentation, rechargeSkill, playerConfig, enemyConfig, turnQueue, playerParty, enemyParty, player, enemy, phase, currentRound, battleLogLines.
+- Inputs: Skill/action clicks from BattleHudController, party and opponent data from GameManager, SkillData assets, SubroutineData assets, and timing settings.
+- Outputs or effects: Updates HUD and presentation, publishes battle events, changes battle state, grants defeated enemy rewards, and sends BattleEndEvent.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Test skill use, Recharge, Switch, Flee, ASD counter wins/losses, status effects, victory rewards, defeat flow, and scene transitions.
+*/
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -29,6 +40,8 @@ public class BattleManager : MonoBehaviour
     private const int MaxSkillSlots = 4;
     private const float CounterPriorityBase = 1000000f;
     private const int ForceLastPriorityPenalty = -10000;
+    private const float HackerSwitchBatteryPercent = 0.35f;
+    private const float HackerSwitchMatchupImprovement = 0.25f;
 
     private enum BattlePhase
     {
@@ -325,8 +338,9 @@ public class BattleManager : MonoBehaviour
     private int currentRound = 1;
     private bool selectingSwitchTarget;
     private bool battleEndPublished;
-    private bool playerFaintPublished;
-    private bool enemyFaintPublished;
+    private bool waitingForPostBattleContinue;
+    private bool pendingBattleEndPlayerWon;
+    private readonly HashSet<BattleUnit> faintPublishedUnits = new HashSet<BattleUnit>();
     private string activeActionAnnouncementLine;
     private Coroutine activeResolution;
 
@@ -364,6 +378,7 @@ public class BattleManager : MonoBehaviour
         {
             hud.SkillSlotClicked -= HandleSkillSlotClicked;
             hud.ActionClicked -= HandleActionClicked;
+            hud.PostBattleContinueClicked -= HandlePostBattleContinueClicked;
         }
 
         for (int i = 0; i < transientData.Count; i++)
@@ -397,6 +412,10 @@ public class BattleManager : MonoBehaviour
         battleLogLines.Clear();
         activeActionAnnouncementLine = null;
         selectingSwitchTarget = false;
+        waitingForPostBattleContinue = false;
+        pendingBattleEndPlayerWon = false;
+        if (hud != null)
+            hud.HidePostBattlePanel();
 
         BuildBattleParties();
         player = FirstAvailableUnit(playerParty);
@@ -404,8 +423,7 @@ public class BattleManager : MonoBehaviour
         RegisterPresentationCombatants();
         currentRound = 1;
         battleEndPublished = false;
-        playerFaintPublished = false;
-        enemyFaintPublished = false;
+        faintPublishedUnits.Clear();
         phase = BattlePhase.Resolving;
 
         EmitLog("Battle started.");
@@ -530,8 +548,10 @@ public class BattleManager : MonoBehaviour
         hud.Bind();
         hud.SkillSlotClicked -= HandleSkillSlotClicked;
         hud.ActionClicked -= HandleActionClicked;
+        hud.PostBattleContinueClicked -= HandlePostBattleContinueClicked;
         hud.SkillSlotClicked += HandleSkillSlotClicked;
         hud.ActionClicked += HandleActionClicked;
+        hud.PostBattleContinueClicked += HandlePostBattleContinueClicked;
     }
 
     private void BuildBattleParties()
@@ -553,7 +573,18 @@ public class BattleManager : MonoBehaviour
         if (playerParty.Count == 0)
             playerParty.Add(CreateFallbackUnit(playerConfig));
 
-        enemyParty.Add(CreateUnit(enemyConfig, ResolveRunOpponentInstance()));
+        List<AlgoMonInstance> runOpponents = ResolveRunOpponentParty();
+        if (runOpponents != null)
+        {
+            for (int i = 0; i < runOpponents.Count; i++)
+            {
+                if (runOpponents[i] != null)
+                    enemyParty.Add(CreateUnit(enemyConfig, runOpponents[i]));
+            }
+        }
+
+        if (enemyParty.Count == 0)
+            enemyParty.Add(CreateUnit(enemyConfig, ResolveRunOpponentInstance()));
     }
 
     private static BattleUnit FirstAvailableUnit(List<BattleUnit> party)
@@ -574,6 +605,15 @@ public class BattleManager : MonoBehaviour
     {
         GameManager manager = GameManager.Instance;
         return manager != null ? manager.currentOpponent : null;
+    }
+
+    private List<AlgoMonInstance> ResolveRunOpponentParty()
+    {
+        GameManager manager = GameManager.Instance;
+        if (manager == null || manager.currentOpponentParty == null || manager.currentOpponentParty.Count == 0)
+            return null;
+
+        return manager.currentOpponentParty;
     }
 
     private BattleUnit CreateUnit(BattleCombatantConfig config, AlgoMonInstance runtimeInstance)
@@ -773,6 +813,9 @@ public class BattleManager : MonoBehaviour
 
     private BattleAction ChooseEnemyAction()
     {
+        if (TryChooseEnemySwitchTarget(out BattleUnit switchTarget))
+            return BattleAction.SwitchAction(enemy, switchTarget);
+
         return BattleAction.SkillAction(enemy, player, ChooseEnemySkill());
     }
 
@@ -806,6 +849,112 @@ public class BattleManager : MonoBehaviour
         if (bestFallback != null)
             return bestFallback;
         return rechargeSkill;
+    }
+
+    private bool TryChooseEnemySwitchTarget(out BattleUnit switchTarget)
+    {
+        switchTarget = null;
+
+        if (!IsHackerBattle() || !CanSwitchOut(enemy) || !HasSwitchTarget(enemyParty, enemy))
+            return false;
+
+        bool lowBattery = enemy.CurrentBattery <= HackerSwitchBatteryThreshold(enemy);
+        bool poorMatchup = IsPoorMatchup(enemy, player);
+        if (!lowBattery && !poorMatchup)
+            return false;
+
+        return TryGetBestSwitchTarget(enemyParty, enemy, player, lowBattery, out switchTarget);
+    }
+
+    private bool TryGetBestSwitchTarget(
+        List<BattleUnit> party,
+        BattleUnit activeUnit,
+        BattleUnit opponent,
+        bool lowBattery,
+        out BattleUnit switchTarget)
+    {
+        switchTarget = null;
+        if (party == null || activeUnit == null || opponent == null)
+            return false;
+
+        float activeScore = MatchupScore(activeUnit, opponent);
+        float bestScore = float.NegativeInfinity;
+
+        for (int i = 0; i < party.Count; i++)
+        {
+            BattleUnit candidate = party[i];
+            if (candidate == null ||
+                ReferenceEquals(candidate, activeUnit) ||
+                candidate.CurrentBattery <= 0)
+            {
+                continue;
+            }
+
+            float candidateScore = MatchupScore(candidate, opponent);
+            candidateScore += BatteryFraction(candidate) * 0.15f;
+            if (candidateScore > bestScore)
+            {
+                bestScore = candidateScore;
+                switchTarget = candidate;
+            }
+        }
+
+        return switchTarget != null &&
+               (lowBattery || bestScore > activeScore + HackerSwitchMatchupImprovement);
+    }
+
+    private static bool IsPoorMatchup(BattleUnit activeUnit, BattleUnit opponent)
+    {
+        if (activeUnit == null || opponent == null)
+            return false;
+
+        float outgoing = BestOutgoingElementMultiplier(activeUnit, opponent);
+        float incoming = BestOutgoingElementMultiplier(opponent, activeUnit);
+        return outgoing <= 0.75f || incoming >= 1.5f;
+    }
+
+    private static float MatchupScore(BattleUnit candidate, BattleUnit opponent)
+    {
+        if (candidate == null || opponent == null)
+            return 0f;
+
+        float outgoing = BestOutgoingElementMultiplier(candidate, opponent);
+        float incoming = BestOutgoingElementMultiplier(opponent, candidate);
+        return outgoing - incoming;
+    }
+
+    private static float BestOutgoingElementMultiplier(BattleUnit attacker, BattleUnit defender)
+    {
+        if (attacker == null || defender == null || defender.Instance?.data == null)
+            return 1f;
+
+        float best = 1f;
+        for (int i = 0; i < MaxSkillSlots; i++)
+        {
+            SkillData skill = attacker.GetSkill(i);
+            if (skill == null || skill.damageType == DamageType.None)
+                continue;
+
+            best = Mathf.Max(
+                best,
+                CombatResolver.GetElementMultiplier(skill.elementType, defender.Instance.data.elementType));
+        }
+
+        return best;
+    }
+
+    private static float BatteryFraction(BattleUnit unit)
+    {
+        return unit != null && unit.MaxBattery > 0
+            ? Mathf.Clamp01(unit.CurrentBattery / (float)unit.MaxBattery)
+            : 0f;
+    }
+
+    private static int HackerSwitchBatteryThreshold(BattleUnit unit)
+    {
+        return unit != null
+            ? Mathf.Max(1, Mathf.CeilToInt(unit.MaxBattery * HackerSwitchBatteryPercent))
+            : 0;
     }
 
     private static bool CanSwitchOut(BattleUnit unit)
@@ -1448,6 +1597,8 @@ public class BattleManager : MonoBehaviour
                 TryFinishBattle();
                 if (phase == BattlePhase.BattleOver)
                     yield break;
+                if (action.Target.CurrentBattery <= 0)
+                    yield break;
             }
 
             if (damage > 0 && action.Skill.onHitDrainOpponentCP > 0)
@@ -1876,6 +2027,26 @@ public class BattleManager : MonoBehaviour
         return null;
     }
 
+    private bool IsHackerBattle()
+    {
+        return CurrentEncounterNodeType() == NodeType.Hacker;
+    }
+
+    private string EnemyTrainerLabel()
+    {
+        return IsHackerBattle() ? "Hacker" : "Enemy";
+    }
+
+    private static NodeType CurrentEncounterNodeType()
+    {
+        GameManager manager = GameManager.Instance;
+        if (manager == null || manager.currentRunGraph == null || string.IsNullOrEmpty(manager.currentNodeId))
+            return NodeType.Combat;
+
+        GridNode node = manager.currentRunGraph.GetNode(manager.currentNodeId);
+        return node != null ? node.nodeType : NodeType.Combat;
+    }
+
     private void TryFinishBattle()
     {
         if (phase == BattlePhase.BattleOver)
@@ -1885,6 +2056,9 @@ public class BattleManager : MonoBehaviour
         {
             enemy.StatusText = "Offline";
             PublishFaint(enemy);
+            if (TrySendNextEnemy())
+                return;
+
             FinishBattle(true, $"{enemy.Name} is offline. Victory.");
             return;
         }
@@ -1897,59 +2071,165 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    private bool TrySendNextEnemy()
+    {
+        BattleUnit previous = enemy;
+        BattleUnit next = FirstAvailableReserve(enemyParty, previous);
+        if (next == null)
+            return false;
+
+        next.StatusText = "Ready";
+        enemy = next;
+        RegisterPresentationCombatants();
+
+        EmitLog($"{previous.Name} is offline.");
+        EmitLog($"{EnemyTrainerLabel()} sends out {next.Name}.");
+        Announce($"{EnemyTrainerLabel()} Switch", $"{next.Name} enters the battle.");
+        RefreshHud();
+        return true;
+    }
+
+    private static BattleUnit FirstAvailableReserve(List<BattleUnit> party, BattleUnit activeUnit)
+    {
+        if (party == null)
+            return null;
+
+        for (int i = 0; i < party.Count; i++)
+        {
+            BattleUnit unit = party[i];
+            if (unit != null &&
+                !ReferenceEquals(unit, activeUnit) &&
+                unit.CurrentBattery > 0)
+            {
+                return unit;
+            }
+        }
+
+        return null;
+    }
+
     private void PublishFaint(BattleUnit unit)
     {
         if (unit == null)
             return;
 
-        bool isPlayer = ReferenceEquals(unit, player);
-        if (isPlayer)
-        {
-            if (playerFaintPublished)
-                return;
-            playerFaintPublished = true;
-        }
-        else
-        {
-            if (enemyFaintPublished)
-                return;
-            enemyFaintPublished = true;
-        }
+        if (!faintPublishedUnits.Add(unit))
+            return;
 
         EventBus.Publish(new UnitFaintedEvent { UnitId = unit.Instance.nickname });
     }
 
     private void FinishBattle(bool playerWon, string message)
     {
+        if (battleEndPublished || waitingForPostBattleContinue)
+            return;
+
         phase = BattlePhase.BattleOver;
         EmitLog(message);
 
-        if (!battleEndPublished)
-        {
-            if (playerWon)
-                TryGrantDefeatedEnemyReward();
-
-            EventBus.Publish(new BattleEndEvent { PlayerWon = playerWon });
-            battleEndPublished = true;
-        }
+        EncounterReward reward = null;
+        if (playerWon)
+            reward = TryGrantDefeatedEnemyReward();
 
         RefreshHud();
+
+        if (playerWon)
+        {
+            waitingForPostBattleContinue = true;
+            pendingBattleEndPlayerWon = true;
+            ShowPostBattleRewardSummary(message, reward);
+            return;
+        }
+
+        PublishBattleEnd(playerWon);
     }
 
-    private void TryGrantDefeatedEnemyReward()
+    private void HandlePostBattleContinueClicked()
+    {
+        if (!waitingForPostBattleContinue)
+            return;
+
+        waitingForPostBattleContinue = false;
+        if (hud != null)
+            hud.HidePostBattlePanel();
+
+        PublishBattleEnd(pendingBattleEndPlayerWon);
+    }
+
+    private void PublishBattleEnd(bool playerWon)
+    {
+        if (battleEndPublished)
+            return;
+
+        EventBus.Publish(new BattleEndEvent { PlayerWon = playerWon });
+        battleEndPublished = true;
+    }
+
+    private EncounterReward TryGrantDefeatedEnemyReward()
     {
         GameManager manager = GameManager.Instance;
         if (manager == null || enemy == null)
-            return;
+            return null;
 
         EncounterReward reward = manager.GrantCurrentEncounterReward(enemy.Instance);
         if (reward != null && reward.HasAnyGrant)
         {
             EmitLog(reward.ToBattleLogLine());
-            return;
+            return reward;
         }
 
         EmitLog("REWARD SKIPPED: encounter data is not rewardable.");
+        return reward;
+    }
+
+    private void ShowPostBattleRewardSummary(string resultLine, EncounterReward reward)
+    {
+        string body = BuildPostBattleRewardBody(resultLine, reward);
+        SetDetail("Victory Rewards", body);
+        Announce("Rewards", "Node cleared. Review rewards, then continue.");
+
+        if (hud != null)
+            hud.ShowPostBattlePanel("Node Cleared", body, "Continue");
+    }
+
+    private static string BuildPostBattleRewardBody(string resultLine, EncounterReward reward)
+    {
+        var builder = new StringBuilder();
+
+        if (!string.IsNullOrWhiteSpace(resultLine))
+            builder.AppendLine(resultLine.Trim());
+
+        if (reward == null || !reward.HasAnyGrant)
+        {
+            builder.AppendLine("No persistent rewards were granted.");
+        }
+        else
+        {
+            builder.AppendLine($"NODE: {reward.sourceNodeType.ToString().ToUpperInvariant()} | T{reward.threatTier} | LV {reward.encounterLevel}");
+            builder.AppendLine($"USER EXP +{reward.playerExp}");
+            builder.AppendLine($"ALGOMON EXP +{reward.algoMonExp}");
+            builder.AppendLine($"COMPUTE +{reward.compute}");
+
+            if (!string.IsNullOrWhiteSpace(reward.speciesCodeName))
+                builder.AppendLine($"SOURCE DATA: {reward.speciesCodeName.ToUpperInvariant()}");
+
+            if (reward.baseDataGranted)
+                builder.AppendLine($"BASE DATA +1 ({EncounterReward.FormatQuality(reward.baseDataQuality)})");
+            else if (reward.shouldGrantBaseData)
+                builder.AppendLine("BASE DATA SKIPPED");
+
+            if (reward.evolutionDataGranted)
+                builder.AppendLine("EVOLUTION DATA +1");
+            else if (reward.shouldGrantEvolutionData)
+                builder.AppendLine("EVOLUTION DATA SKIPPED");
+
+            if (reward.rewardMultiplierPercent != 100)
+                builder.AppendLine($"REWARD MULTIPLIER: {reward.rewardMultiplierPercent}%");
+        }
+
+        builder.AppendLine();
+        builder.Append("Press CONTINUE to proceed.");
+        return builder.ToString();
     }
 
     private void RefreshHud()

@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Converts NodeType values into short labels and text icons for TheGrid.
+- Attached GameObject: None; this is a static UI formatting helper.
+- Main responsibilities: Return display labels, uppercase labels, and fallback text icons for node types.
+- Important variables: ToGridLabel, ToGridLabelUpper, ToGridIcon.
+- Inputs: NodeType enum values.
+- Outputs or effects: Produces text shown by GridNodeButton and GridMapController.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Check every NodeType displays a readable label and icon fallback.
+*/
 public static class GridNodeTypeDisplay
 {
     public static string ToGridLabel(this NodeType nodeType)

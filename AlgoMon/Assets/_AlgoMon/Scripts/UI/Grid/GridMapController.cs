@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Controls TheGrid scene UI and lets the player choose route nodes.
+- Attached GameObject: TheGrid scene map/controller object, usually on the main Canvas or grid controller root.
+- Main responsibilities: Ensure run state exists, draw nodes and connections, color node availability, handle node clicks, and send valid selections to GameManager.
+- Important variables: canvas, mapRoot, connectionRoot, nodeRoot, nodeViews, nodePositions, manager, fallbackGenerationSettings, node sprites, palette colors.
+- Inputs: GameManager.currentRunGraph, visited/current node data, button clicks, and debug run settings.
+- Outputs or effects: Rebuilds the map UI, updates hints, selects nodes, publishes navigation events through GameManager flow, and can start debug runs in the editor.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Start a run, click available and locked nodes, confirm only valid routes advance and combat nodes enter TheArena.
+*/
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -41,6 +52,7 @@ public class GridMapController : MonoBehaviour
     [SerializeField] private Sprite nodeFillSprite;
     [SerializeField] private Sprite startIcon;
     [SerializeField] private Sprite combatIcon;
+    [SerializeField] private Sprite hackerIcon;
     [SerializeField] private Sprite eliteIcon;
     [SerializeField] private Sprite shopIcon;
     [SerializeField] private Sprite rebootIcon;
@@ -141,6 +153,8 @@ public class GridMapController : MonoBehaviour
 
         if (!manager.IsRunActive || manager.currentRunGraph == null)
             manager.BeginRun(NewSeed(), fallbackGenerationSettings);
+        else if (manager.visitedNodeIds == null || manager.visitedNodeIds.Count <= 1)
+            manager.EnsureCurrentRunHasEarlyHacker();
     }
 
     private GameManager ResolveManager()
@@ -309,6 +323,8 @@ public class GridMapController : MonoBehaviour
     {
         if (node != null && node.nodeType == NodeType.Boss)
             return new Color(1f, 0.70f, 0.66f, 1f);
+        if (node != null && node.nodeType == NodeType.Hacker)
+            return new Color(0.42f, 1f, 0.78f, 1f);
         if (node != null && (node.nodeType == NodeType.Shop || node.nodeType == NodeType.Reboot))
             return warning;
 
@@ -328,6 +344,10 @@ public class GridMapController : MonoBehaviour
     {
         if (node != null && node.nodeType == NodeType.Boss)
             return new Color(1f, 0.82f, 0.78f, 1f);
+        if (node != null && node.nodeType == NodeType.Hacker)
+            return state == GridNodeVisualState.Locked
+                ? new Color(0.42f, 1f, 0.78f, 0.58f)
+                : new Color(0.42f, 1f, 0.78f, 1f);
         if (node != null && (node.nodeType == NodeType.Shop || node.nodeType == NodeType.Reboot))
             return state == GridNodeVisualState.Locked
                 ? new Color(warning.r, warning.g, warning.b, 0.58f)
@@ -353,13 +373,13 @@ public class GridMapController : MonoBehaviour
             case NodeType.Combat:
                 return combatIcon;
             case NodeType.Hacker:
-                return eliteIcon != null ? eliteIcon : combatIcon;
+                return hackerIcon;
             case NodeType.Elite:
                 return eliteIcon;
             case NodeType.Shop:
                 return shopIcon;
             case NodeType.Reboot:
-                return rebootIcon;
+                return null;
             case NodeType.Boss:
                 return bossIcon;
             default:
@@ -369,6 +389,8 @@ public class GridMapController : MonoBehaviour
 
     private string LabelFor(GridNode node, GridNodeVisualState state)
     {
+        if (node != null && node.nodeType == NodeType.Hacker && state != GridNodeVisualState.Current)
+            return "HACK";
         if (state != GridNodeVisualState.Current && (node == null || node.nodeType != NodeType.Boss))
             return string.Empty;
         if (node != null && node.nodeType == NodeType.Boss && state != GridNodeVisualState.Current)

@@ -5,12 +5,12 @@
     "loop": true
   },
   "attack": {
-    "fps": 9,
-    "actionFrame": 11,
-    "contactFrame": 8,
-    "returnFrame": 16,
-    "contactDistanceFromTarget": 0.65,
-    "contactOffset": { "x": -0.35, "y": 0 },
+    "fps": 10,
+    "actionFrame": 10,
+    "contactFrame": 5,
+    "returnFrame": 13,
+    "contactDistanceFromTarget": 0.50,
+    "contactOffset": { "x": -0.20, "y": 0 },
     "holdLastFrame": false
   },
   "defense": {

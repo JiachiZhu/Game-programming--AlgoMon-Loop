@@ -7,10 +7,12 @@
   "attack": {
     "fps": 10,
     "actionFrame": 9,
-    "contactFrame": 2,
+    "contactFrame": 6,
     "returnFrame": 18,
-    "contactDistanceFromTarget": 0.65,
-    "contactOffset": { "x": 0, "y": 0 },
+    "smoothContactMovement": true,
+    "smoothReturnMovement": true,
+    "contactDistanceFromTarget": 1.05,
+    "contactOffset": { "x": -0.18, "y": 0 },
     "holdLastFrame": false
   },
   "defense": {

@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Stores frame animation clips for each battle animation state.
+- Attached GameObject: None; this is a ScriptableObject asset referenced by AlgoMonData and BattleSpriteAnimator.
+- Main responsibilities: Keep idle, attack, defense, status, hit, and faint clip data and return the correct clip by state.
+- Important variables: profileId, mirrorX, idle, attack, defense, status, hit, faint, frames, fps, loop, actionFrame, contactFrame, returnFrame.
+- Inputs: Sprite frames and timing values assigned in the Inspector or loaded by BattleAnimationProfileLoader.
+- Outputs or effects: BattleSpriteAnimator uses this data to play species-specific animations.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Assign a profile to an AlgoMon and verify the correct animation plays for idle, attack, hit, and faint.
+*/
 using System;
 using UnityEngine;
 
@@ -31,6 +42,12 @@ public class BattleAnimationClipData
     [Tooltip("1-based authoring frame where the sprite returns to its home position. -1 means return at clip end.")]
     public int returnFrame = -1;
 
+    [Tooltip("If true, movement eases from home to contact across frames 1..contactFrame. If false, movement snaps on contactFrame.")]
+    public bool smoothContactMovement;
+
+    [Tooltip("If true, movement eases from contact back home across returnFrame..clip end. If false, movement snaps back on returnFrame.")]
+    public bool smoothReturnMovement;
+
     [Tooltip("How far to stop from the target when contact movement is used.")]
     [Min(0f)]
     public float contactDistanceFromTarget = 0.65f;
@@ -62,6 +79,9 @@ public class BattleAnimationClipData
 public class BattleAnimationProfile : ScriptableObject
 {
     public string profileId;
+
+    [Tooltip("Flips this profile horizontally before side-facing scale is applied. Use for species/forms authored opposite to the normal battle-facing convention.")]
+    public bool mirrorX;
 
     [Header("Core States")]
     public BattleAnimationClipData idle = new BattleAnimationClipData { loop = true, fps = 8f };

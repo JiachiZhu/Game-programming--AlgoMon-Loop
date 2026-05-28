@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Loads editor-time battle animation profiles from sprite folders and optional manifest files.
+- Attached GameObject: None; this is a static editor helper used by BattlePresentationController.
+- Main responsibilities: Find species/form sprite folders, create a runtime BattleAnimationProfile, apply manifest timing, load clip frames, and fix sprite import settings.
+- Important variables: SpriteRoot, ManifestName, TryLoadEditorProfile.
+- Inputs: AlgoMon codeName, formName, sprite folders, and battle_animation_manifest.json files.
+- Outputs or effects: Returns an editor-only BattleAnimationProfile for preview/play mode animation.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Add frames under Assets/_AlgoMon/Sprites/SPECIES/Form and confirm the profile auto-loads in the editor.
+*/
 using System;
 using System.IO;
 using UnityEngine;
@@ -66,6 +77,7 @@ public static class BattleAnimationProfileLoader
 
         if (!string.IsNullOrWhiteSpace(manifest.profileId))
             profile.profileId = manifest.profileId;
+        profile.mirrorX = manifest.mirrorX;
 
         ApplyClipManifest(profile.idle, manifest.idle);
         ApplyClipManifest(profile.attack, manifest.attack);
@@ -86,6 +98,8 @@ public static class BattleAnimationProfileLoader
         clip.actionFrame = manifest.actionFrame;
         clip.contactFrame = manifest.contactFrame;
         clip.returnFrame = manifest.returnFrame;
+        clip.smoothContactMovement = manifest.smoothContactMovement;
+        clip.smoothReturnMovement = manifest.smoothReturnMovement;
         if (manifest.contactDistanceFromTarget >= 0f)
             clip.contactDistanceFromTarget = manifest.contactDistanceFromTarget;
         clip.contactOffset = manifest.contactOffset;
@@ -142,6 +156,7 @@ public static class BattleAnimationProfileLoader
     private class BattleAnimationProfileManifest
     {
         public string profileId;
+        public bool mirrorX;
         public BattleAnimationClipManifest idle;
         public BattleAnimationClipManifest attack;
         public BattleAnimationClipManifest defense;
@@ -158,6 +173,8 @@ public static class BattleAnimationProfileLoader
         public int actionFrame = -1;
         public int contactFrame = -1;
         public int returnFrame = -1;
+        public bool smoothContactMovement;
+        public bool smoothReturnMovement;
         public float contactDistanceFromTarget = -1f;
         public Vector2 contactOffset;
         public bool holdLastFrame;

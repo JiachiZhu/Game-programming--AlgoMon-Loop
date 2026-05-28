@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Owns cross-scene game state and controls the main run lifecycle.
+- Attached GameObject: Auto-created persistent GameObject named GameManager through Bootstrap/EnsureInstance.
+- Main responsibilities: Store payload and party, start/end runs, generate current run graph, track visited nodes, create encounters, grant rewards, and load scenes.
+- Important variables: Instance, payload, party, currentRunGraph, currentNodeId, currentOpponent, currentOpponentParty, IsRunActive, selectedThreatTier, pendingRunOutcome, currentRunRewards.
+- Inputs: MainTerminal start command, Grid node selections, BattleEndEvent, party data, and reward data.
+- Outputs or effects: Changes scene, updates run state, creates opponents, saves rewards/captures, and publishes or responds to game events.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Start a run, select combat nodes, win/lose battles, and confirm Grid/Arena/RunResult scene flow and rewards.
+*/
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -40,6 +51,7 @@ public class GameManager : MonoBehaviour
     public GridGraph currentRunGraph;
     public List<string> visitedNodeIds = new List<string>();
     public AlgoMonInstance currentOpponent;
+    public List<AlgoMonInstance> currentOpponentParty = new List<AlgoMonInstance>();
     public bool IsRunActive { get; private set; }
 
     [Header("Threat Tier")]
@@ -168,6 +180,7 @@ public class GameManager : MonoBehaviour
         visitedNodeIds.Clear();
         visitedNodeIds.Add(currentNodeId);
         currentOpponent = null;
+        currentOpponentParty.Clear();
     }
 
     public void EndRun()
@@ -178,6 +191,7 @@ public class GameManager : MonoBehaviour
         currentNodeId = string.Empty;
         visitedNodeIds.Clear();
         currentOpponent = null;
+        currentOpponentParty.Clear();
         currentThreatTier = ThreatTierRules.MinTier;
         currentRewardMultiplier = 1f;
         computeBalance = 0;
@@ -430,14 +444,35 @@ public class GameManager : MonoBehaviour
         if (!IsEncounterNode(e.Type))
         {
             currentOpponent = null;
+            currentOpponentParty.Clear();
             return;
         }
 
         ThreatTier threatTier = currentRunGraph != null
             ? ThreatTierRules.ClampTier(currentRunGraph.threatTier)
             : ThreatTierRules.ClampTier(currentThreatTier);
-        currentOpponent = EncounterFactory.Create(currentRunSeed, e.Node, threatTier);
+        currentOpponentParty.Clear();
+        currentOpponentParty.AddRange(EncounterFactory.CreateParty(currentRunSeed, e.Node, threatTier));
+        currentOpponent = currentOpponentParty.Count > 0
+            ? currentOpponentParty[0]
+            : EncounterFactory.Create(currentRunSeed, e.Node, threatTier);
         GoTo(GameScene.TheArena);
+    }
+
+    public bool EnsureCurrentRunHasEarlyHacker()
+    {
+        if (!IsRunActive || currentRunGraph == null)
+            return false;
+
+        bool changed = GridGenerator.EnsureHackerNode(currentRunGraph, true);
+        if (changed)
+        {
+            ThreatTier tier = ThreatTierRules.ClampTier(
+                currentRunGraph.threatTier > 0 ? currentRunGraph.threatTier : currentThreatTier);
+            ThreatTierRules.ApplyDifficultyToGraph(currentRunGraph, tier, AveragePartyLevel());
+        }
+
+        return changed;
     }
 
     private void OnBattleEnd(BattleEndEvent e)
@@ -447,6 +482,7 @@ public class GameManager : MonoBehaviour
 
         GridNode completedNode = CurrentRunNode();
         currentOpponent = null;
+        currentOpponentParty.Clear();
 
         if (e.PlayerWon && completedNode != null && completedNode.nodeType != NodeType.Boss)
         {

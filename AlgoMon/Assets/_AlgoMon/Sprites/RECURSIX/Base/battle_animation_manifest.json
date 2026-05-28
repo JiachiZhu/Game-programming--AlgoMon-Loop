@@ -1,5 +1,6 @@
 {
   "profileId": "Recursix_Base",
+  "mirrorX": true,
   "idle": {
     "fps": 8,
     "loop": true

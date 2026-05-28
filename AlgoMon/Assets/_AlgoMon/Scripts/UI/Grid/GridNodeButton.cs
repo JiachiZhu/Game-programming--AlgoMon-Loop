@@ -1,3 +1,14 @@
+/*
+Script Audit:
+- Purpose: Displays and forwards clicks for one node on TheGrid map.
+- Attached GameObject: Runtime/generated UI Button object for a single GridNode.
+- Main responsibilities: Bind a GridNode, update icon/text/ring colors, set interactability, and call the click callback.
+- Important variables: typeLabel, detailLabel, stateLabel, ringImage, iconImage, button, background, node, clicked.
+- Inputs: GridNode data, visual state values, sprites/colors, and player click events.
+- Outputs or effects: Updates node UI and tells GridMapController which node was clicked.
+- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- Testing notes: Click a node button and verify GridMapController receives the correct GridNode.
+*/
 using System;
 using UnityEngine;
 using UnityEngine.UI;
