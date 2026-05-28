@@ -427,6 +427,7 @@ public class BattleManager : MonoBehaviour
         phase = BattlePhase.Resolving;
 
         EmitLog("Battle started.");
+        EmitRunBuffSummary();
         RefreshHud();
         if (logLineDelay > 0f)
             yield return new WaitForSeconds(logLineDelay);
@@ -1578,7 +1579,7 @@ public class BattleManager : MonoBehaviour
                 action.Skill,
                 action.DefenderInstructionType,
                 action.WonCounter,
-                action.FinalDamageMultiplier,
+                RunAdjustedDamageMultiplier(action),
                 action.BasePowerBonus);
 
             int previousBattery = action.Target.CurrentBattery;
@@ -1884,7 +1885,48 @@ public class BattleManager : MonoBehaviour
         if (unit == null || skill == null)
             return 0;
         int reducedBaseCost = Mathf.Max(0, skill.cpCost - unit.CostReductionFor(skill, currentRound));
+        if (IsPlayerUnit(unit))
+            reducedBaseCost = Mathf.Max(0, reducedBaseCost - PlayerRunSkillCostReduction());
         return unit.Statuses.EffectiveSkillCost(reducedBaseCost, currentRound);
+    }
+
+    private void EmitRunBuffSummary()
+    {
+        GameManager manager = GameManager.Instance;
+        if (manager == null || manager.currentRunBuffs == null || manager.currentRunBuffs.Count == 0)
+            return;
+
+        EmitLog("RUN BUFFS:");
+        EmitLog(manager.CurrentRunBuffSummary());
+    }
+
+    private float RunAdjustedDamageMultiplier(BattleAction action)
+    {
+        if (action == null)
+            return 1f;
+
+        float multiplier = action.FinalDamageMultiplier;
+        GameManager manager = GameManager.Instance;
+        if (manager == null)
+            return multiplier;
+
+        if (IsPlayerUnit(action.Actor))
+            multiplier *= manager.PlayerRunOutgoingDamageMultiplier;
+        if (IsPlayerUnit(action.Target))
+            multiplier *= manager.PlayerRunIncomingDamageMultiplier;
+
+        return multiplier;
+    }
+
+    private int PlayerRunSkillCostReduction()
+    {
+        GameManager manager = GameManager.Instance;
+        return manager != null ? manager.PlayerRunSkillCostReduction : 0;
+    }
+
+    private bool IsPlayerUnit(BattleUnit unit)
+    {
+        return unit != null && playerParty.Contains(unit);
     }
 
     private bool CanPay(BattleUnit unit, SkillData skill)

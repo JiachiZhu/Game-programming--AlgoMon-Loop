@@ -44,6 +44,7 @@ public class GameManager : MonoBehaviour
     public int playerExp;
     public int computeBalance;
     public List<string> evolutionDataSpeciesCodes = new List<string>();
+    public List<RunBuffType> currentRunBuffs = new List<RunBuffType>();
 
     [Header("Run State")]
     public string currentNodeId;
@@ -160,6 +161,8 @@ public class GameManager : MonoBehaviour
         EnsureRewardContainers();
         currentRunRewards.Reset();
         computeBalance = 0;
+        if (currentRunBuffs != null)
+            currentRunBuffs.Clear();
         lastEncounterReward = new EncounterReward();
 
         ThreatTier runTier = SelectedThreatTier;
@@ -195,6 +198,8 @@ public class GameManager : MonoBehaviour
         currentThreatTier = ThreatTierRules.MinTier;
         currentRewardMultiplier = 1f;
         computeBalance = 0;
+        if (currentRunBuffs != null)
+            currentRunBuffs.Clear();
         EnsureRewardContainers();
         currentRunRewards.Reset();
         lastEncounterReward = new EncounterReward();
@@ -353,6 +358,100 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    public bool HasRunBuff(RunBuffType buffType)
+    {
+        return currentRunBuffs != null && currentRunBuffs.Contains(buffType);
+    }
+
+    public bool CanPurchaseShopOffer(RunShopOffer offer, out string reason)
+    {
+        reason = string.Empty;
+        if (offer == null)
+        {
+            reason = "No offer selected.";
+            return false;
+        }
+
+        if (!IsRunActive)
+        {
+            reason = "Shop buffs require an active run.";
+            return false;
+        }
+
+        EnsureRewardContainers();
+        if (HasRunBuff(offer.BuffType))
+        {
+            reason = "Already active this run.";
+            return false;
+        }
+
+        if (!CanAffordCompute(offer.ComputeCost))
+        {
+            reason = $"Need {offer.ComputeCost - computeBalance} more compute.";
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryPurchaseShopOffer(RunShopOffer offer, out string message)
+    {
+        if (!CanPurchaseShopOffer(offer, out message))
+            return false;
+
+        if (!TrySpendCompute(offer.ComputeCost))
+        {
+            message = "Compute spend failed.";
+            return false;
+        }
+
+        currentRunBuffs.Add(offer.BuffType);
+        message = $"Purchased {offer.DisplayName}.";
+        return true;
+    }
+
+    public float PlayerRunOutgoingDamageMultiplier
+    {
+        get
+        {
+            EnsureRewardContainers();
+            return RunShopCatalog.OutgoingDamageMultiplier(currentRunBuffs);
+        }
+    }
+
+    public float PlayerRunIncomingDamageMultiplier
+    {
+        get
+        {
+            EnsureRewardContainers();
+            return RunShopCatalog.IncomingDamageMultiplier(currentRunBuffs);
+        }
+    }
+
+    public int PlayerRunSkillCostReduction
+    {
+        get
+        {
+            EnsureRewardContainers();
+            return RunShopCatalog.SkillCostReduction(currentRunBuffs);
+        }
+    }
+
+    public float PlayerRunExpRewardMultiplier
+    {
+        get
+        {
+            EnsureRewardContainers();
+            return RunShopCatalog.ExpRewardMultiplier(currentRunBuffs);
+        }
+    }
+
+    public string CurrentRunBuffSummary()
+    {
+        EnsureRewardContainers();
+        return RunShopCatalog.BuildActiveSummary(currentRunBuffs);
+    }
+
     public int EvolutionDataCountFor(string speciesCodeName)
     {
         if (evolutionDataSpeciesCodes == null || string.IsNullOrWhiteSpace(speciesCodeName))
@@ -383,10 +482,24 @@ public class GameManager : MonoBehaviour
             tier,
             currentRewardMultiplier);
 
+        ApplyRunRewardBuffs(reward);
         ApplyEncounterReward(reward, defeatedOpponent);
         currentRunRewards.Add(reward);
         lastEncounterReward = reward.Clone();
         return reward;
+    }
+
+    private void ApplyRunRewardBuffs(EncounterReward reward)
+    {
+        if (reward == null)
+            return;
+
+        float expMultiplier = PlayerRunExpRewardMultiplier;
+        if (Mathf.Approximately(expMultiplier, 1f))
+            return;
+
+        reward.playerExp = Mathf.Max(0, Mathf.RoundToInt(reward.playerExp * expMultiplier));
+        reward.algoMonExp = Mathf.Max(0, Mathf.RoundToInt(reward.algoMonExp * expMultiplier));
     }
 
     private void ApplyEncounterReward(EncounterReward reward, AlgoMonInstance defeatedOpponent)
@@ -545,6 +658,8 @@ public class GameManager : MonoBehaviour
     {
         if (evolutionDataSpeciesCodes == null)
             evolutionDataSpeciesCodes = new List<string>();
+        if (currentRunBuffs == null)
+            currentRunBuffs = new List<RunBuffType>();
         if (lastEncounterReward == null)
             lastEncounterReward = new EncounterReward();
         if (currentRunRewards == null)

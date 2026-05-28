@@ -11,6 +11,7 @@ Script Audit:
 */
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -78,9 +79,16 @@ public class GridMapController : MonoBehaviour
     private readonly Dictionary<string, GridNodeButton> nodeViews = new Dictionary<string, GridNodeButton>();
     private readonly List<GameObject> spawnedObjects = new List<GameObject>();
     private readonly Dictionary<string, Vector2> nodePositions = new Dictionary<string, Vector2>();
+    private readonly List<Button> shopOfferButtons = new List<Button>();
 
     private GameManager manager;
     private Font defaultFont;
+    private RectTransform shopPanel;
+    private Text shopTitleText;
+    private Text shopBalanceText;
+    private Text shopBodyText;
+    private Button shopCloseButton;
+    private GridNode activeShopNode;
 
     private void Awake()
     {
@@ -142,6 +150,7 @@ public class GridMapController : MonoBehaviour
 
         int seed = NewSeed();
         manager.BeginRun(seed, fallbackGenerationSettings);
+        HideShopPanel();
         RebuildMap();
     }
 
@@ -547,6 +556,10 @@ public class GridMapController : MonoBehaviour
 
         RebuildMap(BuildCommandHint(node, returnedToStart));
 
+        bool opensShop = node.nodeType == NodeType.Shop;
+        if (!opensShop)
+            HideShopPanel();
+
         EventBus.Publish(new NodeSelectedEvent
         {
             NodeId = node.id,
@@ -556,6 +569,206 @@ public class GridMapController : MonoBehaviour
             IsFirstVisit = !wasVisited,
             ReturnedToStart = returnedToStart
         });
+
+        if (opensShop)
+            ShowShopPanel(node);
+    }
+
+    private void ShowShopPanel(GridNode shopNode)
+    {
+        activeShopNode = shopNode;
+        EnsureShopPanel();
+        if (shopPanel == null)
+            return;
+
+        shopPanel.SetAsLastSibling();
+        shopPanel.gameObject.SetActive(true);
+        RefreshShopPanel();
+        SetHint(BuildShopHint());
+    }
+
+    private void HideShopPanel()
+    {
+        activeShopNode = null;
+        if (shopPanel != null)
+            shopPanel.gameObject.SetActive(false);
+    }
+
+    private void EnsureShopPanel()
+    {
+        if (shopPanel != null)
+            return;
+
+        RectTransform parent = mapRoot != null ? mapRoot.parent as RectTransform : null;
+        if (parent == null && canvas != null)
+            parent = canvas.GetComponent<RectTransform>();
+        if (parent == null)
+            return;
+
+        shopPanel = GetOrCreateRect("ShopPanel", parent);
+        shopPanel.anchorMin = new Vector2(0.58f, 0.17f);
+        shopPanel.anchorMax = new Vector2(0.96f, 0.80f);
+        shopPanel.offsetMin = Vector2.zero;
+        shopPanel.offsetMax = Vector2.zero;
+
+        Image panelImage = shopPanel.GetComponent<Image>() ?? shopPanel.gameObject.AddComponent<Image>();
+        panelImage.color = new Color(0.035f, 0.047f, 0.056f, 0.98f);
+
+        Outline outline = shopPanel.GetComponent<Outline>() ?? shopPanel.gameObject.AddComponent<Outline>();
+        outline.effectColor = new Color(warning.r, warning.g, warning.b, 0.56f);
+        outline.effectDistance = new Vector2(2f, -2f);
+
+        shopTitleText = GetOrCreateText("Title", shopPanel, 21, FontStyle.Bold, TextAnchor.MiddleLeft);
+        shopTitleText.rectTransform.anchorMin = new Vector2(0.06f, 0.88f);
+        shopTitleText.rectTransform.anchorMax = new Vector2(0.62f, 0.98f);
+        shopTitleText.rectTransform.offsetMin = Vector2.zero;
+        shopTitleText.rectTransform.offsetMax = Vector2.zero;
+        shopTitleText.text = "Compute Shop";
+
+        shopBalanceText = GetOrCreateText("Balance", shopPanel, 13, FontStyle.Bold, TextAnchor.MiddleRight);
+        shopBalanceText.rectTransform.anchorMin = new Vector2(0.50f, 0.88f);
+        shopBalanceText.rectTransform.anchorMax = new Vector2(0.94f, 0.98f);
+        shopBalanceText.rectTransform.offsetMin = Vector2.zero;
+        shopBalanceText.rectTransform.offsetMax = Vector2.zero;
+        shopBalanceText.color = warning;
+
+        shopBodyText = GetOrCreateText("Body", shopPanel, 12, FontStyle.Normal, TextAnchor.UpperLeft);
+        shopBodyText.rectTransform.anchorMin = new Vector2(0.06f, 0.41f);
+        shopBodyText.rectTransform.anchorMax = new Vector2(0.94f, 0.86f);
+        shopBodyText.rectTransform.offsetMin = Vector2.zero;
+        shopBodyText.rectTransform.offsetMax = Vector2.zero;
+        shopBodyText.verticalOverflow = VerticalWrapMode.Truncate;
+
+        shopOfferButtons.Clear();
+        RunShopOffer[] offers = RunShopCatalog.Offers;
+        for (int i = 0; i < offers.Length; i++)
+        {
+            Button button = GetOrCreateButton($"Offer{i + 1}", shopPanel, string.Empty);
+            RectTransform rect = button.GetComponent<RectTransform>();
+            float top = 0.36f - i * 0.071f;
+            rect.anchorMin = new Vector2(0.06f, top - 0.055f);
+            rect.anchorMax = new Vector2(0.94f, top);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            shopOfferButtons.Add(button);
+        }
+
+        shopCloseButton = GetOrCreateButton("CloseButton", shopPanel, "CLOSE");
+        RectTransform closeRect = shopCloseButton.GetComponent<RectTransform>();
+        closeRect.anchorMin = new Vector2(0.70f, 0.03f);
+        closeRect.anchorMax = new Vector2(0.94f, 0.095f);
+        closeRect.offsetMin = Vector2.zero;
+        closeRect.offsetMax = Vector2.zero;
+        shopCloseButton.onClick.RemoveAllListeners();
+        shopCloseButton.onClick.AddListener(() =>
+        {
+            HideShopPanel();
+            SetHint(BuildCommandHint());
+        });
+
+        shopPanel.gameObject.SetActive(false);
+    }
+
+    private void RefreshShopPanel()
+    {
+        if (shopPanel == null || !shopPanel.gameObject.activeSelf)
+            return;
+
+        manager = ResolveManager();
+        if (manager == null)
+            return;
+
+        if (shopTitleText != null)
+            shopTitleText.text = activeShopNode != null ? "Compute Shop" : "Shop Offline";
+        if (shopBalanceText != null)
+            shopBalanceText.text = $"CMP {manager.computeBalance:000}";
+        if (shopBodyText != null)
+            shopBodyText.text = BuildShopBody();
+
+        RunShopOffer[] offers = RunShopCatalog.Offers;
+        for (int i = 0; i < shopOfferButtons.Count; i++)
+        {
+            Button button = shopOfferButtons[i];
+            if (button == null)
+                continue;
+
+            bool hasOffer = i < offers.Length;
+            button.gameObject.SetActive(hasOffer);
+            if (!hasOffer)
+                continue;
+
+            RunShopOffer offer = offers[i];
+            string reason;
+            bool canPurchase = manager.CanPurchaseShopOffer(offer, out reason);
+            button.interactable = canPurchase;
+            SetButtonText(button, $"{offer.ShortLabel}  {offer.ComputeCost} CMP");
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => TryPurchaseShopOffer(offer));
+        }
+    }
+
+    private string BuildShopBody()
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("ACTIVE RUN BUFFS");
+        builder.AppendLine(manager != null ? manager.CurrentRunBuffSummary() : "No run data.");
+        builder.AppendLine();
+        builder.AppendLine("OFFERS");
+
+        RunShopOffer[] offers = RunShopCatalog.Offers;
+        for (int i = 0; i < offers.Length; i++)
+        {
+            RunShopOffer offer = offers[i];
+            string state = string.Empty;
+            if (manager != null && manager.HasRunBuff(offer.BuffType))
+            {
+                state = " [ACTIVE]";
+            }
+            else if (manager != null && !manager.CanPurchaseShopOffer(offer, out string reason))
+            {
+                state = $" [{reason}]";
+            }
+            else if (offer.HighRisk)
+            {
+                state = " [HIGH RISK]";
+            }
+
+            builder.AppendLine($"{offer.DisplayName} - {offer.ComputeCost} CMP{state}");
+            builder.AppendLine(offer.Description);
+        }
+
+        return builder.ToString();
+    }
+
+    private void TryPurchaseShopOffer(RunShopOffer offer)
+    {
+        manager = ResolveManager();
+        if (manager == null || offer == null)
+            return;
+
+        string message;
+        if (manager.TryPurchaseShopOffer(offer, out message))
+            SetHint($"> {message} Remaining compute: {manager.computeBalance:000}.");
+        else
+            SetHint($"> Purchase rejected: {message}");
+
+        RefreshShopPanel();
+        RefreshNodeStates();
+    }
+
+    private string BuildShopHint()
+    {
+        if (manager == null)
+            return "> Shop node online.";
+
+        return $"> Shop node online. Spend compute on run-limited buffs, then choose a connected route.";
+    }
+
+    private static void SetButtonText(Button button, string label)
+    {
+        Text text = button != null ? button.GetComponentInChildren<Text>() : null;
+        if (text != null)
+            text.text = label;
     }
 
     private void ConfigureDebugNewRunButton()
@@ -899,7 +1112,7 @@ public class GridMapController : MonoBehaviour
 
     private string BuildTerminalStatus(GridGraph graph)
     {
-        return "TACTICAL CHIPS    MATERIAL PAYLOAD    CURRENT DEPTH";
+        return "COMPUTE BANK      MATERIAL PAYLOAD    CURRENT DEPTH";
     }
 
     private string BuildDepthStatus(GridGraph graph)
@@ -921,7 +1134,8 @@ public class GridMapController : MonoBehaviour
         }
 
         int payloadCount = manager != null && manager.payload != null ? manager.payload.Count : 0;
-        return $"2                 {payloadCount}                   {currentLayer + 1}/{Mathf.Max(1, maxLayer + 1)}";
+        int compute = manager != null ? manager.computeBalance : 0;
+        return $"{compute:0000}              {payloadCount}                   {currentLayer + 1}/{Mathf.Max(1, maxLayer + 1)}";
     }
 
     private string BuildCommandHint(GridNode selectedNode = null, bool returnedToStart = false)
@@ -932,6 +1146,8 @@ public class GridMapController : MonoBehaviour
                 return "> Route cursor returned to terminal entry.";
             if (selectedNode.nodeType == NodeType.Reboot)
                 return "> Reboot node online. Choose a forward route or return to terminal entry.";
+            if (selectedNode.nodeType == NodeType.Shop)
+                return "> Shop node online. Spend compute on run-limited buffs.";
 
             return $"> Enter [{selectedNode.nodeType.ToGridLabel()}] node... acquiring route data.";
         }
