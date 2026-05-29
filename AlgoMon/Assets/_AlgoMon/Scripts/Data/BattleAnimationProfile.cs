@@ -83,6 +83,10 @@ public class BattleAnimationProfile : ScriptableObject
     [Tooltip("Flips this profile horizontally before side-facing scale is applied. Use for species/forms authored opposite to the normal battle-facing convention.")]
     public bool mirrorX;
 
+    [Tooltip("Species/form-specific visual scale applied after automatic height normalization.")]
+    [Min(0.1f)]
+    public float visualScaleMultiplier = 1f;
+
     [Header("Core States")]
     public BattleAnimationClipData idle = new BattleAnimationClipData { loop = true, fps = 8f };
     public BattleAnimationClipData attack = new BattleAnimationClipData { fps = 12f };

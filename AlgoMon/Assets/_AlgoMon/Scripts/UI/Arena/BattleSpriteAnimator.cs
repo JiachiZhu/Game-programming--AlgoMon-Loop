@@ -440,9 +440,18 @@ public class BattleSpriteAnimator : MonoBehaviour
 
         Vector3 scale = authoredBodyLocalScale;
         scale *= ProfileVisualScaleMultiplier();
+        scale *= ProfileAuthoredScaleMultiplier();
         if (animationProfile != null && animationProfile.mirrorX)
             scale.x *= -1f;
         baseBodyLocalScale = scale;
+    }
+
+    private float ProfileAuthoredScaleMultiplier()
+    {
+        if (animationProfile == null)
+            return 1f;
+
+        return Mathf.Max(0.1f, animationProfile.visualScaleMultiplier);
     }
 
     private float ProfileVisualScaleMultiplier()

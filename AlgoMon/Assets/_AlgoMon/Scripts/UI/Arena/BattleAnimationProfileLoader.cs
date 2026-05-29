@@ -78,6 +78,8 @@ public static class BattleAnimationProfileLoader
         if (!string.IsNullOrWhiteSpace(manifest.profileId))
             profile.profileId = manifest.profileId;
         profile.mirrorX = manifest.mirrorX;
+        if (manifest.visualScaleMultiplier > 0f)
+            profile.visualScaleMultiplier = manifest.visualScaleMultiplier;
 
         ApplyClipManifest(profile.idle, manifest.idle);
         ApplyClipManifest(profile.attack, manifest.attack);
@@ -157,6 +159,7 @@ public static class BattleAnimationProfileLoader
     {
         public string profileId;
         public bool mirrorX;
+        public float visualScaleMultiplier = 1f;
         public BattleAnimationClipManifest idle;
         public BattleAnimationClipManifest attack;
         public BattleAnimationClipManifest defense;

@@ -192,7 +192,19 @@ AlgoMon-Loop/
 | Asset | Tool | Notes |
 |---|---|---|
 | AlgoMon sprite artwork (12 images) | Google Gemini 3.1 Pro (image generation) | All portraits generated specifically for this project |
-| Visual concept and generated image support | ChatGPT Image 2 | Used for project-specific visual ideation and image iteration |
-| Pixel-art asset generation support | PixelLab | Used for pixel-style sprite and animation asset iteration |
+| MainTerminal typing-character loop | ChatGPT Image 2 | Six project-specific frames generated and looped in-game |
+| Main menu cover and battle background | ChatGPT Image 2 | Project-specific generated UI/background art |
+| Element icons | Gemini 3.1 Pro / Nano Banana | Project-specific generated element badge artwork |
+| AlgoMon battle animation frames | PixelLab | Project-specific pixel-style sprite animation frames |
 | Pixel-art editing and Aseprite import workflow | Aseprite prebuilt GitHub build + Unity 2D Aseprite package | Used as the pixel-art canvas/editor workflow for sprite cleanup, frame editing, and Unity import support |
+| UI icons | [Lucide Icons](https://lucide.dev/) | Used under the ISC License |
+| Fonts | [Nico Font Pack by Emily Huo](https://emhuo.itch.io/nico-pixel-fonts-pack) | Used under the SIL Open Font License 1.1 |
+| Skill frame UI | [Free Inventory Sci-Fi by ELV Games](https://elvgames.itch.io/free-sci-fi-inventory) | License permits use and modification; credit ELV Games |
+| Battle health bar UI | [Basic Pixel Health bar and Scroll bar by BDragon1727](https://bdragon1727.itch.io/basic-pixel-health-bar-and-scroll-bar) | Used for Pixel UI Pack 3 health-bar pieces |
+| Battle announcer panel | [Pixel ui asset art by DuxDevGames](https://dux-dev-games.itch.io/pixel-ui-asset-art) | Cropped into the announcer panel |
+| CP battery visual reference | [Complete UI Essential Pack by Crusenho](https://crusenho.itch.io/complete-ui-essential-pack) | Visual reference for custom CP battery frame; CC BY 4.0 |
+| Custom battle/grid support UI | Project-generated / Codex-assisted | Ground disc, CP fills, round sandclock frames, terminal node disc/ring, and MainTerminal mask/shadow pieces |
 | Development Guidelines | [Karpathy Cursor Rules](https://github.com/forrestchang/andrej-karpathy-skills/blob/main/.cursor/rules/karpathy-guidelines.mdc) | Used to configure Cursor IDE to maintain code quality and avoid AI generation pitfalls |
+
+See `Docs/AssetAttribution.md` for the current source/license checklist and
+the assets that still need source confirmation before final submission.

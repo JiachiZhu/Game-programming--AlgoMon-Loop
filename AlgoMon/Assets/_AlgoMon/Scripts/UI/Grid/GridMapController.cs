@@ -24,6 +24,8 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 public class GridMapController : MonoBehaviour
 {
+    private const string GridFontResourcePath = "Fonts/NicoBold-Regular";
+
     [Header("Scene References")]
     [SerializeField] private Canvas canvas;
     [SerializeField] private RectTransform mapRoot;
@@ -42,7 +44,7 @@ public class GridMapController : MonoBehaviour
     [SerializeField] private GridGenerationSettings fallbackGenerationSettings = new GridGenerationSettings();
 
     [Header("Layout")]
-    [SerializeField] private Vector2 nodeSize = new Vector2(48f, 48f);
+    [SerializeField] private Vector2 nodeSize = new Vector2(56f, 56f);
     [SerializeField] private float horizontalPadding = 84f;
     [SerializeField] private float verticalPadding = 58f;
     [SerializeField] private float layerNodeSpacing = 132f;
@@ -93,8 +95,9 @@ public class GridMapController : MonoBehaviour
 
     private void Awake()
     {
-        defaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        defaultFont = GridFont();
         EnsureSceneShell();
+        ApplyResolvedTextStyles();
     }
 
     private void Start()
@@ -279,6 +282,8 @@ public class GridMapController : MonoBehaviour
             Color textColor = state == GridNodeVisualState.Locked ? textDim : textBright;
             Sprite iconSprite = IconFor(node);
             Color iconColor = IconColorFor(node, state);
+            string detailLabel = DetailLabelFor(node);
+            Color detailColor = DetailColorFor(node, state);
 
             entry.Value.SetVisual(
                 state,
@@ -288,11 +293,14 @@ public class GridMapController : MonoBehaviour
                 iconSprite,
                 iconColor,
                 LabelFor(node, state),
+                detailLabel,
+                detailColor,
                 interactable);
         }
 
         if (manager != null)
             SetHeader(BuildTerminalStatus(manager.currentRunGraph), BuildDepthStatus(manager.currentRunGraph));
+        RefreshLegend();
     }
 
     private GridNodeVisualState StateFor(GridNode node)
@@ -316,6 +324,8 @@ public class GridMapController : MonoBehaviour
                 return currentFill;
             case GridNodeVisualState.Visited:
                 return visitedFill;
+            case GridNodeVisualState.Locked:
+                return LockedFillFor(node);
         }
 
         if (isVisited)
@@ -329,20 +339,31 @@ public class GridMapController : MonoBehaviour
         return lockedFill;
     }
 
+    private Color LockedFillFor(GridNode node)
+    {
+        if (node == null)
+            return lockedFill;
+        if (node.nodeType == NodeType.Boss)
+            return Color.Lerp(lockedFill, bossFill, 0.42f);
+        if (node.nodeType == NodeType.Start)
+            return Color.Lerp(lockedFill, startFill, 0.45f);
+        return lockedFill;
+    }
+
     private Color OutlineFor(GridNode node, GridNodeVisualState state, bool isVisited)
     {
-        if (node != null && node.nodeType == NodeType.Boss)
-            return new Color(1f, 0.70f, 0.66f, 1f);
-        if (node != null && node.nodeType == NodeType.Hacker)
-            return new Color(0.42f, 1f, 0.78f, 1f);
-        if (node != null && (node.nodeType == NodeType.Shop || node.nodeType == NodeType.Reboot))
-            return warning;
+        Color nodeAccent = NodeAccentFor(node);
+
+        if (state == GridNodeVisualState.Locked)
+            return Color.Lerp(lineLocked, nodeAccent, node != null && node.nodeType == NodeType.Boss ? 0.48f : 0.26f);
+        if (state == GridNodeVisualState.Visited || isVisited)
+            return Color.Lerp(lineVisited, nodeAccent, 0.24f);
 
         switch (state)
         {
             case GridNodeVisualState.Current:
             case GridNodeVisualState.Available:
-                return accent;
+                return nodeAccent;
             case GridNodeVisualState.Visited:
                 return lineVisited;
             default:
@@ -352,22 +373,44 @@ public class GridMapController : MonoBehaviour
 
     private Color IconColorFor(GridNode node, GridNodeVisualState state)
     {
+        Color nodeAccent = NodeAccentFor(node);
+        if (state == GridNodeVisualState.Locked)
+            return new Color(nodeAccent.r, nodeAccent.g, nodeAccent.b, 0.48f);
         if (node != null && node.nodeType == NodeType.Boss)
             return new Color(1f, 0.82f, 0.78f, 1f);
         if (node != null && node.nodeType == NodeType.Hacker)
-            return state == GridNodeVisualState.Locked
-                ? new Color(0.42f, 1f, 0.78f, 0.58f)
-                : new Color(0.42f, 1f, 0.78f, 1f);
+            return new Color(0.42f, 1f, 0.78f, 1f);
         if (node != null && (node.nodeType == NodeType.Shop || node.nodeType == NodeType.Reboot))
-            return state == GridNodeVisualState.Locked
-                ? new Color(warning.r, warning.g, warning.b, 0.58f)
-                : warning;
-        if (state == GridNodeVisualState.Locked)
-            return new Color(textDim.r, textDim.g, textDim.b, 0.42f);
+            return warning;
         if (state == GridNodeVisualState.Visited)
             return lineVisited;
         if (state == GridNodeVisualState.Current)
             return textBright;
+        return nodeAccent;
+    }
+
+    private Color DetailColorFor(GridNode node, GridNodeVisualState state)
+    {
+        if (state == GridNodeVisualState.Locked)
+            return new Color(textDim.r, textDim.g, textDim.b, 0.86f);
+        return NodeAccentFor(node);
+    }
+
+    private Color NodeAccentFor(GridNode node)
+    {
+        if (node == null)
+            return accent;
+
+        if (node.nodeType == NodeType.Boss)
+            return new Color(1f, 0.70f, 0.66f, 1f);
+        if (node.nodeType == NodeType.Hacker)
+            return new Color(0.42f, 1f, 0.78f, 1f);
+        if (node.nodeType == NodeType.Elite)
+            return new Color(1f, 0.55f, 0.36f, 1f);
+        if (node.nodeType == NodeType.Shop || node.nodeType == NodeType.Reboot)
+            return warning;
+        if (node.dangerRating >= 4)
+            return new Color(1f, 0.62f, 0.42f, 1f);
         return accent;
     }
 
@@ -399,23 +442,55 @@ public class GridMapController : MonoBehaviour
 
     private string LabelFor(GridNode node, GridNodeVisualState state)
     {
-        if (node != null && node.nodeType == NodeType.Hacker && state != GridNodeVisualState.Current)
-            return "HACK";
-        if (state != GridNodeVisualState.Current && (node == null || node.nodeType != NodeType.Boss))
-            return string.Empty;
         if (node != null && node.nodeType == NodeType.Boss && state != GridNodeVisualState.Current)
             return "TARGET";
 
         switch (state)
         {
             case GridNodeVisualState.Current:
-                return "LOCATED";
+                return "HERE";
             case GridNodeVisualState.Available:
-                return "AVAILABLE";
+                return "NEXT";
             case GridNodeVisualState.Visited:
-                return "VISITED";
+                return "DONE";
             default:
-                return "LOCKED";
+                return string.Empty;
+        }
+    }
+
+    private string DetailLabelFor(GridNode node)
+    {
+        if (node == null)
+            return string.Empty;
+
+        string label = ShortTypeLabelFor(node.nodeType);
+        if (!ThreatTierRules.IsEncounterNode(node.nodeType))
+            return label;
+
+        int danger = Mathf.Clamp(node.dangerRating, 1, ThreatTierRules.MaxTier);
+        return $"{label} D{danger}";
+    }
+
+    private static string ShortTypeLabelFor(NodeType nodeType)
+    {
+        switch (nodeType)
+        {
+            case NodeType.Start:
+                return "START";
+            case NodeType.Combat:
+                return "WILD";
+            case NodeType.Hacker:
+                return "HACK";
+            case NodeType.Elite:
+                return "ELITE";
+            case NodeType.Shop:
+                return "SHOP";
+            case NodeType.Reboot:
+                return "REBOOT";
+            case NodeType.Boss:
+                return "BOSS";
+            default:
+                return nodeType.ToString().ToUpperInvariant();
         }
     }
 
@@ -460,8 +535,8 @@ public class GridMapController : MonoBehaviour
         iconImage.rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
         iconImage.rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
         iconImage.rectTransform.pivot = new Vector2(0.5f, 0.5f);
-        iconImage.rectTransform.anchoredPosition = new Vector2(0f, 0f);
-        iconImage.rectTransform.sizeDelta = new Vector2(22f, 22f);
+        iconImage.rectTransform.anchoredPosition = new Vector2(0f, 6f);
+        iconImage.rectTransform.sizeDelta = new Vector2(23f, 23f);
         iconImage.raycastTarget = false;
         iconImage.preserveAspect = true;
 
@@ -471,11 +546,14 @@ public class GridMapController : MonoBehaviour
         typeLabel.rectTransform.offsetMin = new Vector2(8f, 8f);
         typeLabel.rectTransform.offsetMax = new Vector2(-8f, -8f);
 
-        Text detailLabel = CreateText("DetailLabel", rect, 7, FontStyle.Bold, TextAnchor.LowerCenter);
+        Text detailLabel = CreateText("DetailLabel", rect, 9, FontStyle.Bold, TextAnchor.LowerCenter);
         detailLabel.rectTransform.anchorMin = new Vector2(0f, 0f);
-        detailLabel.rectTransform.anchorMax = new Vector2(1f, 0.35f);
-        detailLabel.rectTransform.offsetMin = new Vector2(4f, 3f);
-        detailLabel.rectTransform.offsetMax = new Vector2(-4f, 0f);
+        detailLabel.rectTransform.anchorMax = new Vector2(1f, 0.42f);
+        detailLabel.rectTransform.offsetMin = new Vector2(3f, 2f);
+        detailLabel.rectTransform.offsetMax = new Vector2(-3f, 0f);
+        detailLabel.resizeTextForBestFit = true;
+        detailLabel.resizeTextMinSize = 8;
+        detailLabel.resizeTextMaxSize = 9;
         detailLabel.gameObject.SetActive(false);
 
         Text stateLabel = CreateText("StateLabel", rect, 9, FontStyle.Bold, TextAnchor.MiddleCenter);
@@ -486,7 +564,7 @@ public class GridMapController : MonoBehaviour
         stateLabel.rectTransform.sizeDelta = new Vector2(82f, 18f);
 
         GridNodeButton view = nodeObject.AddComponent<GridNodeButton>();
-        view.Bind(node, HandleNodeClicked);
+        view.Bind(node, HandleNodeClicked, HandleNodePreviewed);
         spawnedObjects.Add(nodeObject);
         return view;
     }
@@ -573,6 +651,17 @@ public class GridMapController : MonoBehaviour
 
         if (opensShop)
             ShowShopPanel(node);
+    }
+
+    private void HandleNodePreviewed(GridNode node)
+    {
+        if (node == null)
+        {
+            SetHint(BuildCommandHint());
+            return;
+        }
+
+        SetHint(BuildPreviewHint(node));
     }
 
     private void ShowShopPanel(GridNode shopNode)
@@ -1109,6 +1198,14 @@ public class GridMapController : MonoBehaviour
         text.verticalOverflow = VerticalWrapMode.Truncate;
     }
 
+    private Font GridFont()
+    {
+        Font font = Resources.Load<Font>(GridFontResourcePath);
+        if (font == null)
+            font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return font;
+    }
+
     private Button GetOrCreateButton(string objectName, RectTransform parent, string label)
     {
         RectTransform rect = GetOrCreateRect(objectName, parent);
@@ -1152,6 +1249,30 @@ public class GridMapController : MonoBehaviour
             hintText.text = message;
     }
 
+    private void RefreshLegend()
+    {
+        if (legendText != null)
+            legendText.text = "HERE / NEXT / DONE / dim locked | D1-D5 danger | TARGET = boss";
+    }
+
+    private void ApplyResolvedTextStyles()
+    {
+        ApplyTextFont(titleText, 26);
+        ApplyTextFont(seedText, 14);
+        ApplyTextFont(hintText, 16);
+        ApplyTextFont(legendText, 14);
+    }
+
+    private void ApplyTextFont(Text text, int minimumSize)
+    {
+        if (text == null)
+            return;
+
+        text.font = defaultFont;
+        text.fontSize = Mathf.Max(text.fontSize, minimumSize);
+        text.resizeTextForBestFit = false;
+    }
+
     private string BuildTerminalStatus(GridGraph graph)
     {
         return "COMPUTE BANK      MATERIAL PAYLOAD    CURRENT DEPTH";
@@ -1185,18 +1306,137 @@ public class GridMapController : MonoBehaviour
         if (selectedNode != null)
         {
             if (returnedToStart)
-                return "> Route cursor returned to terminal entry.";
+                return "> START | Route cursor returned to terminal entry. Choose a new forward route.";
             if (selectedNode.nodeType == NodeType.Reboot)
-                return "> Reboot node online. Choose a forward route or return to terminal entry.";
+                return "> REBOOT | Route reset node. Choose a forward route or return to terminal entry.";
             if (selectedNode.nodeType == NodeType.Shop)
-                return "> Shop node online. Three run-limited offers loaded.";
+                return "> SHOP | Spend compute on current-run buffs. Rewards: damage, CP, shield, EXP, or high-risk trade-off offers.";
 
-            return $"> Enter [{selectedNode.nodeType.ToGridLabel()}] node... acquiring route data.";
+            return BuildSelectedNodeDetail(selectedNode);
         }
 
         if (manager == null || string.IsNullOrEmpty(manager.currentNodeId))
             return "> System initialized. Waiting for input...";
 
-        return $"> Located [{manager.currentNodeId}]. Select a connected data node.";
+        return $"> Located [{manager.currentNodeId}]. Select a NEXT node. Read node label for type and D1-D5 danger.";
+    }
+
+    private string BuildPreviewHint(GridNode node)
+    {
+        if (node == null)
+            return BuildCommandHint();
+
+        string availability = NodeAvailabilityLabel(node);
+        return $"> PREVIEW {availability} | {BuildSelectedNodeDetail(node).TrimStart('>', ' ')}";
+    }
+
+    private string NodeAvailabilityLabel(GridNode node)
+    {
+        switch (StateFor(node))
+        {
+            case GridNodeVisualState.Current:
+                return "HERE";
+            case GridNodeVisualState.Available:
+                return "NEXT";
+            case GridNodeVisualState.Visited:
+                return "DONE";
+            default:
+                return "LOCKED";
+        }
+    }
+
+    private string BuildSelectedNodeDetail(GridNode node)
+    {
+        if (node == null)
+            return "> Route data unavailable.";
+
+        string typeLabel = node.nodeType.ToGridLabel().ToUpperInvariant();
+        string encounter = EncounterIdentityFor(node);
+        string risk = RiskSummaryFor(node);
+        string reward = RewardIdentityFor(node.nodeType);
+        return $"> {typeLabel} | {encounter} | {risk} | Rewards: {reward}.";
+    }
+
+    private string EncounterIdentityFor(GridNode node)
+    {
+        if (node == null)
+            return "Unknown route";
+
+        switch (node.nodeType)
+        {
+            case NodeType.Combat:
+                return $"Wild AlgoMon encounter, Lv {DisplayEncounterLevel(node)}";
+            case NodeType.Hacker:
+                return $"Hacker party pressure, Lv {DisplayEncounterLevel(node)}";
+            case NodeType.Elite:
+                return $"Elite encounter, Lv {DisplayEncounterLevel(node)}";
+            case NodeType.Boss:
+                return $"Boss target, evolved foe, Lv {DisplayEncounterLevel(node)}";
+            case NodeType.Shop:
+                return "Compute shop";
+            case NodeType.Reboot:
+                return "Route reset";
+            case NodeType.Start:
+                return "Terminal entry";
+            default:
+                return node.nodeType.ToGridLabel();
+        }
+    }
+
+    private static string DisplayEncounterLevel(GridNode node)
+    {
+        if (node == null || node.encounterLevel <= 0)
+            return "??";
+
+        return node.encounterLevel.ToString("00");
+    }
+
+    private static string RiskSummaryFor(GridNode node)
+    {
+        if (node == null || !ThreatTierRules.IsEncounterNode(node.nodeType))
+            return "Safe utility node";
+
+        int danger = Mathf.Clamp(node.dangerRating, 1, ThreatTierRules.MaxTier);
+        return $"Danger D{danger} ({DepthLabelFor(node.depthBand)})";
+    }
+
+    private static string DepthLabelFor(EncounterDepthBand depthBand)
+    {
+        switch (depthBand)
+        {
+            case EncounterDepthBand.Early:
+                return "early";
+            case EncounterDepthBand.Middle:
+                return "mid";
+            case EncounterDepthBand.Late:
+                return "late";
+            case EncounterDepthBand.Boss:
+                return "run target";
+            default:
+                return "utility";
+        }
+    }
+
+    private static string RewardIdentityFor(NodeType nodeType)
+    {
+        switch (nodeType)
+        {
+            case NodeType.Combat:
+                return "small EXP, compute, base Payload data";
+            case NodeType.Hacker:
+                return "higher EXP and compute, no Payload capture";
+            case NodeType.Elite:
+                return "above-average EXP and compute";
+            case NodeType.Boss:
+                return "high EXP, high-quality data, evolution data";
+            case NodeType.Shop:
+                return "spend compute for run buffs";
+            case NodeType.Reboot:
+                return "route flexibility, no combat reward";
+            case NodeType.Start:
+                return "begin or restart route planning";
+            default:
+                return "route progress";
+        }
     }
 }

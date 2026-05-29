@@ -1,5 +1,6 @@
 {
   "profileId": "Nullbyte_Base",
+  "visualScaleMultiplier": 0.82,
   "idle": {
     "fps": 8,
     "loop": true

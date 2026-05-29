@@ -11,6 +11,7 @@ Script Audit:
 */
 using System;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 /// <summary>
@@ -21,7 +22,7 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Button))]
 [RequireComponent(typeof(Image))]
-public class GridNodeButton : MonoBehaviour
+public class GridNodeButton : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, ISelectHandler
 {
     [SerializeField] private Text typeLabel;
     [SerializeField] private Text detailLabel;
@@ -33,6 +34,7 @@ public class GridNodeButton : MonoBehaviour
     private Image background;
     private GridNode node;
     private Action<GridNode> clicked;
+    private Action<GridNode> previewed;
 
     public GridNode Node => node;
 
@@ -47,12 +49,13 @@ public class GridNodeButton : MonoBehaviour
             button.onClick.RemoveListener(HandleClick);
     }
 
-    public void Bind(GridNode gridNode, Action<GridNode> onClicked)
+    public void Bind(GridNode gridNode, Action<GridNode> onClicked, Action<GridNode> onPreviewed = null)
     {
         CacheReferences();
 
         node = gridNode;
         clicked = onClicked;
+        previewed = onPreviewed;
 
         if (button != null)
         {
@@ -77,6 +80,8 @@ public class GridNodeButton : MonoBehaviour
         Sprite iconSprite,
         Color iconColor,
         string stateText,
+        string detailText,
+        Color detailColor,
         bool interactable)
     {
         CacheReferences();
@@ -98,10 +103,13 @@ public class GridNodeButton : MonoBehaviour
         if (typeLabel != null)
             typeLabel.gameObject.SetActive(useTextFallback);
         if (detailLabel != null)
-            detailLabel.gameObject.SetActive(false);
+        {
+            detailLabel.text = detailText;
+            detailLabel.gameObject.SetActive(!string.IsNullOrWhiteSpace(detailText));
+        }
 
         SetTextColor(typeLabel, textColor);
-        SetTextColor(detailLabel, textColor);
+        SetTextColor(detailLabel, detailColor);
         SetTextColor(stateLabel, textColor);
 
         if (stateLabel != null)
@@ -145,6 +153,21 @@ public class GridNodeButton : MonoBehaviour
     private void HandleClick()
     {
         clicked?.Invoke(node);
+    }
+
+    public void OnPointerEnter(PointerEventData eventData)
+    {
+        previewed?.Invoke(node);
+    }
+
+    public void OnPointerExit(PointerEventData eventData)
+    {
+        previewed?.Invoke(null);
+    }
+
+    public void OnSelect(BaseEventData eventData)
+    {
+        previewed?.Invoke(node);
     }
 
     private static void SetTextColor(Text text, Color color)

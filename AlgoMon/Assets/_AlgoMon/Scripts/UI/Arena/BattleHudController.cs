@@ -47,6 +47,8 @@ public class BattleHudController : MonoBehaviour
     private const string SkillTagFrameResourcePath = "UI/SkillFrame/scifi_inventory02_box_select01";
     private const string SkillPanelBackdropResourcePath = "UI/SkillFrame/inventory_example_02_four_rows_soft";
     private const string ElementIconResourcePrefix = "UI/Elements/Element_";
+    private const float RoundSandclockTopBarAnchorX = 0.655f;
+    private const float RoundSandclockSize = 48f;
 
     // Default text shown in the Skill Details panel when no button is hovered.
     private const string DefaultSkillDetailTitle = "Skill Details";
@@ -61,6 +63,8 @@ public class BattleHudController : MonoBehaviour
     private static readonly Vector2 BatteryFillFallbackAnchorMax = new Vector2(0.82f, 0.98f);
     private static readonly Vector2 BatteryFillInsetMin = new Vector2(0f, 0f);
     private static readonly Vector2 BatteryFillInsetMax = new Vector2(1f, 1f);
+    private static readonly Vector2 AnnouncerAnchorMin = new Vector2(0.30f, 0.805f);
+    private static readonly Vector2 AnnouncerAnchorMax = new Vector2(0.70f, 0.925f);
 
     [Header("Resource Animation")]
     [SerializeField, Min(0f)] private float batteryLerpSpeed = 8f;
@@ -219,6 +223,7 @@ public class BattleHudController : MonoBehaviour
         battleStateText  = FindText("SafeArea/TopBar/BattleStateText");
         if (roundSandclockImage == null)
             roundSandclockImage = Find<Image>("SafeArea/TopBar/RoundSandclock");
+        ConfigureRoundSandclockLayout();
         ApplyRoundSandclockState();
         EnsureBattleAnnouncer();
         EnsurePostBattlePanel();
@@ -667,15 +672,13 @@ public class BattleHudController : MonoBehaviour
 
     private void EnsureBattleAnnouncer()
     {
-        if (announcerTitleText != null && announcerBodyText != null)
-            return;
-
         Transform root = FindTransform("SafeArea/BattleAnnouncer");
         if (root == null && autoCreateAnnouncer)
             root = CreateBattleAnnouncer();
         if (root == null)
             return;
 
+        ConfigureBattleAnnouncerLayout(root as RectTransform);
         if (announcerFrame == null)
             announcerFrame = root.GetComponent<Image>();
         ConfigureAnnouncerFrame();
@@ -794,11 +797,7 @@ public class BattleHudController : MonoBehaviour
         GameObject rootObject = new GameObject("BattleAnnouncer", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
         RectTransform root = rootObject.GetComponent<RectTransform>();
         root.SetParent(parent, false);
-        root.anchorMin = new Vector2(0.30f, 0.855f);
-        root.anchorMax = new Vector2(0.70f, 0.985f);
-        root.offsetMin = Vector2.zero;
-        root.offsetMax = Vector2.zero;
-        root.SetAsLastSibling();
+        ConfigureBattleAnnouncerLayout(root);
 
         announcerFrame = rootObject.GetComponent<Image>();
         ConfigureAnnouncerFrame();
@@ -824,6 +823,38 @@ public class BattleHudController : MonoBehaviour
             new Vector2(0.95f, 0.70f));
 
         return root;
+    }
+
+    private void ConfigureRoundSandclockLayout()
+    {
+        if (roundSandclockImage == null)
+            return;
+
+        RectTransform rect = roundSandclockImage.rectTransform;
+        if (rect != null)
+        {
+            rect.anchorMin = new Vector2(RoundSandclockTopBarAnchorX, 0.5f);
+            rect.anchorMax = new Vector2(RoundSandclockTopBarAnchorX, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = new Vector2(RoundSandclockSize, RoundSandclockSize);
+            rect.SetAsLastSibling();
+        }
+
+        roundSandclockImage.raycastTarget = false;
+        roundSandclockImage.preserveAspect = true;
+    }
+
+    private static void ConfigureBattleAnnouncerLayout(RectTransform root)
+    {
+        if (root == null)
+            return;
+
+        root.anchorMin = AnnouncerAnchorMin;
+        root.anchorMax = AnnouncerAnchorMax;
+        root.offsetMin = Vector2.zero;
+        root.offsetMax = Vector2.zero;
+        root.SetAsLastSibling();
     }
 
     private Text CreateAnnouncerText(
