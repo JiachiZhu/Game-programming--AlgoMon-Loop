@@ -65,6 +65,11 @@ public class MainTerminalController : MonoBehaviour
     [SerializeField] private Text payloadPortraitFallbackText;
     [SerializeField] private Text payloadListText;
     [SerializeField] private Text payloadDetailPanelText;
+    [SerializeField] private RectTransform depthTierPanel;
+    [SerializeField] private Text depthTierTitleText;
+    [SerializeField] private Text depthTierDetailText;
+    [SerializeField] private Button[] depthTierButtons;
+    [SerializeField] private bool unlockAllThreatTiersForVerticalSlice = true;
 
     [Header("Starter Fallback")]
     [SerializeField] private AlgoMonData fallbackStarter;
@@ -73,11 +78,13 @@ public class MainTerminalController : MonoBehaviour
     private float bootTime;
     private Font defaultFont;
     private int selectedPayloadIndex = -1;
+    private UnityEngine.Events.UnityAction[] depthTierButtonActions;
 
     private void Awake()
     {
         defaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         manager = GameManager.EnsureInstance();
+        EnsureThreatTierAccess(manager);
         EnsureStarterParty(manager, fallbackStarter);
         EnsureHudWidgets();
         RefreshRunOverview();
@@ -91,6 +98,7 @@ public class MainTerminalController : MonoBehaviour
         WireButton(systemLogButton, ShowSystemLogPlaceholder);
         WireButton(settingsButton, ShowSettingsPlaceholder);
         WireButton(exitButton, ShowExitPlaceholder);
+        WireDepthTierButtons();
     }
 
     private void OnDisable()
@@ -101,12 +109,13 @@ public class MainTerminalController : MonoBehaviour
         UnwireButton(systemLogButton, ShowSystemLogPlaceholder);
         UnwireButton(settingsButton, ShowSettingsPlaceholder);
         UnwireButton(exitButton, ShowExitPlaceholder);
+        UnwireDepthTierButtons();
     }
 
     private void Start()
     {
         bootTime = Time.unscaledTime;
-        SetModule("ENTER_GRID", "WARNING:", "INITIALIZING GRID CONNECTION...", "DATA LOSS IMMINENT | SYNCING NEURAL LINK...");
+        SetModule("ENTER_GRID", "DEPTH TIER:", "GRID ENTRY DEPTH SELECTED", BuildDepthTierDetail(manager));
         RefreshRunOverview();
     }
 
@@ -159,10 +168,33 @@ public class MainTerminalController : MonoBehaviour
         if (manager == null)
             return;
 
+        EnsureThreatTierAccess(manager);
         EnsureStarterParty(manager, fallbackStarter);
         RefreshRunOverview();
         manager.BeginRun();
         GameManager.GoTo(GameScene.TheGrid);
+    }
+
+    private void SelectDepthTier(int tier)
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        if (manager == null)
+            return;
+
+        EnsureThreatTierAccess(manager);
+        if (manager.IsRunActive)
+        {
+            SetModule("ENTER_GRID", "RUN ACTIVE:", "DEPTH TIER LOCKED", BuildDepthTierDetail(manager));
+            RefreshRunOverview();
+            return;
+        }
+
+        if (manager.TrySetSelectedThreatTier(tier))
+            SetModule("ENTER_GRID", "DEPTH TIER:", $"DEPTH {tier}F SELECTED", BuildDepthTierDetail(manager));
+        else
+            SetModule("ENTER_GRID", "LOCKED:", $"DEPTH {tier}F UNAVAILABLE", BuildDepthTierDetail(manager));
+
+        RefreshRunOverview();
     }
 
     private void ShowGeneLabPlaceholder()
@@ -218,6 +250,7 @@ public class MainTerminalController : MonoBehaviour
         if (manager == null)
             return;
 
+        EnsureThreatTierAccess(manager);
         EnsureStarterParty(manager, fallbackStarter);
 
         if (partyPreviewText != null)
@@ -239,8 +272,34 @@ public class MainTerminalController : MonoBehaviour
                 $"SQUAD// {PartyCount(manager):00}/{GameManager.MaxPartySize:00}";
         }
 
+        RefreshDepthTierSelector();
+
         if (payloadPanel != null && payloadPanel.gameObject.activeSelf)
             RenderPayloadPanel(manager);
+    }
+
+    private void EnsureThreatTierAccess(GameManager targetManager)
+    {
+        if (targetManager == null || !unlockAllThreatTiersForVerticalSlice)
+            return;
+
+        if (targetManager.HighestUnlockedThreatTierNumber < ThreatTierRules.MaxTier)
+            targetManager.SetHighestUnlockedThreatTier(ThreatTierRules.MaxTier);
+    }
+
+    private string BuildDepthTierDetail(GameManager targetManager)
+    {
+        if (targetManager == null)
+            return "Depth tier data unavailable.";
+
+        int selected = targetManager.SelectedThreatTierNumber;
+        int highest = targetManager.HighestUnlockedThreatTierNumber;
+        ThreatTier tier = targetManager.SelectedThreatTier;
+        int rewardPercent = targetManager.IsRunActive
+            ? Mathf.RoundToInt(targetManager.currentRewardMultiplier * 100f)
+            : ThreatTierRules.RewardMultiplierPercent(tier, targetManager.HighestUnlockedThreatTier);
+
+        return $"DEPTH {selected}F / TIER T{selected:00}/{highest:00}\nENEMY BAND LV {ThreatTierRules.MinLevel(tier):00}-{ThreatTierRules.MaxLevel(tier):00}\nREWARD MULTIPLIER x{rewardPercent:000}%";
     }
 
     private string BuildPartyPreview(GameManager targetManager)
@@ -516,6 +575,8 @@ public class MainTerminalController : MonoBehaviour
         overlay.offsetMin = Vector2.zero;
         overlay.offsetMax = Vector2.zero;
 
+        EnsureDepthTierSelector(overlay);
+
         moduleText = moduleText != null
             ? moduleText
             : CreateText("ModuleText", overlay, 15, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.78f, 1f, 1f, 1f));
@@ -634,6 +695,98 @@ public class MainTerminalController : MonoBehaviour
         SetAnchors(scanLine.rectTransform, new Vector2(0.08f, 0.49f), new Vector2(0.92f, 0.505f));
 
         return panelRect;
+    }
+
+    private void EnsureDepthTierSelector(Transform parent)
+    {
+        if (depthTierPanel == null)
+        {
+            Image panelImage = CreateImage("DepthTierSelector", parent, new Color(0.006f, 0.012f, 0.026f, 0.92f));
+            depthTierPanel = panelImage.rectTransform;
+        }
+
+        depthTierPanel.transform.SetParent(parent, false);
+        Image background = depthTierPanel.GetComponent<Image>();
+        if (background == null)
+            background = depthTierPanel.gameObject.AddComponent<Image>();
+        background.raycastTarget = false;
+        background.color = new Color(0.006f, 0.012f, 0.026f, 0.92f);
+        SetAnchors(depthTierPanel, new Vector2(0.735f, 0.792f), new Vector2(0.805f, 0.868f));
+
+        depthTierTitleText = depthTierTitleText != null
+            ? depthTierTitleText
+            : CreateText("DepthTierTitle", depthTierPanel, 10, FontStyle.Bold, TextAnchor.UpperCenter, new Color(0.88f, 0.94f, 1f, 1f));
+        depthTierTitleText.transform.SetParent(depthTierPanel, false);
+        depthTierTitleText.fontSize = 10;
+        depthTierTitleText.color = new Color(0.88f, 0.94f, 1f, 1f);
+        depthTierTitleText.text = "DEPTH";
+        ApplyCyberText(depthTierTitleText, new Color(0f, 0.14f, 0.22f, 1f), new Vector2(1f, -1f));
+        SetAnchors(depthTierTitleText.rectTransform, new Vector2(0f, 0.68f), new Vector2(1f, 1f));
+
+        depthTierDetailText = depthTierDetailText != null
+            ? depthTierDetailText
+            : CreateText("DepthTierDetail", depthTierPanel, 8, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.54f, 1f, 0.72f, 1f));
+        depthTierDetailText.transform.SetParent(depthTierPanel, false);
+        depthTierDetailText.fontSize = 8;
+        depthTierDetailText.color = new Color(0.54f, 1f, 0.72f, 1f);
+        ApplyCyberText(depthTierDetailText, new Color(0f, 0.2f, 0.12f, 1f), new Vector2(1f, -1f));
+        SetAnchors(depthTierDetailText.rectTransform, new Vector2(0f, 0.42f), new Vector2(1f, 0.68f));
+
+        EnsureDepthTierButtons();
+        RefreshDepthTierSelector();
+    }
+
+    private void EnsureDepthTierButtons()
+    {
+        if (depthTierPanel == null)
+            return;
+
+        int tierCount = ThreatTierRules.MaxTier - ThreatTierRules.MinTier + 1;
+        if (depthTierButtons == null || depthTierButtons.Length != tierCount)
+            depthTierButtons = new Button[tierCount];
+
+        const float spacing = 0.012f;
+        float width = (1f - spacing * (tierCount - 1)) / tierCount;
+        for (int i = 0; i < tierCount; i++)
+        {
+            int tier = i + ThreatTierRules.MinTier;
+            if (depthTierButtons[i] == null)
+                depthTierButtons[i] = CreateDepthTierButton($"DepthTierButton_{tier}F", depthTierPanel);
+
+            RectTransform rect = depthTierButtons[i].GetComponent<RectTransform>();
+            float minX = i * (width + spacing);
+            SetAnchors(rect, new Vector2(minX, 0.06f), new Vector2(minX + width, 0.40f));
+        }
+    }
+
+    private Button CreateDepthTierButton(string objectName, RectTransform parent)
+    {
+        RectTransform rect = CreateRect(objectName, parent);
+        Image image = rect.gameObject.AddComponent<Image>();
+        image.color = new Color(0.018f, 0.032f, 0.052f, 1f);
+        image.raycastTarget = true;
+
+        Button button = rect.gameObject.AddComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = Color.Lerp(Color.white, new Color(0.54f, 1f, 0.72f, 1f), 0.24f);
+        colors.pressedColor = Color.Lerp(Color.white, new Color(1f, 0.55f, 0.78f, 1f), 0.38f);
+        colors.selectedColor = Color.Lerp(Color.white, new Color(0.54f, 1f, 0.72f, 1f), 0.28f);
+        colors.disabledColor = new Color(0.48f, 0.50f, 0.56f, 1f);
+        button.colors = colors;
+
+        Outline outline = rect.gameObject.AddComponent<Outline>();
+        outline.effectColor = new Color(0.08f, 0.92f, 1f, 0.42f);
+        outline.effectDistance = new Vector2(1f, -1f);
+
+        Text label = CreateText("Text", rect, 8, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.96f, 0.99f, 1f, 1f));
+        label.raycastTarget = false;
+        label.resizeTextForBestFit = true;
+        label.resizeTextMinSize = 6;
+        label.resizeTextMaxSize = 8;
+        SetAnchors(label.rectTransform, Vector2.zero, Vector2.one);
+
+        return button;
     }
 
     private RectTransform EnsureMainScreenProgress(Transform parent)
@@ -772,6 +925,94 @@ public class MainTerminalController : MonoBehaviour
         rect.anchorMax = max;
         rect.offsetMin = Vector2.zero;
         rect.offsetMax = Vector2.zero;
+    }
+
+    private void RefreshDepthTierSelector()
+    {
+        if (manager == null)
+            return;
+
+        EnsureThreatTierAccess(manager);
+        int selected = manager.SelectedThreatTierNumber;
+        int highest = manager.HighestUnlockedThreatTierNumber;
+        ThreatTier tier = manager.SelectedThreatTier;
+
+        if (depthTierTitleText != null)
+            depthTierTitleText.text = "DEPTH";
+        if (depthTierDetailText != null)
+            depthTierDetailText.text = $"T{selected:00} LV{ThreatTierRules.MinLevel(tier):00}-{ThreatTierRules.MaxLevel(tier):00}";
+
+        if (depthTierButtons == null)
+            return;
+
+        for (int i = 0; i < depthTierButtons.Length; i++)
+        {
+            Button button = depthTierButtons[i];
+            if (button == null)
+                continue;
+
+            int buttonTier = i + ThreatTierRules.MinTier;
+            bool unlocked = buttonTier <= highest;
+            bool isSelected = buttonTier == selected;
+            button.interactable = unlocked && !manager.IsRunActive;
+
+            Image image = button.GetComponent<Image>();
+            if (image != null)
+            {
+                if (isSelected)
+                    image.color = new Color(0.08f, 0.25f, 0.20f, 0.98f);
+                else if (unlocked)
+                    image.color = new Color(0.018f, 0.032f, 0.052f, 0.96f);
+                else
+                    image.color = new Color(0.012f, 0.014f, 0.020f, 0.70f);
+            }
+
+            Outline outline = button.GetComponent<Outline>();
+            if (outline != null)
+            {
+                outline.effectColor = isSelected
+                    ? new Color(0.54f, 1f, 0.72f, 0.92f)
+                    : new Color(0.08f, 0.92f, 1f, unlocked ? 0.42f : 0.16f);
+            }
+
+            Text label = button.GetComponentInChildren<Text>();
+            if (label != null)
+            {
+                label.text = unlocked ? $"{buttonTier}F" : "--";
+                label.color = isSelected
+                    ? new Color(0.54f, 1f, 0.72f, 1f)
+                    : (unlocked ? new Color(0.96f, 0.99f, 1f, 1f) : new Color(0.48f, 0.54f, 0.60f, 1f));
+            }
+        }
+    }
+
+    private void WireDepthTierButtons()
+    {
+        if (depthTierButtons == null)
+            return;
+
+        if (depthTierButtonActions == null || depthTierButtonActions.Length != depthTierButtons.Length)
+        {
+            depthTierButtonActions = new UnityEngine.Events.UnityAction[depthTierButtons.Length];
+            for (int i = 0; i < depthTierButtonActions.Length; i++)
+            {
+                int tier = i + ThreatTierRules.MinTier;
+                depthTierButtonActions[i] = () => SelectDepthTier(tier);
+            }
+        }
+
+        for (int i = 0; i < depthTierButtons.Length; i++)
+            WireButton(depthTierButtons[i], depthTierButtonActions[i]);
+    }
+
+    private void UnwireDepthTierButtons()
+    {
+        if (depthTierButtons == null || depthTierButtonActions == null)
+            return;
+
+        int count = Mathf.Min(depthTierButtons.Length, depthTierButtonActions.Length);
+        for (int i = 0; i < count; i++)
+            UnwireButton(depthTierButtons[i], depthTierButtonActions[i]);
     }
 
     private static void WireButton(Button button, UnityEngine.Events.UnityAction action)
