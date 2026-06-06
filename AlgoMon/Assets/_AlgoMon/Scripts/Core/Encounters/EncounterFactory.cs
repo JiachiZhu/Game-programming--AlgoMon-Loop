@@ -48,10 +48,20 @@ public static class EncounterFactory
 
     public static AlgoMonInstance Create(int runSeed, GridNode node, ThreatTier threatTier)
     {
-        return Create(runSeed, node, threatTier, 0, 1);
+        return Create(runSeed, node, threatTier, null);
+    }
+
+    public static AlgoMonInstance Create(int runSeed, GridNode node, ThreatTier threatTier, string preferredBossSpeciesCodeName)
+    {
+        return Create(runSeed, node, threatTier, 0, 1, preferredBossSpeciesCodeName);
     }
 
     public static List<AlgoMonInstance> CreateParty(int runSeed, GridNode node, ThreatTier threatTier)
+    {
+        return CreateParty(runSeed, node, threatTier, null);
+    }
+
+    public static List<AlgoMonInstance> CreateParty(int runSeed, GridNode node, ThreatTier threatTier, string preferredBossSpeciesCodeName)
     {
         var party = new List<AlgoMonInstance>();
         if (node == null)
@@ -63,7 +73,7 @@ public static class EncounterFactory
 
         for (int i = 0; i < partySize; i++)
         {
-            AlgoMonInstance member = Create(runSeed, node, threatTier, i, partySize);
+            AlgoMonInstance member = Create(runSeed, node, threatTier, i, partySize, preferredBossSpeciesCodeName);
             if (member != null)
                 party.Add(member);
         }
@@ -76,20 +86,23 @@ public static class EncounterFactory
         GridNode node,
         ThreatTier threatTier,
         int partySlot,
-        int partySize)
+        int partySize,
+        string preferredBossSpeciesCodeName)
     {
         if (node == null)
             return null;
 
-        string hashKey = partySlot <= 0
-            ? $"{runSeed}:{node.id}:{node.nodeType}:T{ThreatTierRules.ToInt(threatTier)}"
-            : $"{runSeed}:{node.id}:{node.nodeType}:T{ThreatTierRules.ToInt(threatTier)}:P{partySlot}";
+        string partyHash = partySlot <= 0 ? string.Empty : $":P{partySlot}";
+        string bossHash = node.nodeType == NodeType.Boss && !string.IsNullOrWhiteSpace(preferredBossSpeciesCodeName)
+            ? $":B{NormalizeSpeciesKey(preferredBossSpeciesCodeName).ToUpperInvariant()}"
+            : string.Empty;
+        string hashKey = $"{runSeed}:{node.id}:{node.nodeType}:T{ThreatTierRules.ToInt(threatTier)}{partyHash}{bossHash}";
         int hash = StableHash(hashKey);
         var rng = new System.Random(hash);
         int encounterGrade = EncounterGrade(node.nodeType);
         int threatIndex = ThreatTierRules.ToInt(threatTier) - 1;
         int baseIv = BaseIvFloor + node.layer * IvPerLayer + encounterGrade * IvPerEncounterGrade + threatIndex * IvPerThreatTier;
-        AlgoMonData species = PickEncounterSpecies(node, hash, out bool usesTransientData);
+        AlgoMonData species = PickEncounterSpecies(node, hash, preferredBossSpeciesCodeName, out bool usesTransientData);
 
         var opponent = new AlgoMonInstance
         {
@@ -140,18 +153,44 @@ public static class EncounterFactory
         return Mathf.Clamp(baseValue + rng.Next(-spread, spread + 1), 1, 255);
     }
 
-    private static AlgoMonData PickEncounterSpecies(GridNode node, int hash, out bool usesTransientData)
+    private static AlgoMonData PickEncounterSpecies(GridNode node, int hash, string preferredBossSpeciesCodeName, out bool usesTransientData)
     {
         AlgoMonData[] pool = LoadEncounterSpecies();
         if (pool.Length == 0)
         {
             usesTransientData = true;
-            return CreateFallbackSpecies(node, hash);
+            return CreateFallbackSpecies(node, hash, preferredBossSpeciesCodeName);
         }
 
         usesTransientData = false;
+        if (node != null && node.nodeType == NodeType.Boss)
+        {
+            AlgoMonData preferredBoss = FindSpeciesByCodeName(pool, preferredBossSpeciesCodeName);
+            if (preferredBoss != null)
+                return preferredBoss;
+        }
+
         int index = Mathf.Abs(hash) % pool.Length;
         return pool[index];
+    }
+
+    private static AlgoMonData FindSpeciesByCodeName(AlgoMonData[] pool, string codeName)
+    {
+        string normalized = NormalizeSpeciesKey(codeName);
+        if (pool == null || pool.Length == 0 || string.IsNullOrEmpty(normalized))
+            return null;
+
+        for (int i = 0; i < pool.Length; i++)
+        {
+            AlgoMonData species = pool[i];
+            if (species != null &&
+                string.Equals(NormalizeSpeciesKey(species.codeName), normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return species;
+            }
+        }
+
+        return null;
     }
 
     private static AlgoMonData[] LoadEncounterSpecies()
@@ -182,14 +221,22 @@ public static class EncounterFactory
 #endif
     }
 
-    private static AlgoMonData CreateFallbackSpecies(GridNode node, int hash)
+    private static AlgoMonData CreateFallbackSpecies(GridNode node, int hash, string preferredBossSpeciesCodeName)
     {
         AlgoMonData data = ScriptableObject.CreateInstance<AlgoMonData>();
-        data.codeName = $"{node.nodeType} AlgoMon";
+        string preferredBossName = NormalizeSpeciesKey(preferredBossSpeciesCodeName);
+        data.codeName = node != null && node.nodeType == NodeType.Boss && !string.IsNullOrEmpty(preferredBossName)
+            ? preferredBossName
+            : $"{node.nodeType} AlgoMon";
         data.description = "Runtime encounter generated from TheGrid.";
         data.elementType = (ElementType)(Mathf.Abs(hash) % Enum.GetValues(typeof(ElementType)).Length);
         data.learnset = new LearnsetEntry[0];
         return data;
+    }
+
+    private static string NormalizeSpeciesKey(string codeName)
+    {
+        return string.IsNullOrWhiteSpace(codeName) ? string.Empty : codeName.Trim();
     }
 
     private static string BuildOpponentName(AlgoMonData species, GridNode node, int partySlot, int partySize)

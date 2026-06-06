@@ -42,6 +42,8 @@ public class BattleManager : MonoBehaviour
     private const int ForceLastPriorityPenalty = -10000;
     private const float HackerSwitchBatteryPercent = 0.35f;
     private const float HackerSwitchMatchupImprovement = 0.25f;
+    private const string PlayerPresentationId = "Player";
+    private const string EnemyPresentationId = "Enemy";
 
     private enum BattlePhase
     {
@@ -759,14 +761,25 @@ public class BattleManager : MonoBehaviour
             return;
 
         presentation.RegisterCombatants(
-            player.Instance.nickname,
-            enemy.Instance.nickname,
+            PlayerPresentationId,
+            EnemyPresentationId,
             player.Instance.data != null ? player.Instance.data.battleAnimationProfile : null,
             enemy.Instance.data != null ? enemy.Instance.data.battleAnimationProfile : null,
             player.Instance.data != null ? player.Instance.data.codeName : null,
             enemy.Instance.data != null ? enemy.Instance.data.codeName : null,
             player.Instance.battleFormName,
             enemy.Instance.battleFormName);
+    }
+
+    private string PresentationIdFor(BattleUnit unit)
+    {
+        if (unit == null)
+            return string.Empty;
+        if (ReferenceEquals(unit, player))
+            return PlayerPresentationId;
+        if (ReferenceEquals(unit, enemy))
+            return EnemyPresentationId;
+        return string.Empty;
     }
 
     private static int ClampStat(int value) => Mathf.Clamp(value, 1, 255);
@@ -1292,8 +1305,8 @@ public class BattleManager : MonoBehaviour
 
         EventBus.Publish(new CounterEvent
         {
-            CounterId = winner.Actor.Instance.nickname,
-            CounteredId = loser.Actor.Instance.nickname,
+            CounterId = PresentationIdFor(winner.Actor),
+            CounteredId = PresentationIdFor(loser.Actor),
             CounterHasDamage = winner.Skill.damageType != DamageType.None,
             CounteredHasDamage = loser.Skill.damageType != DamageType.None && !winner.Skill.counterNullifies,
             CounterInstructionType = winner.Skill.instructionType,
@@ -1616,8 +1629,8 @@ public class BattleManager : MonoBehaviour
 
             EventBus.Publish(new BattleActionEvent
             {
-                ActorId = action.Actor.Instance.nickname,
-                TargetId = action.Target.Instance.nickname,
+                ActorId = PresentationIdFor(action.Actor),
+                TargetId = PresentationIdFor(action.Target),
                 SkillName = SkillName(action.Skill),
                 InstructionType = action.Skill.instructionType,
                 WonCounter = action.WonCounter,
@@ -1672,7 +1685,9 @@ public class BattleManager : MonoBehaviour
                 action.DefenderInstructionType,
                 action.WonCounter,
                 RunAdjustedDamageMultiplier(action),
-                action.BasePowerBonus);
+                action.BasePowerBonus,
+                PresentationIdFor(action.Actor),
+                PresentationIdFor(action.Target));
 
             int previousBattery = action.Target.CurrentBattery;
             action.Target.CurrentBattery = Mathf.Max(0, action.Target.CurrentBattery - damage);
@@ -1764,8 +1779,8 @@ public class BattleManager : MonoBehaviour
             pause = Mathf.Max(
                 pause,
                 presentation.ExpectedDamageFeedbackRemaining(
-                    action.Actor.Instance.nickname,
-                    action.Target.Instance.nickname));
+                    PresentationIdFor(action.Actor),
+                    PresentationIdFor(action.Target)));
         }
 
         return pause;
@@ -1816,8 +1831,8 @@ public class BattleManager : MonoBehaviour
 
         EventBus.Publish(new StatusAppliedEvent
         {
-            SourceId = source.Instance.nickname,
-            TargetId = target.Instance.nickname,
+            SourceId = PresentationIdFor(source),
+            TargetId = PresentationIdFor(target),
             Status = status,
             Stacks = result.AddedStacks,
             DurationType = result.DurationType,
@@ -2064,7 +2079,7 @@ public class BattleManager : MonoBehaviour
         return unit.LastDefenseRound == currentRound - 1;
     }
 
-    private static bool SpendCP(BattleUnit unit, int amount)
+    private bool SpendCP(BattleUnit unit, int amount)
     {
         if (amount <= 0)
             return true;
@@ -2074,7 +2089,7 @@ public class BattleManager : MonoBehaviour
         unit.CurrentCP -= amount;
         EventBus.Publish(new BattleFeedbackEvent
         {
-            TargetId = unit.Instance.nickname,
+            TargetId = PresentationIdFor(unit),
             Type = BattleFeedbackType.CPDrain,
             Amount = amount,
             Label = $"-{amount} CP"
@@ -2082,7 +2097,7 @@ public class BattleManager : MonoBehaviour
         return true;
     }
 
-    private static int GainCP(BattleUnit unit, int amount)
+    private int GainCP(BattleUnit unit, int amount)
     {
         int before = unit.CurrentCP;
         unit.CurrentCP = Mathf.Clamp(unit.CurrentCP + Mathf.Max(0, amount), 0, MaxCP);
@@ -2091,7 +2106,7 @@ public class BattleManager : MonoBehaviour
         {
             EventBus.Publish(new BattleFeedbackEvent
             {
-                TargetId = unit.Instance.nickname,
+                TargetId = PresentationIdFor(unit),
                 Type = BattleFeedbackType.CPGain,
                 Amount = restored,
                 Label = $"+{restored} CP"
@@ -2100,7 +2115,7 @@ public class BattleManager : MonoBehaviour
         return restored;
     }
 
-    private static int DrainCP(BattleUnit from, BattleUnit to, int amount)
+    private int DrainCP(BattleUnit from, BattleUnit to, int amount)
     {
         int drained = Mathf.Min(from.CurrentCP, Mathf.Max(0, amount));
         from.CurrentCP -= drained;
@@ -2109,14 +2124,14 @@ public class BattleManager : MonoBehaviour
         {
             EventBus.Publish(new BattleFeedbackEvent
             {
-                TargetId = from.Instance.nickname,
+                TargetId = PresentationIdFor(from),
                 Type = BattleFeedbackType.CPDrain,
                 Amount = drained,
                 Label = $"-{drained} CP"
             });
             EventBus.Publish(new BattleFeedbackEvent
             {
-                TargetId = to.Instance.nickname,
+                TargetId = PresentationIdFor(to),
                 Type = BattleFeedbackType.CPGain,
                 Amount = drained,
                 Label = $"+{drained} CP"
@@ -2125,7 +2140,7 @@ public class BattleManager : MonoBehaviour
         return drained;
     }
 
-    private static int DealStatusDamage(BattleUnit unit, int amount)
+    private int DealStatusDamage(BattleUnit unit, int amount)
     {
         int actual = Mathf.Min(unit.CurrentBattery, Mathf.Max(0, amount));
         unit.CurrentBattery = Mathf.Max(0, unit.CurrentBattery - actual);
@@ -2133,7 +2148,7 @@ public class BattleManager : MonoBehaviour
         {
             EventBus.Publish(new BattleFeedbackEvent
             {
-                TargetId = unit.Instance.nickname,
+                TargetId = PresentationIdFor(unit),
                 Type = BattleFeedbackType.Damage,
                 Amount = actual,
                 Label = $"-{actual}"
@@ -2142,7 +2157,7 @@ public class BattleManager : MonoBehaviour
         return actual;
     }
 
-    private static int HealBattery(BattleUnit unit, int amount)
+    private int HealBattery(BattleUnit unit, int amount)
     {
         int before = unit.CurrentBattery;
         unit.CurrentBattery = Mathf.Clamp(unit.CurrentBattery + Mathf.Max(0, amount), 0, unit.MaxBattery);
@@ -2151,7 +2166,7 @@ public class BattleManager : MonoBehaviour
         {
             EventBus.Publish(new BattleFeedbackEvent
             {
-                TargetId = unit.Instance.nickname,
+                TargetId = PresentationIdFor(unit),
                 Type = BattleFeedbackType.Heal,
                 Amount = restored,
                 Label = $"+{restored}"
@@ -2293,7 +2308,7 @@ public class BattleManager : MonoBehaviour
         if (!faintPublishedUnits.Add(unit))
             return;
 
-        EventBus.Publish(new UnitFaintedEvent { UnitId = unit.Instance.nickname });
+        EventBus.Publish(new UnitFaintedEvent { UnitId = PresentationIdFor(unit) });
     }
 
     private void FinishBattle(bool playerWon, string message)

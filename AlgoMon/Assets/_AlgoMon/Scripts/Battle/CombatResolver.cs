@@ -71,7 +71,9 @@ public static class CombatResolver
         InstructionType defenderAction,
         bool attackerWonCounter = false,
         float finalDamageMultiplier = 1f,
-        int basePowerBonus = 0)
+        int basePowerBonus = 0,
+        string attackerEventId = null,
+        string defenderEventId = null)
     {
         if (attackerSkill.damageType == DamageType.None)
             return 0;
@@ -95,8 +97,8 @@ public static class CombatResolver
 
         EventBus.Publish(new DamageEvent
         {
-            AttackerId         = attacker.nickname,
-            TargetId           = defender.nickname,
+            AttackerId         = EventIdOrNickname(attackerEventId, attacker),
+            TargetId           = EventIdOrNickname(defenderEventId, defender),
             Amount             = damage,
             DmgType            = attackerSkill.damageType,
             SkillElement       = attackerSkill.elementType,
@@ -105,6 +107,13 @@ public static class CombatResolver
         });
 
         return damage;
+    }
+
+    private static string EventIdOrNickname(string eventId, AlgoMonInstance fallback)
+    {
+        if (!string.IsNullOrWhiteSpace(eventId))
+            return eventId.Trim();
+        return fallback != null ? fallback.nickname : string.Empty;
     }
 
     /// <summary>

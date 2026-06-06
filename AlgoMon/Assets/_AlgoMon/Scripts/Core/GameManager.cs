@@ -31,6 +31,15 @@ using UnityEditor;
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
+    private static readonly string[] BossSpeciesCodeNames =
+    {
+        "Cachelon",
+        "Heapion",
+        "Nullbyte",
+        "Overflux",
+        "Recursix",
+        "Sortex"
+    };
 
     [Header("Payload — Full Warehouse (all captured AlgoMons)")]
     public List<AlgoMonInstance> payload = new List<AlgoMonInstance>();
@@ -67,6 +76,10 @@ public class GameManager : MonoBehaviour
     public int currentThreatTier = ThreatTierRules.MinTier;
     // Applied by EncounterRewardCalculator when combat rewards are granted.
     public float currentRewardMultiplier = 1f;
+
+    [Header("Boss Target")]
+    public string selectedBossSpeciesCodeName = "Cachelon";
+    public string currentBossSpeciesCodeName = "Cachelon";
 
     [Header("Run Result")]
     public RunOutcome pendingRunOutcome = RunOutcome.None;
@@ -173,6 +186,8 @@ public class GameManager : MonoBehaviour
         selectedThreatTier = ThreatTierRules.ToInt(runTier);
         currentThreatTier = selectedThreatTier;
         currentRewardMultiplier = ThreatTierRules.RewardMultiplier(runTier, HighestUnlockedThreatTier);
+        selectedBossSpeciesCodeName = SelectedBossSpeciesCodeName;
+        currentBossSpeciesCodeName = selectedBossSpeciesCodeName;
 
         GridGraph graph = new GridGenerator(gridSettings).Generate(seed);
         graph.threatTier = currentThreatTier;
@@ -201,6 +216,7 @@ public class GameManager : MonoBehaviour
         currentOpponentParty.Clear();
         currentThreatTier = ThreatTierRules.MinTier;
         currentRewardMultiplier = 1f;
+        currentBossSpeciesCodeName = SelectedBossSpeciesCodeName;
         computeBalance = 0;
         if (currentRunBuffs != null)
             currentRunBuffs.Clear();
@@ -244,12 +260,32 @@ public class GameManager : MonoBehaviour
         get { return ThreatTierRules.ToInt(SelectedThreatTier); }
     }
 
+    public string SelectedBossSpeciesCodeName
+    {
+        get { return NormalizeBossSpeciesCodeName(selectedBossSpeciesCodeName); }
+    }
+
+    public string CurrentBossSpeciesCodeName
+    {
+        get { return NormalizeBossSpeciesCodeName(currentBossSpeciesCodeName); }
+    }
+
     public bool TrySetSelectedThreatTier(int tier)
     {
         if (!ThreatTierRules.CanEnterTier(tier, highestUnlockedThreatTier))
             return false;
 
         selectedThreatTier = ThreatTierRules.ToInt(ThreatTierRules.ClampTier(tier));
+        return true;
+    }
+
+    public bool TrySetSelectedBossSpecies(string speciesCodeName)
+    {
+        if (IsRunActive || !TryNormalizeBossSpeciesCodeName(speciesCodeName, out string normalized))
+            return false;
+
+        selectedBossSpeciesCodeName = normalized;
+        currentBossSpeciesCodeName = normalized;
         return true;
     }
 
@@ -664,10 +700,11 @@ public class GameManager : MonoBehaviour
             ? ThreatTierRules.ClampTier(currentRunGraph.threatTier)
             : ThreatTierRules.ClampTier(currentThreatTier);
         currentOpponentParty.Clear();
-        currentOpponentParty.AddRange(EncounterFactory.CreateParty(currentRunSeed, e.Node, threatTier));
+        string bossSpeciesCodeName = e.Node.nodeType == NodeType.Boss ? CurrentBossSpeciesCodeName : null;
+        currentOpponentParty.AddRange(EncounterFactory.CreateParty(currentRunSeed, e.Node, threatTier, bossSpeciesCodeName));
         currentOpponent = currentOpponentParty.Count > 0
             ? currentOpponentParty[0]
-            : EncounterFactory.Create(currentRunSeed, e.Node, threatTier);
+            : EncounterFactory.Create(currentRunSeed, e.Node, threatTier, bossSpeciesCodeName);
         GoTo(GameScene.TheArena);
     }
 
@@ -865,6 +902,32 @@ public class GameManager : MonoBehaviour
             currentRunRewards = new RunRewardSummary();
         if (completedRunRewards == null)
             completedRunRewards = new RunRewardSummary();
+    }
+
+    private static string NormalizeBossSpeciesCodeName(string speciesCodeName)
+    {
+        return TryNormalizeBossSpeciesCodeName(speciesCodeName, out string normalized)
+            ? normalized
+            : BossSpeciesCodeNames[0];
+    }
+
+    private static bool TryNormalizeBossSpeciesCodeName(string speciesCodeName, out string normalized)
+    {
+        normalized = string.Empty;
+        if (string.IsNullOrWhiteSpace(speciesCodeName))
+            return false;
+
+        string trimmed = speciesCodeName.Trim();
+        for (int i = 0; i < BossSpeciesCodeNames.Length; i++)
+        {
+            if (string.Equals(trimmed, BossSpeciesCodeNames[i], StringComparison.OrdinalIgnoreCase))
+            {
+                normalized = BossSpeciesCodeNames[i];
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // ----------------------------------------------------------------
