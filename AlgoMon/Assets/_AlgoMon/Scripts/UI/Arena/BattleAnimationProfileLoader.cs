@@ -38,6 +38,7 @@ public static class BattleAnimationProfileLoader
         profile.profileId = $"{codeName}_{form}_EditorRuntime";
 
         ApplyManifest(profile, root);
+        LoadClipFrames(profile.entry, root, "Entry");
         LoadClipFrames(profile.idle, root, "Idle");
         LoadClipFrames(profile.attack, root, "Attack");
         LoadClipFrames(profile.defense, root, "Defense");
@@ -56,6 +57,7 @@ public static class BattleAnimationProfileLoader
     {
         return profile != null &&
                ((profile.idle != null && profile.idle.HasFrames) ||
+                (profile.entry != null && profile.entry.HasFrames) ||
                 (profile.attack != null && profile.attack.HasFrames) ||
                 (profile.defense != null && profile.defense.HasFrames) ||
                 (profile.status != null && profile.status.HasFrames) ||
@@ -81,6 +83,7 @@ public static class BattleAnimationProfileLoader
         if (manifest.visualScaleMultiplier > 0f)
             profile.visualScaleMultiplier = manifest.visualScaleMultiplier;
 
+        ApplyClipManifest(profile.entry, manifest.entry);
         ApplyClipManifest(profile.idle, manifest.idle);
         ApplyClipManifest(profile.attack, manifest.attack);
         ApplyClipManifest(profile.defense, manifest.defense);
@@ -97,6 +100,8 @@ public static class BattleAnimationProfileLoader
         if (manifest.fps > 0f)
             clip.fps = manifest.fps;
         clip.loop = manifest.loop;
+        if (manifest.startFrame > 0)
+            clip.startFrame = manifest.startFrame;
         clip.actionFrame = manifest.actionFrame;
         clip.contactFrame = manifest.contactFrame;
         clip.returnFrame = manifest.returnFrame;
@@ -160,6 +165,7 @@ public static class BattleAnimationProfileLoader
         public string profileId;
         public bool mirrorX;
         public float visualScaleMultiplier = 1f;
+        public BattleAnimationClipManifest entry;
         public BattleAnimationClipManifest idle;
         public BattleAnimationClipManifest attack;
         public BattleAnimationClipManifest defense;
@@ -173,6 +179,7 @@ public static class BattleAnimationProfileLoader
     {
         public float fps = -1f;
         public bool loop;
+        public int startFrame = -1;
         public int actionFrame = -1;
         public int contactFrame = -1;
         public int returnFrame = -1;

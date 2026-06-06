@@ -25,6 +25,8 @@ public class BattlePresentationController : MonoBehaviour
     // these static ids with runtime combatant registration.
     [SerializeField] private string playerId = "Sortex";
     [SerializeField] private string enemyId = "Cachelon";
+    [SerializeField] private BattleAlgoMonView playerView;
+    [SerializeField] private BattleAlgoMonView enemyView;
     [SerializeField] private BattleSpriteAnimator playerAnimator;
     [SerializeField] private BattleSpriteAnimator enemyAnimator;
 
@@ -153,19 +155,32 @@ public class BattlePresentationController : MonoBehaviour
 
     private void AutoBind()
     {
-        if (playerAnimator == null)
+        AutoBindCombatant("PlayerSpriteAnchor", ref playerView, ref playerAnimator);
+        AutoBindCombatant("EnemySpriteAnchor", ref enemyView, ref enemyAnimator);
+    }
+
+    private static void AutoBindCombatant(
+        string anchorName,
+        ref BattleAlgoMonView view,
+        ref BattleSpriteAnimator animator)
+    {
+        if (view == null && animator != null)
+            view = animator.GetComponent<BattleAlgoMonView>();
+
+        if (view == null || animator == null)
         {
-            GameObject go = GameObject.Find("PlayerSpriteAnchor");
+            GameObject go = GameObject.Find(anchorName);
             if (go != null)
-                playerAnimator = go.GetComponent<BattleSpriteAnimator>();
+            {
+                if (view == null)
+                    view = go.GetComponent<BattleAlgoMonView>();
+                if (animator == null)
+                    animator = go.GetComponent<BattleSpriteAnimator>();
+            }
         }
 
-        if (enemyAnimator == null)
-        {
-            GameObject go = GameObject.Find("EnemySpriteAnchor");
-            if (go != null)
-                enemyAnimator = go.GetComponent<BattleSpriteAnimator>();
-        }
+        if (view != null)
+            animator = view.Animator;
     }
 
     private void EnsureBitmapFontDefaults()
@@ -220,10 +235,50 @@ public class BattlePresentationController : MonoBehaviour
         if (!string.IsNullOrWhiteSpace(enemyCombatantId))
             enemyId = enemyCombatantId;
 
-        if (playerAnimator != null)
-            playerAnimator.SetAnimationProfile(ResolveProfile(playerAnimationProfileOverride, playerProfile, playerCodeName, playerId, playerFormName));
-        if (enemyAnimator != null)
-            enemyAnimator.SetAnimationProfile(ResolveProfile(enemyAnimationProfileOverride, enemyProfile, enemyCodeName, enemyId, enemyFormName));
+        BattleAnimationProfile resolvedPlayerProfile =
+            ResolveProfile(playerAnimationProfileOverride, playerProfile, playerCodeName, playerId, playerFormName);
+        BattleAnimationProfile resolvedEnemyProfile =
+            ResolveProfile(enemyAnimationProfileOverride, enemyProfile, enemyCodeName, enemyId, enemyFormName);
+
+        ApplyCombatantProfile(
+            ref playerView,
+            ref playerAnimator,
+            playerId,
+            resolvedPlayerProfile,
+            playerCodeName,
+            playerFormName,
+            autoLoadAnimationProfilesInEditor);
+        ApplyCombatantProfile(
+            ref enemyView,
+            ref enemyAnimator,
+            enemyId,
+            resolvedEnemyProfile,
+            enemyCodeName,
+            enemyFormName,
+            autoLoadAnimationProfilesInEditor);
+    }
+
+    private static void ApplyCombatantProfile(
+        ref BattleAlgoMonView view,
+        ref BattleSpriteAnimator animator,
+        string combatantId,
+        BattleAnimationProfile profile,
+        string codeName,
+        string formName,
+        bool allowViewFallback)
+    {
+        if (view == null && animator != null)
+            view = animator.GetComponent<BattleAlgoMonView>();
+
+        if (view != null)
+        {
+            view.ApplyCombatant(combatantId, profile, codeName, formName, allowViewFallback);
+            animator = view.Animator;
+            return;
+        }
+
+        if (animator != null)
+            animator.SetAnimationProfile(profile);
     }
 
     private BattleAnimationProfile ResolveProfile(

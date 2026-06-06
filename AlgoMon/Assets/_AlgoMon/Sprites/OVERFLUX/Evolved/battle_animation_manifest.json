@@ -1,5 +1,9 @@
 {
   "profileId": "Overflux_Evolved",
+  "entry": {
+    "fps": 8,
+    "holdLastFrame": false
+  },
   "idle": {
     "fps": 8,
     "loop": true

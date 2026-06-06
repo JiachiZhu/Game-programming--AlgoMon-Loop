@@ -2,7 +2,7 @@
 Script Audit:
 - Purpose: Animates one battle combatant sprite using data-driven clips or fallback motion.
 - Attached GameObject: Player or enemy battle sprite object in TheArena.
-- Main responsibilities: Play idle, attack, defense, status, hit, and faint animations; move toward targets; flash colors; hold/continue profile clips; and calculate feedback positions.
+- Main responsibilities: Play entry, idle, attack, defense, status, hit, and faint animations; move toward targets; flash colors; hold/continue profile clips; and calculate feedback positions.
 - Important variables: body, primaryRenderer, bodyRenderers, shadowRenderer, animationProfile, idle settings, feedback settings, profileClipRoutine, heldProfileClip.
 - Inputs: BattleAnimationProfile data and commands from BattlePresentationController.
 - Outputs or effects: Changes sprite frames, transform movement, scale, rotation, and renderer colors.
@@ -28,6 +28,9 @@ public class BattleSpriteAnimator : MonoBehaviour
 
     [Header("Animation Profile")]
     [SerializeField] private BattleAnimationProfile animationProfile;
+
+    [Header("Entry")]
+    [SerializeField] private bool playEntryOnProfileSet = true;
 
     [Header("Idle")]
     [SerializeField, Min(0f)] private float idleBobAmplitude = 0.04f;
@@ -156,6 +159,24 @@ public class BattleSpriteAnimator : MonoBehaviour
         }
     }
 
+    public BattleAnimationProfile AnimationProfile => animationProfile;
+
+    public void ConfigureSpriteBindings(
+        Transform bodyTransform,
+        SpriteRenderer primarySpriteRenderer,
+        SpriteRenderer[] renderers,
+        SpriteRenderer shadowSpriteRenderer)
+    {
+        body = bodyTransform;
+        primaryRenderer = primarySpriteRenderer;
+        bodyRenderers = renderers;
+        shadowRenderer = shadowSpriteRenderer;
+
+        initialized = false;
+        Initialize();
+        BeginIdleClip();
+    }
+
     public bool TryGetActionMarkerDelay(BattleAnimationState state, out float delaySeconds)
     {
         delaySeconds = 0f;
@@ -236,6 +257,8 @@ public class BattleSpriteAnimator : MonoBehaviour
         if (animationProfile != null)
             DisableLegacyLoopingEffects();
         ResetToIdle();
+        if (playEntryOnProfileSet)
+            PlayEntry();
     }
 
     public void ResetToIdle()
@@ -251,6 +274,15 @@ public class BattleSpriteAnimator : MonoBehaviour
         hitFlash = 0f;
         statusFlash = 0f;
         BeginIdleClip();
+    }
+
+    public bool PlayEntry()
+    {
+        Initialize();
+        if (fainted)
+            return false;
+
+        return TryPlayProfileClip(BattleAnimationState.Entry, FeedbackWorldPosition, false);
     }
 
     public void PlayAttackToward(Vector3 worldTarget)
@@ -368,7 +400,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         if (actionRoutine != null)
             StopCoroutine(actionRoutine);
 
-        profileClipRoutine = StartCoroutine(ProfileClipRoutine(clip, state, worldTarget, useTarget, targetAnimator, 0, true));
+        profileClipRoutine = StartCoroutine(ProfileClipRoutine(clip, state, worldTarget, useTarget, targetAnimator, ClipStartFrameIndex(clip), true));
         return true;
     }
 
@@ -480,6 +512,7 @@ public class BattleSpriteAnimator : MonoBehaviour
             return idleHeight;
 
         return Mathf.Max(
+            MaxFrameSpriteHeight(profile.entry),
             MaxFrameSpriteHeight(profile.attack),
             MaxFrameSpriteHeight(profile.defense),
             MaxFrameSpriteHeight(profile.status),
@@ -591,8 +624,17 @@ public class BattleSpriteAnimator : MonoBehaviour
         if (actionRoutine != null)
             StopCoroutine(actionRoutine);
 
-        profileClipRoutine = StartCoroutine(ProfileClipRoutine(clip, state, worldTarget, useTarget, targetAnimator, 0, false));
+        profileClipRoutine = StartCoroutine(ProfileClipRoutine(clip, state, worldTarget, useTarget, targetAnimator, ClipStartFrameIndex(clip), false));
         return true;
+    }
+
+    private static int ClipStartFrameIndex(BattleAnimationClipData clip)
+    {
+        if (clip == null || clip.FrameCount <= 0)
+            return 0;
+
+        int startFrame = clip.StartFrameIndex;
+        return startFrame >= 0 ? startFrame : 0;
     }
 
     private IEnumerator ProfileClipRoutine(

@@ -1,5 +1,9 @@
 {
   "profileId": "Overflux_Base",
+  "entry": {
+    "fps": 8,
+    "holdLastFrame": false
+  },
   "attack": {
     "fps": 10,
     "actionFrame": 10,

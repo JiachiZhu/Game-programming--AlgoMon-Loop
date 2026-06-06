@@ -276,6 +276,7 @@ GameObject:
   m_Component:
   - component: {fileID: 215526350}
   - component: {fileID: 215526351}
+  - component: {fileID: 215526352}
   m_Layer: 0
   m_Name: PlayerSpriteAnchor
   m_TagString: Untagged
@@ -329,6 +330,32 @@ MonoBehaviour:
   actionDuration: 0.28
   statusPulseDuration: 0.35
   contactPerspectiveScaleBlend: 0
+--- !u!114 &215526352
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 215526349}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2e8472fd2444d2db5dcd7e610efdc13, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  combatantId: Sortex
+  data: {fileID: 0}
+  codeName: Sortex
+  formName: Base
+  body: {fileID: 382979191}
+  primaryRenderer: {fileID: 382979192}
+  bodyRenderers:
+  - {fileID: 382979192}
+  shadowRenderer: {fileID: 1494285858}
+  animator: {fileID: 215526351}
+  animationProfileOverride: {fileID: 0}
+  applyProfileOnAwake: 1
+  autoLoadEditorProfile: 1
+  usePortraitAsFallbackSprite: 1
 --- !u!1 &217410843
 GameObject:
   m_ObjectHideFlags: 0
@@ -1769,6 +1796,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1029183614}
   - component: {fileID: 1029183615}
+  - component: {fileID: 1029183616}
   m_Layer: 0
   m_Name: EnemySpriteAnchor
   m_TagString: Untagged
@@ -1822,6 +1850,32 @@ MonoBehaviour:
   actionDuration: 0.28
   statusPulseDuration: 0.35
   contactPerspectiveScaleBlend: 0
+--- !u!114 &1029183616
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1029183613}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2e8472fd2444d2db5dcd7e610efdc13, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  combatantId: Cachelon
+  data: {fileID: 0}
+  codeName: Cachelon
+  formName: Base
+  body: {fileID: 634639926}
+  primaryRenderer: {fileID: 634639927}
+  bodyRenderers:
+  - {fileID: 634639927}
+  shadowRenderer: {fileID: 324635097}
+  animator: {fileID: 1029183615}
+  animationProfileOverride: {fileID: 0}
+  applyProfileOnAwake: 1
+  autoLoadEditorProfile: 1
+  usePortraitAsFallbackSprite: 1
 --- !u!114 &1066463874 stripped
 MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 8071488079744992842, guid: 6619a4136a87bff4a93927893a5ff7ae, type: 3}
@@ -2423,6 +2477,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   playerId: Sortex
   enemyId: Cachelon
+  playerView: {fileID: 215526352}
+  enemyView: {fileID: 1029183616}
   playerAnimator: {fileID: 215526351}
   enemyAnimator: {fileID: 1029183615}
   playerAnimationProfileOverride: {fileID: 0}

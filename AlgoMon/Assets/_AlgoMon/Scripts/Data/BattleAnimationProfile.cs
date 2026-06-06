@@ -2,8 +2,8 @@
 Script Audit:
 - Purpose: Stores frame animation clips for each battle animation state.
 - Attached GameObject: None; this is a ScriptableObject asset referenced by AlgoMonData and BattleSpriteAnimator.
-- Main responsibilities: Keep idle, attack, defense, status, hit, and faint clip data and return the correct clip by state.
-- Important variables: profileId, mirrorX, idle, attack, defense, status, hit, faint, frames, fps, loop, actionFrame, contactFrame, returnFrame.
+- Main responsibilities: Keep entry, idle, attack, defense, status, hit, and faint clip data and return the correct clip by state.
+- Important variables: profileId, mirrorX, entry, idle, attack, defense, status, hit, faint, frames, fps, loop, startFrame, actionFrame, contactFrame, returnFrame.
 - Inputs: Sprite frames and timing values assigned in the Inspector or loaded by BattleAnimationProfileLoader.
 - Outputs or effects: BattleSpriteAnimator uses this data to play species-specific animations.
 - AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
@@ -19,7 +19,8 @@ public enum BattleAnimationState
     Defense,
     Status,
     Hit,
-    Faint
+    Faint,
+    Entry
 }
 
 [Serializable]
@@ -32,6 +33,9 @@ public class BattleAnimationClipData
     public float fps = 12f;
 
     public bool loop;
+
+    [Tooltip("1-based authoring frame where playback starts. Defaults to the first frame.")]
+    public int startFrame = 1;
 
     [Tooltip("1-based authoring frame for impact / guard / effect. -1 means unused.")]
     public int actionFrame = -1;
@@ -65,6 +69,7 @@ public class BattleAnimationClipData
     public int ActionFrameIndex => ToZeroBasedIndex(actionFrame);
     public int ContactFrameIndex => ToZeroBasedIndex(contactFrame);
     public int ReturnFrameIndex => ToZeroBasedIndex(returnFrame);
+    public int StartFrameIndex => ToZeroBasedIndex(startFrame);
 
     private int ToZeroBasedIndex(int oneBasedFrame)
     {
@@ -88,6 +93,7 @@ public class BattleAnimationProfile : ScriptableObject
     public float visualScaleMultiplier = 1f;
 
     [Header("Core States")]
+    public BattleAnimationClipData entry = new BattleAnimationClipData { fps = 8f };
     public BattleAnimationClipData idle = new BattleAnimationClipData { loop = true, fps = 8f };
     public BattleAnimationClipData attack = new BattleAnimationClipData { fps = 12f };
     public BattleAnimationClipData defense = new BattleAnimationClipData { fps = 12f };
@@ -99,6 +105,8 @@ public class BattleAnimationProfile : ScriptableObject
     {
         switch (state)
         {
+            case BattleAnimationState.Entry:
+                return entry;
             case BattleAnimationState.Idle:
                 return idle;
             case BattleAnimationState.Attack:

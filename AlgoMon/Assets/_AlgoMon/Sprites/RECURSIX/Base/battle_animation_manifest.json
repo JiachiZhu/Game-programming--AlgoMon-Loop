@@ -1,6 +1,10 @@
 {
   "profileId": "Recursix_Base",
   "mirrorX": true,
+  "entry": {
+    "fps": 8,
+    "holdLastFrame": false
+  },
   "idle": {
     "fps": 8,
     "loop": true

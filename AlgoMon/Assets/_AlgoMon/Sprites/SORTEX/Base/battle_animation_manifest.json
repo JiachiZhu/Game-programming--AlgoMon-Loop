@@ -1,5 +1,10 @@
 {
   "profileId": "Sortex_Base",
+  "entry": {
+    "fps": 8,
+    "startFrame": 6,
+    "holdLastFrame": false
+  },
   "idle": {
     "fps": 8,
     "loop": true
