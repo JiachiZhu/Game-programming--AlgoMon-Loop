@@ -25,6 +25,8 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
     [SerializeField] private float letterSpacing;
     [SerializeField] private TextAnchor alignment = TextAnchor.MiddleCenter;
     [SerializeField] private bool uppercase = true;
+    [SerializeField] private Text sourceText;
+    [SerializeField] private bool hideSourceText;
 
     private readonly Dictionary<int, Glyph> glyphs = new Dictionary<int, Glyph>();
     private Texture2D parsedAtlas;
@@ -85,6 +87,16 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         }
     }
 
+    public float LineSpacing
+    {
+        get => lineSpacing;
+        set
+        {
+            lineSpacing = Mathf.Max(0.2f, value);
+            SetVerticesDirty();
+        }
+    }
+
     public float LetterSpacing
     {
         get => letterSpacing;
@@ -93,6 +105,47 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
             letterSpacing = Mathf.Max(0f, value);
             SetVerticesDirty();
         }
+    }
+
+    public Text SourceText
+    {
+        get => sourceText;
+        set
+        {
+            sourceText = value;
+            SyncFromSourceText();
+        }
+    }
+
+    public bool HideSourceText
+    {
+        get => hideSourceText;
+        set
+        {
+            hideSourceText = value;
+            SyncFromSourceText();
+        }
+    }
+
+    public void SyncFromSourceText()
+    {
+        if (sourceText == null)
+            return;
+
+        string sourceValue = sourceText.text ?? string.Empty;
+        if (text != sourceValue)
+            Text = sourceValue;
+
+        if (color != sourceText.color)
+            color = sourceText.color;
+        raycastTarget = false;
+        if (hideSourceText && sourceText.enabled)
+            sourceText.enabled = false;
+    }
+
+    private void LateUpdate()
+    {
+        SyncFromSourceText();
     }
 
     protected override void OnValidate()

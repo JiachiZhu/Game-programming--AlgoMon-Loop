@@ -18,12 +18,19 @@ using UnityEngine;
 public class AlgoMonInstance
 {
     public const int MAX_LEVEL = ThreatTierRules.SprintLevelCap;
+    public const int FusionCopiesForEvolution = 3;
 
     public AlgoMonData data;
     public string nickname;
     public RewardDataQuality dataQuality = RewardDataQuality.Base;
-    // TODO: Persist this when permanent evolution/form state lands.
-    [NonSerialized] public string battleFormName = "Base";
+    public string battleFormName = "Base";
+
+    [Header("Gene Lab")]
+    public string instanceId;
+    public int talentSeed;
+    public bool isFavorite;
+    [Range(0, FusionCopiesForEvolution)] public int fusedBaseCopies;
+    public List<string> fusionSourceInstanceIds = new List<string>();
 
     [Header("Hardware IVs — Upper Limits")]
     [Range(1, 255)] public int iv_Battery;
@@ -48,6 +55,70 @@ public class AlgoMonInstance
     [Tooltip("True when this instance points at ScriptableObject data created at runtime. " +
              "Transient instances are battle-safe but should not be persisted into Payload.")]
     public bool usesTransientData;
+
+    public string SpeciesCodeName
+    {
+        get
+        {
+            return data != null && !string.IsNullOrWhiteSpace(data.codeName)
+                ? data.codeName.Trim()
+                : string.Empty;
+        }
+    }
+
+    public string FormName
+    {
+        get
+        {
+            return string.IsNullOrWhiteSpace(battleFormName)
+                ? "Base"
+                : battleFormName.Trim();
+        }
+    }
+
+    public bool IsEvolvedForm
+    {
+        get { return string.Equals(FormName, "Evolved", StringComparison.OrdinalIgnoreCase); }
+    }
+
+    public bool IsBaseForm
+    {
+        get { return !IsEvolvedForm; }
+    }
+
+    public int FusionProgress
+    {
+        get { return Mathf.Clamp(fusedBaseCopies, 0, FusionCopiesForEvolution); }
+    }
+
+    public int RemainingFusionCopies
+    {
+        get { return Mathf.Max(0, FusionCopiesForEvolution - FusionProgress); }
+    }
+
+    public bool CanEvolve
+    {
+        get { return IsBaseForm && FusionProgress >= FusionCopiesForEvolution; }
+    }
+
+    public string FusionProgressText
+    {
+        get { return $"{FusionProgress}/{FusionCopiesForEvolution}"; }
+    }
+
+    public void EnsurePersistentRuntimeState()
+    {
+        if (string.IsNullOrWhiteSpace(instanceId))
+            instanceId = Guid.NewGuid().ToString("N");
+        if (fusionSourceInstanceIds == null)
+            fusionSourceInstanceIds = new List<string>();
+        if (string.IsNullOrWhiteSpace(battleFormName))
+            battleFormName = "Base";
+
+        battleFormName = IsEvolvedForm ? "Evolved" : "Base";
+        fusedBaseCopies = FusionProgress;
+        level = Mathf.Clamp(level, 1, MAX_LEVEL);
+    }
 
     /// <summary>
     /// Checks data.learnset for any skill that unlocks at exactly the current level
@@ -103,11 +174,20 @@ public class AlgoMonInstance
     /// </summary>
     public AlgoMonInstance Clone()
     {
+        EnsurePersistentRuntimeState();
         return new AlgoMonInstance
         {
             data = data,
             nickname = nickname,
             dataQuality = dataQuality,
+            battleFormName = battleFormName,
+            instanceId = Guid.NewGuid().ToString("N"),
+            talentSeed = talentSeed,
+            isFavorite = isFavorite,
+            fusedBaseCopies = fusedBaseCopies,
+            fusionSourceInstanceIds = fusionSourceInstanceIds != null
+                ? new List<string>(fusionSourceInstanceIds)
+                : new List<string>(),
             iv_Battery = iv_Battery,
             iv_ClockSpeed = iv_ClockSpeed,
             iv_ComputingPower = iv_ComputingPower,
@@ -123,15 +203,39 @@ public class AlgoMonInstance
         };
     }
 
-    // --- Computed Stats ---
-    public int Battery        => Calc(iv_Battery);
-    public int ClockSpeed     => Calc(iv_ClockSpeed);
-    public int ComputingPower => Calc(iv_ComputingPower);
-    public int Throughput     => Calc(iv_Throughput);
-    public int Firewall       => Calc(iv_Firewall);
-    public int Encryption     => Calc(iv_Encryption);
+    // --- Computed Stats (数值) ---
+    // A live stat is shaped by four inputs the player can reason about:
+    //   talent (IV ceiling) · species base (种族值) · level (等级) · evolution (进化).
+    // Species base gives every unit a non-zero floor (so freshly captured level-1
+    // bodies still read on the radar), the IV term grows the stat with level, and
+    // evolving applies a flat multiplier on top.
+    public const float EvolvedStatMultiplier = 1.15f;
 
-    private int Calc(int iv) => Mathf.FloorToInt(iv * ((float)level / MAX_LEVEL));
+    public int Battery        => Calc(iv_Battery, BaseStat(b => b.baseBattery));
+    public int ClockSpeed     => Calc(iv_ClockSpeed, BaseStat(b => b.baseClockSpeed));
+    public int ComputingPower => Calc(iv_ComputingPower, BaseStat(b => b.baseComputingPower));
+    public int Throughput     => Calc(iv_Throughput, BaseStat(b => b.baseThroughput));
+    public int Firewall       => Calc(iv_Firewall, BaseStat(b => b.baseFirewall));
+    public int Encryption     => Calc(iv_Encryption, BaseStat(b => b.baseEncryption));
+
+    private const int DefaultSpeciesBase = 100;
+
+    private int BaseStat(System.Func<AlgoMonData, int> selector)
+    {
+        if (data == null)
+            return DefaultSpeciesBase;
+        int value = selector(data);
+        return value > 0 ? value : DefaultSpeciesBase;
+    }
+
+    private int Calc(int iv, int speciesBase)
+    {
+        float levelFactor = Mathf.Clamp01(level / (float)MAX_LEVEL);
+        float evolution = IsEvolvedForm ? EvolvedStatMultiplier : 1f;
+        float baseContribution = speciesBase * (0.5f + 0.5f * levelFactor);
+        float talentContribution = iv * levelFactor;
+        return Mathf.Max(1, Mathf.RoundToInt((baseContribution + talentContribution) * evolution));
+    }
 
     /// <summary>
     /// Greedy IV inheritance used in the Gene Lab.
@@ -139,10 +243,13 @@ public class AlgoMonInstance
     /// </summary>
     public static AlgoMonInstance Merge(AlgoMonInstance a, AlgoMonInstance b, AlgoMonData childData)
     {
-        return new AlgoMonInstance
+        var child = new AlgoMonInstance
         {
             data             = childData,
             nickname         = childData.codeName,
+            battleFormName   = "Base",
+            instanceId       = Guid.NewGuid().ToString("N"),
+            talentSeed       = a != null ? a.talentSeed : 0,
             iv_Battery       = Mathf.Max(a.iv_Battery,       b.iv_Battery),
             iv_ClockSpeed    = Mathf.Max(a.iv_ClockSpeed,    b.iv_ClockSpeed),
             iv_ComputingPower= Mathf.Max(a.iv_ComputingPower, b.iv_ComputingPower),
@@ -152,6 +259,110 @@ public class AlgoMonInstance
             level            = 1,
             exp              = 0
         };
+        child.EnsureKnownSkillsFromLearnset();
+        return child;
+    }
+
+    public static AlgoMonInstance CreateRewardBase(AlgoMonData species, RewardDataQuality quality, int seed)
+    {
+        if (species == null)
+            return null;
+
+        var rng = new System.Random(seed);
+        int min = quality == RewardDataQuality.HighQualityBase ? 122 : 88;
+        int max = quality == RewardDataQuality.HighQualityBase ? 218 : 184;
+        int batteryBonus = quality == RewardDataQuality.HighQualityBase ? 14 : 8;
+
+        var mon = new AlgoMonInstance
+        {
+            data = species,
+            nickname = !string.IsNullOrWhiteSpace(species.codeName) ? species.codeName.Trim() : species.name,
+            dataQuality = quality == RewardDataQuality.None ? RewardDataQuality.Base : quality,
+            battleFormName = "Base",
+            instanceId = Guid.NewGuid().ToString("N"),
+            talentSeed = seed,
+            fusedBaseCopies = 0,
+            usesTransientData = false,
+            level = 1,
+            exp = 0,
+            iv_Battery = RollTalent(rng, min, max, batteryBonus),
+            iv_ClockSpeed = RollTalent(rng, min, max, 0),
+            iv_ComputingPower = RollTalent(rng, min, max, 0),
+            iv_Throughput = RollTalent(rng, min, max, 0),
+            iv_Firewall = RollTalent(rng, min, max, 0),
+            iv_Encryption = RollTalent(rng, min, max, 0)
+        };
+        mon.EnsureKnownSkillsFromLearnset();
+        return mon;
+    }
+
+    public void FuseFrom(AlgoMonInstance material)
+    {
+        if (material == null)
+            return;
+
+        EnsurePersistentRuntimeState();
+        material.EnsurePersistentRuntimeState();
+
+        iv_Battery = Mathf.Max(iv_Battery, material.iv_Battery);
+        iv_ClockSpeed = Mathf.Max(iv_ClockSpeed, material.iv_ClockSpeed);
+        iv_ComputingPower = Mathf.Max(iv_ComputingPower, material.iv_ComputingPower);
+        iv_Throughput = Mathf.Max(iv_Throughput, material.iv_Throughput);
+        iv_Firewall = Mathf.Max(iv_Firewall, material.iv_Firewall);
+        iv_Encryption = Mathf.Max(iv_Encryption, material.iv_Encryption);
+        if (material.level > level)
+        {
+            level = material.level;
+            exp = material.exp;
+        }
+        else if (material.level == level)
+        {
+            exp = Mathf.Max(exp, material.exp);
+        }
+
+        level = Mathf.Clamp(level, 1, MAX_LEVEL);
+        fusedBaseCopies = Mathf.Clamp(
+            fusedBaseCopies + 1 + material.FusionProgress,
+            0,
+            FusionCopiesForEvolution);
+
+        if (material.dataQuality > dataQuality)
+            dataQuality = material.dataQuality;
+
+        RecordFusionSource(material.instanceId);
+        if (material.fusionSourceInstanceIds != null)
+        {
+            for (int i = 0; i < material.fusionSourceInstanceIds.Count; i++)
+                RecordFusionSource(material.fusionSourceInstanceIds[i]);
+        }
+    }
+
+    public bool Evolve()
+    {
+        EnsurePersistentRuntimeState();
+        if (!CanEvolve)
+            return false;
+
+        battleFormName = "Evolved";
+        return true;
+    }
+
+    private void RecordFusionSource(string sourceId)
+    {
+        if (string.IsNullOrWhiteSpace(sourceId))
+            return;
+        if (fusionSourceInstanceIds == null)
+            fusionSourceInstanceIds = new List<string>();
+        if (!fusionSourceInstanceIds.Contains(sourceId))
+            fusionSourceInstanceIds.Add(sourceId);
+    }
+
+    private static int RollTalent(System.Random rng, int min, int max, int bonus)
+    {
+        if (rng == null)
+            return Mathf.Clamp(min + bonus, 1, 255);
+
+        return Mathf.Clamp(rng.Next(min, max + 1) + bonus, 1, 255);
     }
 
     /// <summary>Adds EXP and handles level-up.</summary>

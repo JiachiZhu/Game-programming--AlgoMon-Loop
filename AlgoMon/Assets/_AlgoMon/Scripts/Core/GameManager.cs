@@ -40,6 +40,8 @@ public class GameManager : MonoBehaviour
         "Recursix",
         "Sortex"
     };
+    private const string AlgoMonAssetSearchFolder = "Assets/_AlgoMon/ScriptableObjects/AlgoMons";
+    private const string EncounterSpeciesCatalogResourcePath = "EncounterSpeciesCatalog";
 
     [Header("Payload — Full Warehouse (all captured AlgoMons)")]
     public List<AlgoMonInstance> payload = new List<AlgoMonInstance>();
@@ -134,12 +136,25 @@ public class GameManager : MonoBehaviour
 
     public void AddToPayload(AlgoMonInstance mon)
     {
-        payload.Add(mon);
+        if (mon == null)
+            return;
+
+        EnsureRewardContainers();
+        mon.EnsurePersistentRuntimeState();
+        if (IndexOfMon(payload, mon) < 0)
+            payload.Add(mon);
     }
 
     public void RemoveFromPayload(AlgoMonInstance mon)
     {
-        payload.Remove(mon);
+        EnsureRewardContainers();
+        RemoveMonFromList(payload, mon);
+        RemoveMonFromList(party, mon);
+    }
+
+    public void EnsureRosterState()
+    {
+        EnsureRewardContainers();
     }
 
     // ----------------------------------------------------------------
@@ -147,14 +162,49 @@ public class GameManager : MonoBehaviour
 
     public bool AddToParty(AlgoMonInstance mon)
     {
-        if (party.Count >= MaxPartySize) return false;
-        party.Add(mon);
+        if (mon == null)
+            return false;
+
+        EnsureRewardContainers();
+        mon.EnsurePersistentRuntimeState();
+
+        AlgoMonInstance payloadMon = EnsurePayloadEntry(mon);
+        if (payloadMon == null)
+            return false;
+        if (IsInParty(payloadMon))
+            return true;
+        if (party.Count >= MaxPartySize)
+            return false;
+
+        party.Add(payloadMon);
         return true;
     }
 
     public void RemoveFromParty(AlgoMonInstance mon)
     {
-        party.Remove(mon);
+        EnsureRewardContainers();
+        RemoveMonFromList(party, mon);
+    }
+
+    public bool TryReplacePartyMember(int index, AlgoMonInstance mon)
+    {
+        if (mon == null)
+            return false;
+
+        EnsureRewardContainers();
+        if (party == null || index < 0 || index >= party.Count)
+            return false;
+
+        AlgoMonInstance payloadMon = EnsurePayloadEntry(mon);
+        if (payloadMon == null)
+            return false;
+
+        int existingIndex = IndexOfMon(party, payloadMon);
+        if (existingIndex >= 0 && existingIndex != index)
+            return false;
+
+        party[index] = payloadMon;
+        return true;
     }
 
     // ----------------------------------------------------------------
@@ -351,16 +401,14 @@ public class GameManager : MonoBehaviour
     public bool TryRegisterCapture(AlgoMonInstance mon, RewardDataQuality quality, out AlgoMonInstance captured)
     {
         captured = null;
+        EnsureRewardContainers();
         if (!CanPersistCapture(mon))
             return false;
 
-        captured = mon.Clone();
-        captured.usesTransientData = false;
-        captured.dataQuality = quality;
-        captured.battleFormName = "Base";
-        if (captured.data != null && !string.IsNullOrWhiteSpace(captured.data.codeName))
-            captured.nickname = captured.data.codeName.Trim();
-        captured.EnsureKnownSkillsFromLearnset();
+        captured = AlgoMonInstance.CreateRewardBase(mon.data, quality, RewardTalentSeed(null, mon.data));
+        if (captured == null)
+            return false;
+
         AddToPayload(captured);
         return true;
     }
@@ -373,14 +421,7 @@ public class GameManager : MonoBehaviour
 
     private static bool CanPersistCapture(AlgoMonInstance mon)
     {
-        if (mon == null || mon.data == null || mon.usesTransientData)
-            return false;
-
-#if UNITY_EDITOR
-        return AssetDatabase.Contains(mon.data);
-#else
-        return true;
-#endif
+        return mon != null && CanPersistSpecies(mon.data, mon.usesTransientData);
     }
 
     public bool CanAffordCompute(int amount)
@@ -602,6 +643,179 @@ public class GameManager : MonoBehaviour
         return count;
     }
 
+    public int EvolvablePayloadCount()
+    {
+        EnsureRewardContainers();
+        int count = 0;
+        for (int i = 0; i < payload.Count; i++)
+        {
+            AlgoMonInstance mon = payload[i];
+            if (mon == null)
+                continue;
+
+            mon.EnsurePersistentRuntimeState();
+            if (mon.CanEvolve)
+                count++;
+        }
+
+        return count;
+    }
+
+    public int FirstFusionCandidateIndexFor(int targetIndex)
+    {
+        EnsureRewardContainers();
+        for (int i = 0; i < payload.Count; i++)
+        {
+            if (i == targetIndex)
+                continue;
+            if (CanFusePayload(targetIndex, i, out _))
+                return i;
+        }
+
+        return -1;
+    }
+
+    public bool CanFusePayload(int targetIndex, int materialIndex, out string reason)
+    {
+        reason = string.Empty;
+        EnsureRewardContainers();
+
+        if (IsRunActive)
+        {
+            reason = "Gene Lab is locked during active runs.";
+            return false;
+        }
+
+        if (!TryGetPayloadMon(targetIndex, out AlgoMonInstance target) ||
+            !TryGetPayloadMon(materialIndex, out AlgoMonInstance material))
+        {
+            reason = "Select two valid payload records.";
+            return false;
+        }
+
+        target.EnsurePersistentRuntimeState();
+        material.EnsurePersistentRuntimeState();
+
+        if (ReferenceEquals(target, material) ||
+            string.Equals(target.instanceId, material.instanceId, StringComparison.Ordinal))
+        {
+            reason = "UNIT 1 and UNIT 2 must be different records.";
+            return false;
+        }
+
+        if (!target.IsBaseForm || !material.IsBaseForm)
+        {
+            reason = "Only base-form bodies can be fused.";
+            return false;
+        }
+
+        if (target.CanEvolve)
+        {
+            reason = "UNIT 1 is ready to evolve.";
+            return false;
+        }
+
+        if (!SameSpecies(target, material))
+        {
+            reason = "Fusion requires the same species.";
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryFusePayload(int targetIndex, int materialIndex, out string message)
+    {
+        if (!CanFusePayload(targetIndex, materialIndex, out message))
+            return false;
+
+        AlgoMonInstance target = payload[targetIndex];
+        AlgoMonInstance material = payload[materialIndex];
+        int targetPartyIndex = IndexOfMon(party, target);
+        int materialPartyIndex = IndexOfMon(party, material);
+        string materialName = DisplayNameFor(material);
+        target.FuseFrom(material);
+        target.EnsureKnownSkillsFromLearnset();
+        payload.RemoveAt(materialIndex);
+        ReconcilePartyAfterFusion(target, material, targetPartyIndex, materialPartyIndex);
+
+        message = $"{DisplayNameFor(target)} + {materialName} fused. UNIT 1 keeps the record. Fusion {target.FusionProgressText}. Level L{target.level:00}.";
+        return true;
+    }
+
+    private void ReconcilePartyAfterFusion(
+        AlgoMonInstance target,
+        AlgoMonInstance material,
+        int targetPartyIndex,
+        int materialPartyIndex)
+    {
+        if (party == null || target == null || material == null)
+            return;
+
+        if (targetPartyIndex >= 0)
+        {
+            RemoveMonFromList(party, material);
+            return;
+        }
+
+        if (materialPartyIndex >= 0)
+        {
+            if (materialPartyIndex < party.Count)
+                party[materialPartyIndex] = target;
+            else if (party.Count < MaxPartySize)
+                party.Add(target);
+        }
+    }
+
+    public bool CanEvolvePayload(int targetIndex, out string reason)
+    {
+        reason = string.Empty;
+        EnsureRewardContainers();
+
+        if (IsRunActive)
+        {
+            reason = "Gene Lab is locked during active runs.";
+            return false;
+        }
+
+        if (!TryGetPayloadMon(targetIndex, out AlgoMonInstance target))
+        {
+            reason = "Select a valid payload record.";
+            return false;
+        }
+
+        target.EnsurePersistentRuntimeState();
+        if (!target.IsBaseForm)
+        {
+            reason = "This record is already evolved.";
+            return false;
+        }
+
+        if (!target.CanEvolve)
+        {
+            reason = $"Need {target.RemainingFusionCopies} more same-species base fusion(s).";
+            return false;
+        }
+
+        return true;
+    }
+
+    public bool TryEvolvePayload(int targetIndex, out string message)
+    {
+        if (!CanEvolvePayload(targetIndex, out message))
+            return false;
+
+        AlgoMonInstance target = payload[targetIndex];
+        if (!target.Evolve())
+        {
+            message = "Evolution failed.";
+            return false;
+        }
+
+        message = $"{DisplayNameFor(target)} evolved to its evolved form.";
+        return true;
+    }
+
     public EncounterReward GrantCurrentEncounterReward(AlgoMonInstance defeatedOpponent)
     {
         EnsureRewardContainers();
@@ -647,19 +861,9 @@ public class GameManager : MonoBehaviour
         GrantPartyExp(reward.algoMonExp);
 
         if (reward.shouldGrantBaseData &&
-            TryRegisterCapture(defeatedOpponent, reward.baseDataQuality, out _))
+            TryRegisterRewardBase(reward, defeatedOpponent, out _))
         {
             reward.baseDataGranted = true;
-        }
-
-        if (reward.shouldGrantEvolutionData)
-        {
-            // TODO Sprint 5: store evolved codeName once evolved species become distinct assets.
-            string code = !string.IsNullOrWhiteSpace(reward.speciesCodeName)
-                ? reward.speciesCodeName.Trim()
-                : "UNKNOWN";
-            evolutionDataSpeciesCodes.Add(code);
-            reward.evolutionDataGranted = true;
         }
     }
 
@@ -890,6 +1094,10 @@ public class GameManager : MonoBehaviour
 
     private void EnsureRewardContainers()
     {
+        if (payload == null)
+            payload = new List<AlgoMonInstance>();
+        if (party == null)
+            party = new List<AlgoMonInstance>();
         if (evolutionDataSpeciesCodes == null)
             evolutionDataSpeciesCodes = new List<string>();
         if (currentRunBuffs == null)
@@ -902,6 +1110,237 @@ public class GameManager : MonoBehaviour
             currentRunRewards = new RunRewardSummary();
         if (completedRunRewards == null)
             completedRunRewards = new RunRewardSummary();
+
+        EnsureMonState(payload);
+        EnsureMonState(party);
+        EnsurePartyPayloadLinks();
+    }
+
+    private static void EnsureMonState(List<AlgoMonInstance> mons)
+    {
+        if (mons == null)
+            return;
+
+        for (int i = 0; i < mons.Count; i++)
+        {
+            if (mons[i] != null)
+                mons[i].EnsurePersistentRuntimeState();
+        }
+    }
+
+    private void EnsurePartyPayloadLinks()
+    {
+        if (payload == null || party == null)
+            return;
+
+        for (int i = 0; i < party.Count; i++)
+        {
+            AlgoMonInstance mon = party[i];
+            if (mon == null)
+                continue;
+
+            AlgoMonInstance payloadMon = EnsurePayloadEntry(mon);
+            if (payloadMon != null)
+                party[i] = payloadMon;
+        }
+    }
+
+    private AlgoMonInstance EnsurePayloadEntry(AlgoMonInstance mon)
+    {
+        if (mon == null || payload == null)
+            return null;
+
+        mon.EnsurePersistentRuntimeState();
+        int existingIndex = IndexOfMon(payload, mon);
+        if (existingIndex >= 0)
+            return payload[existingIndex];
+
+        payload.Add(mon);
+        return mon;
+    }
+
+    private bool TryRegisterRewardBase(
+        EncounterReward reward,
+        AlgoMonInstance defeatedOpponent,
+        out AlgoMonInstance captured)
+    {
+        captured = null;
+        if (!TryResolveRewardSpecies(reward, defeatedOpponent, out AlgoMonData species))
+            return false;
+
+        int seed = RewardTalentSeed(reward, species);
+        captured = AlgoMonInstance.CreateRewardBase(species, reward.baseDataQuality, seed);
+        if (captured == null)
+            return false;
+
+        AddToPayload(captured);
+        return true;
+    }
+
+    private bool TryResolveRewardSpecies(
+        EncounterReward reward,
+        AlgoMonInstance defeatedOpponent,
+        out AlgoMonData species)
+    {
+        species = null;
+        if (defeatedOpponent != null && CanPersistCapture(defeatedOpponent))
+        {
+            species = defeatedOpponent.data;
+            return true;
+        }
+
+        string rewardCode = reward != null ? reward.speciesCodeName : string.Empty;
+        species = FindRewardSpeciesByCodeName(rewardCode);
+        if (species != null)
+            return true;
+
+        species = FindRewardSpeciesByCodeName(CurrentBossSpeciesCodeName);
+        return species != null;
+    }
+
+    private int RewardTalentSeed(EncounterReward reward, AlgoMonData species)
+    {
+        unchecked
+        {
+            int seed = currentRunSeed;
+            seed = seed * 397 ^ StableHash(currentNodeId);
+            seed = seed * 397 ^ StableHash(species != null ? species.codeName : string.Empty);
+            seed = seed * 397 ^ (payload != null ? payload.Count : 0);
+            seed = seed * 397 ^ (reward != null ? reward.encounterLevel : 0);
+            return seed & int.MaxValue;
+        }
+    }
+
+    private static bool CanPersistSpecies(AlgoMonData data, bool usesTransientData)
+    {
+        if (data == null || usesTransientData)
+            return false;
+
+#if UNITY_EDITOR
+        return AssetDatabase.Contains(data);
+#else
+        return true;
+#endif
+    }
+
+    private static AlgoMonData FindRewardSpeciesByCodeName(string codeName)
+    {
+        string normalized = NormalizeSpeciesKey(codeName);
+        if (string.IsNullOrEmpty(normalized))
+            return null;
+
+        EncounterSpeciesCatalog catalog = Resources.Load<EncounterSpeciesCatalog>(EncounterSpeciesCatalogResourcePath);
+        if (catalog != null)
+        {
+            AlgoMonData found = FindSpeciesInPool(catalog.GetSpecies(), normalized);
+            if (found != null)
+                return found;
+        }
+
+#if UNITY_EDITOR
+        string[] guids = AssetDatabase.FindAssets("t:AlgoMonData", new[] { AlgoMonAssetSearchFolder });
+        for (int i = 0; i < guids.Length; i++)
+        {
+            string path = AssetDatabase.GUIDToAssetPath(guids[i]);
+            AlgoMonData data = AssetDatabase.LoadAssetAtPath<AlgoMonData>(path);
+            if (data != null &&
+                string.Equals(NormalizeSpeciesKey(data.codeName), normalized, StringComparison.OrdinalIgnoreCase))
+            {
+                return data;
+            }
+        }
+#endif
+
+        return null;
+    }
+
+    private static AlgoMonData FindSpeciesInPool(AlgoMonData[] pool, string normalizedCodeName)
+    {
+        if (pool == null)
+            return null;
+
+        for (int i = 0; i < pool.Length; i++)
+        {
+            AlgoMonData data = pool[i];
+            if (data != null &&
+                string.Equals(NormalizeSpeciesKey(data.codeName), normalizedCodeName, StringComparison.OrdinalIgnoreCase))
+            {
+                return data;
+            }
+        }
+
+        return null;
+    }
+
+    private bool TryGetPayloadMon(int index, out AlgoMonInstance mon)
+    {
+        mon = null;
+        if (payload == null || index < 0 || index >= payload.Count)
+            return false;
+
+        mon = payload[index];
+        return mon != null;
+    }
+
+    public bool IsInParty(AlgoMonInstance mon)
+    {
+        EnsureRewardContainers();
+        return IndexOfMon(party, mon) >= 0;
+    }
+
+    private static int IndexOfMon(List<AlgoMonInstance> mons, AlgoMonInstance mon)
+    {
+        if (mons == null || mon == null)
+            return -1;
+
+        mon.EnsurePersistentRuntimeState();
+        for (int i = 0; i < mons.Count; i++)
+        {
+            AlgoMonInstance candidate = mons[i];
+            if (candidate == null)
+                continue;
+
+            candidate.EnsurePersistentRuntimeState();
+            if (ReferenceEquals(mon, candidate) ||
+                string.Equals(mon.instanceId, candidate.instanceId, StringComparison.Ordinal))
+            {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    private static bool RemoveMonFromList(List<AlgoMonInstance> mons, AlgoMonInstance mon)
+    {
+        int index = IndexOfMon(mons, mon);
+        if (index < 0)
+            return false;
+
+        mons.RemoveAt(index);
+        return true;
+    }
+
+    private static bool SameSpecies(AlgoMonInstance a, AlgoMonInstance b)
+    {
+        return a != null &&
+               b != null &&
+               !string.IsNullOrWhiteSpace(a.SpeciesCodeName) &&
+               string.Equals(a.SpeciesCodeName, b.SpeciesCodeName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string DisplayNameFor(AlgoMonInstance mon)
+    {
+        if (mon == null)
+            return "AlgoMon";
+        if (!string.IsNullOrWhiteSpace(mon.nickname))
+            return mon.nickname.Trim();
+        return !string.IsNullOrWhiteSpace(mon.SpeciesCodeName) ? mon.SpeciesCodeName : "AlgoMon";
+    }
+
+    private static string NormalizeSpeciesKey(string codeName)
+    {
+        return string.IsNullOrWhiteSpace(codeName) ? string.Empty : codeName.Trim();
     }
 
     private static string NormalizeBossSpeciesCodeName(string speciesCodeName)

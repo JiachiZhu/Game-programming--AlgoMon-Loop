@@ -52,12 +52,12 @@ public class EncounterReward
 
         string line = $"REWARD: USER +{playerExp} EXP | ALGOMON +{algoMonExp} EXP | COMPUTE +{compute}";
         if (baseDataGranted)
-            line += $" | DATA {FormatQuality(baseDataQuality)}";
+            line += $" | BASE FORM {FormatQuality(baseDataQuality)}";
         else if (shouldGrantBaseData)
-            line += " | DATA SKIPPED";
+            line += " | BASE FORM SKIPPED";
 
         if (evolutionDataGranted)
-            line += " | EVOLUTION DATA +1";
+            line += " | LEGACY EVOLUTION DATA +1";
 
         return line;
     }
@@ -129,8 +129,12 @@ public class RunRewardSummary
 
     public string ToCompactDisplay()
     {
+        string baseLine = highQualityBaseDataCount > 0
+            ? $"BASE FORM +{baseDataCount} (HQ {highQualityBaseDataCount})"
+            : $"BASE FORM +{baseDataCount}";
+
         return $"USER EXP +{playerExp} | ALGOMON EXP +{algoMonExp}\n" +
-               $"COMPUTE +{compute} | DATA +{baseDataCount} | EVO +{evolutionDataCount}";
+               $"COMPUTE +{compute} | {baseLine}";
     }
 }
 
@@ -188,8 +192,7 @@ public static class EncounterRewardCalculator
                     algoMonExp = 75 + level * 4,
                     compute = 30 + danger * 5,
                     shouldGrantBaseData = true,
-                    baseDataQuality = RewardDataQuality.HighQualityBase,
-                    shouldGrantEvolutionData = true
+                    baseDataQuality = RewardDataQuality.HighQualityBase
                 };
             case NodeType.Combat:
             default:
@@ -197,9 +200,7 @@ public static class EncounterRewardCalculator
                 {
                     playerExp = 10 + level,
                     algoMonExp = 20 + level * 2,
-                    compute = 4 + danger,
-                    shouldGrantBaseData = true,
-                    baseDataQuality = RewardDataQuality.Base
+                    compute = 4 + danger
                 };
         }
     }

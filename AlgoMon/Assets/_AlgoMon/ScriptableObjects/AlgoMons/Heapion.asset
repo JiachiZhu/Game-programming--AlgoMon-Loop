@@ -17,6 +17,13 @@ MonoBehaviour:
     kernel defenses.
   portrait: {fileID: 0}
   elementType: 6
+  baseBattery: 140
+  baseClockSpeed: 60
+  baseComputingPower: 110
+  baseThroughput: 75
+  baseFirewall: 120
+  baseEncryption: 95
+  battleAnimationProfile: {fileID: 0}
   subroutine: {fileID: 11400000, guid: d9176214ba3245b1a14ec35e68b158ed, type: 2}
   learnset:
   - skill: {fileID: 11400000, guid: 962fe57b15cf4c645a27aca46e8adb96, type: 2}

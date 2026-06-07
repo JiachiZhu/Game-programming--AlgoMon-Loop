@@ -4,7 +4,7 @@ This file tracks third-party, generated, and externally assisted assets used by
 AlgoMon. It is meant as the citation checklist for reports, presentations, and
 final submission packaging.
 
-Last reviewed: 2026-05-29
+Last reviewed: 2026-06-07
 
 For the generated list of assets that are currently referenced, loaded, or
 packaged by the project, see `Docs/UsedAssetInventory.md` and
@@ -26,22 +26,25 @@ needing confirmation as follow-up work before final submission.
 | Main menu cover and battle background | `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/MainMenuCover16x9.png`, `AlgoMon/Assets/_AlgoMon/Sprites/UI/Arena/BattleBackground_CyberArena.png` | ChatGPT Image 2 | Project-specific generated output. Keep AI-generation disclosure in report. | Confirmed by project author on 2026-05-29. |
 | MainTerminal support masks | `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/CharacterTypingBackdrop.png`, `CharacterTypingGhostShadow.png` | Custom project-generated support art | Created to cover/mask the generated menu character image in the MainTerminal scene. | Confirmed by project author on 2026-05-29. |
 | Element icons | `AlgoMon/Assets/_AlgoMon/Resources/UI/Elements/Element_*.png` | Gemini 3.1 Pro / Nano Banana generation | Project-specific generated output. Keep AI-generation disclosure in report. | Confirmed by project author on 2026-05-29. |
-| Custom battle/grid UI support pieces | `GroundDisc.png`, `CPSegmentFill.png`, `CPZapFill.png`, `TerminalNodeDisc.png`, `TerminalNodeRing.png`, `Sandclock/Sandclock_01.png` through `Sandclock_05.png` | Custom project-generated / Codex-assisted UI art | Project-owned UI pieces; no external image pack used directly. `CPSegmentFill.png`, `CPZapFill.png`, and the sandclock frames are serialized into `BattleHud.prefab`/`TheArena.unity`. | Confirmed by project author and serialized-reference audit on 2026-05-29. Sandclock frames were replaced with deterministic project-owned pixel art on 2026-05-29. |
-| CP battery frame reference | `AlgoMon/Assets/_AlgoMon/Sprites/UI/Arena/CPBatteryFrame.png` | Custom project-generated / Codex-assisted UI art, visually referenced from [Complete UI Essential Pack by Crusenho](https://crusenho.itch.io/complete-ui-essential-pack) | Crusenho pack is CC BY 4.0. Credit Crusenho and link the license if describing the reference. No exact source-pack file was detected in the repo. | Confirmed by project author on 2026-05-29. |
+| Custom battle/grid UI support pieces | `GroundDisc.png`, `CPSegmentFill.png`, `CPZapFill.png`, `TerminalNodeDisc.png`, `TerminalNodeRing.png`, `Sandclock/Sandclock_01.png` through `Sandclock_05.png` | Custom project-generated UI art | Project-owned UI pieces; no external image pack used directly. `CPSegmentFill.png`, `CPZapFill.png`, and the sandclock frames are serialized into `BattleHud.prefab`/`TheArena.unity`. | Confirmed by project author and serialized-reference audit on 2026-05-29. Sandclock frames were replaced with deterministic project-owned pixel art on 2026-05-29. |
+| CP battery frame reference | `AlgoMon/Assets/_AlgoMon/Sprites/UI/Arena/CPBatteryFrame.png` | Custom project-generated UI art, visually referenced from [Complete UI Essential Pack by Crusenho](https://crusenho.itch.io/complete-ui-essential-pack) | Crusenho pack is CC BY 4.0. Credit Crusenho and link the license if describing the reference. No exact source-pack file was detected in the repo. | Confirmed by project author on 2026-05-29. |
 | Nico Font Pack | `AlgoMon/Assets/_AlgoMon/Resources/Fonts/NicoBold-Regular.ttf`, `AlgoMon/Assets/_AlgoMon/Fonts/NicoBitmap/` | [Nico Font Pack by Emily Huo](https://emhuo.itch.io/nico-pixel-fonts-pack) | SIL Open Font License 1.1. Local README says free for commercial and non-commercial projects, no attribution necessary. | Confirmed from local `README.txt`, `OFL.txt`, and hash matches to local pack files. |
 | Free SciFi Inventory UI pack | `AlgoMon/Assets/_AlgoMon/Resources/UI/SkillFrame/` | [Free Inventory Sci-Fi by ELV Games](https://elvgames.itch.io/free-sci-fi-inventory) | Page/local README permit personal/commercial use and modification, require credits to ELV Games, and forbid resale/claiming as own. The page also forbids AI training and crypto/NFT use. | Direct matches found for original pack files; `inventory_example_02_four_rows*` are project-derived variants from `Inventory_Example_02.png`. |
 | Pixel UI Pack 3 health bars | `AlgoMon/Assets/_AlgoMon/Sprites/UI/Arena/PixelUIPack3_Bars.png`, `BatteryBar_Pack3BlueFill.png`, `BatteryBar_Pack3RedOrangeFill.png`, `BatteryBar_Pack3Track.png` | [Basic Pixel Health bar and Scroll bar by BDragon1727](https://bdragon1727.itch.io/basic-pixel-health-bar-and-scroll-bar) | Page permits free non-commercial use, asks commercial projects to contribute any value, allows modification, and forbids resale/redistribution of the asset. A creator comment asks paid-game users to introduce/credit BDragon1727. | `PixelUIPack3_Bars.png` is an exact copy of local `Pixel UI pack 3/06.png`; blue/red-orange fills are exact crops, while `BatteryBar_Pack3Track.png` is a project-made piece based on that sheet. |
 | Battle announcer green panel | `AlgoMon/Assets/_AlgoMon/Resources/UI/BattleAnnouncer_GreenPanel.png` | [Pixel ui asset art by DuxDevGames](https://dux-dev-games.itch.io/pixel-ui-asset-art) | Page permits use but forbids selling the pixel art itself or claiming it as yours; copyright Dux Dev Games. | Exact crop at `x=92, y=23, w=33, h=16` from local `Pixel ui/pixil-frame-0 (7).png`. |
-| Lucide SVG icons (`cpu`, `refresh-cw`, `shopping-bag`, `square-chevron-right`, `square-terminal`, `sword`, `swords`, `zap`) | `AlgoMon/Assets/_AlgoMon/Sprites/UI/Grid/SVGSource/`, `AlgoMon/Assets/_AlgoMon/Sprites/UI/Arena/SVGSource/` | [Lucide Icons](https://lucide.dev/) | [ISC License](https://lucide.dev/license); keep copyright/license notice when distributing copies. | Confirmed by SVG class names and official Lucide license. |
+| Lucide SVG icons (`cpu`, `refresh-cw`, `shopping-bag`, `square-chevron-right`, `square-terminal`, `sword`, `swords`, `zap`) | `AlgoMon/Assets/_AlgoMon/Sprites/UI/Grid/SVGSource/`, `AlgoMon/Assets/_AlgoMon/Sprites/UI/Arena/SVGSource/` | [Lucide Icons](https://lucide.dev/) | [ISC License](https://lucide.dev/license); keep copyright/license notice when distributing copies. `square-chevron-right` (`AlgoMon/Assets/_AlgoMon/Sprites/UI/Grid/Icons/square-chevron-right.png`) is additionally reused horizontally-flipped as the MainTerminal main-menu section back/return arrow, wired through `MainTerminalController.backArrowSprite` (added 2026-06-06). | Confirmed by SVG class names and official Lucide license. |
+| Pixel UI & HUD MainTerminal UI sprites | `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/**`, including `Buttons/Blue/ButtonE_Unpressed.png`, `ButtonStone_Highlighted.png`, and `ButtonF_Pressed.png` | [Pixel UI & HUD Pack](https://deadrevolver.itch.io/pixel-ui-hud-pack) by Dead Revolver, obtained from an itch.io purchase for this project; local source `C:\Users\rog\OneDrive\桌面\游戏编程\Pixel UI & HUD` | Imported UI sprites used for MainTerminal panel frames, selectors, grid/select states, skill-tree pieces, value bars, tooltips, and the Payload/Squad command-button states. Keep Dead Revolver credit, purchase/license evidence, and purchaser permission evidence if bought via another account. | Source confirmed by project author on 2026-06-06; local readme names Dead Revolver. |
+| PRO Cyberpunk HUD System PNG assets | `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/**`, `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/InventorySlots/cyber_slot_*.png` (generator: `Docs/tools/pro_cyberpunk_slots_export.py`) | "PRO Cyberpunk HUD System - Godot 4 Animated UI" by DJY66 / GameSupply; local source `Cyberpunk_HUD_PNG_Assets_Only` | Local license says assets may be used and modified in personal/commercial projects, but may not be resold, redistributed, repackaged, or uploaded as a competing asset pack. Used for MainTerminal cyber HUD panels, frames, icons, deco, progress pieces, the Payload talent-bar fill, and PRO-derived Payload storage-grid slot states. | Confirmed from local `CyberpunkHUD_License.txt` and `CyberpunkHUD_README_PNG_ONLY.txt`; keep purchase/download evidence. Payload slot states were regenerated from `CyberpunkHUD/slot_item_bg.png` on 2026-06-06 to avoid relying on unclear free-pack commercial terms. |
+| Monster base oval pedestal | `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/Inspector/UI_MonsterBase_Oval.png` | PixelLab generation by the project author | Project-specific generated output. Used as the Payload inspector pedestal beneath the selected AlgoMon idle sprite. Keep AI-generation disclosure in report. | Confirmed by project author on 2026-06-06. |
 | Unity packages from registry | `AlgoMon/Packages/manifest.json`, `AlgoMon/Packages/packages-lock.json` | Unity Package Manager | Unity package terms/licenses apply. | Confirmed by package manifest/lock file. |
 | Git package: UOS Launcher | `AlgoMon/Packages/manifest.json`, `AlgoMon/Assets/UOSLauncherEncrypt/` | `https://cnb.cool/unity/uos/UOSLauncher.git` | Check upstream package license before redistribution. | Source URL recorded in manifest. |
 | Git package: Unity MCP plugin | `AlgoMon/Packages/manifest.json` | `https://github.com/AnkleBreaker-Studio/unity-mcp-plugin.git` | Check upstream package license before redistribution. | Source URL recorded in manifest. |
 
 ## Needs Source Confirmation
 
-| Asset group | Project paths | Current clue | What to add |
+| Asset or package | Project paths | Current source note | Required confirmation |
 |---|---|---|---|
-| Present but not currently detected as used | `AlgoMon/Assets/_AlgoMon/Sprites/Effects/FreePixelEffectsPack/19_freezing_spritesheet.png` | Local `Free Pixel Effects Pack/README.txt` says public domain, no credit required. | Keep only if needed, or remove from repo if unused; if kept, add source URL. |
+| Payload panel frame exports | `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/Inspector/PanelFrame01.png`, `PanelFrame03.png` | Exported from frame 1 and frame 3 of local `C:\Users\rog\OneDrive\桌面\游戏编程\panel.aseprite`, then cropped to its visible panel bounds for Unity UI stretching. | Confirm whether `panel.aseprite` is project-created, AI-generated, or derived from a licensed third-party pack. Once confirmed, move this row into the confirmed table with the correct license/source note. |
 
 ## Recommended Citation Text
 
@@ -59,12 +62,18 @@ sources above:
 > animation frames were generated for this project with PixelLab and integrated
 > into Unity by the project author. Element icons were generated with Gemini
 > 3.1 Pro / Nano Banana. The MainTerminal typing-character loop, main menu
-> cover, and battle background were generated with ChatGPT Image 2.
+> cover, and battle background were generated with ChatGPT Image 2. MainTerminal
+> UI sprites also use PRO Cyberpunk HUD System PNG assets by DJY66/GameSupply
+> and Pixel UI & HUD by Dead Revolver.
 
 ## Before Final Submission
 
-- Add a source URL for the currently unused Free Pixel Effects Pack file if it
-  remains in the repo.
+- Keep itch purchase/download evidence for Pixel UI & HUD and PRO Cyberpunk HUD
+  System. The PRO Cyberpunk HUD System local license is already copied into the
+  project folder, but keep purchase/download evidence outside the repo too.
+- If any pack was bought via another person's itch.io account, keep a short
+  written note that the purchaser bought it for this project and permits its
+  use in this submission.
 - Keep copies of license text or screenshots/receipts for any downloaded asset
   packs outside the repo if the license does not allow committing them.
 - If a source cannot be verified, replace the asset with original/generated

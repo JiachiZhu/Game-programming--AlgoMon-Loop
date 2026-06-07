@@ -2403,17 +2403,17 @@ public class BattleManager : MonoBehaviour
             builder.AppendLine($"COMPUTE +{reward.compute}");
 
             if (!string.IsNullOrWhiteSpace(reward.speciesCodeName))
-                builder.AppendLine($"SOURCE DATA: {reward.speciesCodeName.ToUpperInvariant()}");
+                builder.AppendLine($"SOURCE SPECIES: {reward.speciesCodeName.ToUpperInvariant()}");
 
             if (reward.baseDataGranted)
-                builder.AppendLine($"BASE DATA +1 ({EncounterReward.FormatQuality(reward.baseDataQuality)})");
+                builder.AppendLine($"BASE FORM +1 ({EncounterReward.FormatQuality(reward.baseDataQuality)})");
             else if (reward.shouldGrantBaseData)
-                builder.AppendLine("BASE DATA SKIPPED");
+                builder.AppendLine("BASE FORM SKIPPED");
 
             if (reward.evolutionDataGranted)
-                builder.AppendLine("EVOLUTION DATA +1");
+                builder.AppendLine("LEGACY EVOLUTION DATA +1");
             else if (reward.shouldGrantEvolutionData)
-                builder.AppendLine("EVOLUTION DATA SKIPPED");
+                builder.AppendLine("LEGACY EVOLUTION DATA SKIPPED");
 
             if (reward.rewardMultiplierPercent != 100)
                 builder.AppendLine($"REWARD MULTIPLIER: {reward.rewardMultiplierPercent}%");

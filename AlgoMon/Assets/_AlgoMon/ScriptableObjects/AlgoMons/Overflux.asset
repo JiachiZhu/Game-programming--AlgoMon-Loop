@@ -17,6 +17,13 @@ MonoBehaviour:
     burst power.
   portrait: {fileID: 0}
   elementType: 2
+  baseBattery: 100
+  baseClockSpeed: 100
+  baseComputingPower: 135
+  baseThroughput: 85
+  baseFirewall: 95
+  baseEncryption: 85
+  battleAnimationProfile: {fileID: 0}
   subroutine: {fileID: 11400000, guid: dcd79e07ece848caa322e5bfdd668ea9, type: 2}
   learnset:
   - skill: {fileID: 11400000, guid: 261fd09ca66de514183c5a55b8893542, type: 2}

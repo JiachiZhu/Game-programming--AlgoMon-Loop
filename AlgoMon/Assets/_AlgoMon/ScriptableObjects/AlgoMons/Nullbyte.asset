@@ -17,6 +17,13 @@ MonoBehaviour:
     data flow.
   portrait: {fileID: 0}
   elementType: 1
+  baseBattery: 100
+  baseClockSpeed: 100
+  baseComputingPower: 85
+  baseThroughput: 135
+  baseFirewall: 80
+  baseEncryption: 100
+  battleAnimationProfile: {fileID: 0}
   subroutine: {fileID: 11400000, guid: 9f9f5848183f46d18fd9101be4fc9efe, type: 2}
   learnset:
   - skill: {fileID: 11400000, guid: 1ae61e8184b014e439c35de246ef8186, type: 2}

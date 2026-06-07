@@ -233,6 +233,34 @@ Direct skill counter damage modifiers still affect the current action, while Sub
 
 **BST = 600 for all species. Balance checkpoint: Lv50, basePower ≈ 45 gives 5-round neutral / 3-round advantage.**
 
+### 9.1 Species Base Stats (种族值)
+
+Authored on each `AlgoMonData` asset (`baseBattery … baseEncryption`). Every row totals **600** and is shaped to match the role above. BAT = Battery, CLK = ClockSpeed, CPU = ComputingPower, THR = Throughput, FWL = Firewall, ENC = Encryption.
+
+| Species | BAT | CLK | CPU | THR | FWL | ENC | Total |
+|---------|----:|----:|----:|----:|----:|----:|------:|
+| Sortex   |  90 | 130 | 130 |  70 |  95 |  85 | 600 |
+| Overflux | 100 | 100 | 135 |  85 |  95 |  85 | 600 |
+| Nullbyte | 100 | 100 |  85 | 135 |  80 | 100 | 600 |
+| Recursix | 120 |  90 |  70 | 120 | 100 | 100 | 600 |
+| Cachelon | 120 |  80 |  80 | 100 | 110 | 110 | 600 |
+| Heapion  | 140 |  60 | 110 |  75 | 120 |  95 | 600 |
+
+### 9.2 Live Stat Formula (数值)
+
+A live stat is derived from **talent (IV) · species base · level · evolution** in `AlgoMonInstance.Calc`:
+
+```
+levelFactor = level / 50                       // 0.02 … 1.0
+baseContribution   = speciesBase × (0.5 + 0.5 × levelFactor)
+talentContribution = IV × levelFactor
+stat = round((baseContribution + talentContribution) × evolutionMultiplier)   // min 1
+```
+
+- **evolutionMultiplier** = `1.15` when evolved, else `1.0` (`AlgoMonInstance.EvolvedStatMultiplier`). Evolution lifts the whole stat block ≈ +15%.
+- Species base gives a non-zero floor so freshly captured Lv1 bodies still read on the radar.
+- Payload radar normalizes each axis by `RadarMaxStat = 450` (`MainTerminalController`) so even maxed evolved units stay inside the chart; talent bars below the radar show the raw IV ceiling.
+
 ---
 
 ## 10. Key References

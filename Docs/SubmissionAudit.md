@@ -23,7 +23,7 @@ This audit answers the classroom checklist for the current AlgoMon Sprint 4 vert
 - A final packaged build has not been confirmed from this machine yet.
 - A final classroom submission package, such as a short gameplay video or screenshots, still needs to be prepared if the teacher requires it.
 - Unity Play Mode test notes for the latest pushed commit should be added after one final smoke test.
-- The unused `FreePixelEffectsPack` file still needs either a confirmed source URL or removal before final submission if it remains in the repository.
+- The previously unused `FreePixelEffectsPack` file has been removed from the repository.
 - Sprint 5 systems such as the full Lab, gene merge UI, and final evolution workflow are not part of this Sprint 4 playable slice yet.
 
 ## What is unclear?
@@ -36,7 +36,6 @@ This audit answers the classroom checklist for the current AlgoMon Sprint 4 vert
 
 - No known actively used major asset group is currently uncredited.
 - AI-assisted and generated assets still need to be disclosed clearly in the final report or presentation. This includes PixelLab-generated AlgoMon sprite frames, ChatGPT Image 2 menu and battle images, and Gemini / Nano Banana element icons.
-- The main remaining citation risk is the currently unused Free Pixel Effects Pack file. If it stays in the repo, its source URL should be added to the attribution log.
 - External packages from Unity Package Manager, UOS Launcher, and Unity MCP are listed, but their upstream license terms should be checked before redistribution.
 
 ## What is not tested?
@@ -64,7 +63,6 @@ This audit answers the classroom checklist for the current AlgoMon Sprint 4 vert
 
 1. Run a final Unity Play Mode smoke test on commit `7a98aae`.
 2. If the smoke test finds a broken flow, fix that before packaging anything else.
-3. Confirm or remove the unused Free Pixel Effects Pack file.
+3. Re-check `Docs/AssetAttribution.md` against the final submitted asset set.
 4. Prepare the final submission evidence required by the teacher, such as a build, screenshots, or gameplay video.
 5. Keep this audit, asset attribution, and Sprint 4 notes together with the final GitHub submission link.
-

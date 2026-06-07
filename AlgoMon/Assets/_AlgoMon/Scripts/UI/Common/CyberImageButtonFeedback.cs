@@ -180,6 +180,8 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         if (labelGraphic == null)
         {
             Transform label = transform.Find("Label");
+            if (label == null)
+                label = transform.Find("Text");
             if (label != null)
                 labelGraphic = label.GetComponent<Graphic>();
         }

@@ -120,7 +120,7 @@ public class RunResultController : MonoBehaviour
     private string CompletedRewardSummary()
     {
         if (manager == null || manager.completedRunRewards == null)
-            return "USER EXP +0 | ALGOMON EXP +0\nCOMPUTE +0 | DATA +0 | EVO +0";
+            return "USER EXP +0 | ALGOMON EXP +0\nCOMPUTE +0 | BASE FORM +0";
 
         return manager.completedRunRewards.ToCompactDisplay();
     }

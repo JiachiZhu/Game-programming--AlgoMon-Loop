@@ -1874,7 +1874,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.05, y: 0.08}
   m_AnchorMax: {x: 0.97, y: 0.925}
-  m_AnchoredPosition: {x: 20.67, y: 34.335}
+  m_AnchoredPosition: {x: 20.669983, y: 34.33499}
   m_SizeDelta: {x: -41.33, y: 68.67}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &813905497
@@ -6054,12 +6054,26 @@ MonoBehaviour:
   payloadPortraitFallbackText: {fileID: 0}
   payloadListText: {fileID: 0}
   payloadDetailPanelText: {fileID: 0}
+  payloadPreviousButton: {fileID: 0}
+  payloadNextButton: {fileID: 0}
+  geneLabFuseButton: {fileID: 0}
+  geneLabEvolveButton: {fileID: 0}
   depthTierPanel: {fileID: 0}
   depthTierTitleText: {fileID: 0}
   depthTierDetailText: {fileID: 0}
   depthTierButtons: []
   unlockAllThreatTiersForVerticalSlice: 1
   depthTierPseudoSprites: []
+  backArrowSprite: {fileID: 21300000, guid: 407110e6e9c244d49af82f29d6f5ff27, type: 3}
+  slotNormalSprite: {fileID: 21300000, guid: 6a025e5a34b302a43a543b541b6b1756, type: 3}
+  slotSelectedSprite: {fileID: 21300000, guid: 41733fca2df5c3b429adacb3a2e6eaaf, type: 3}
+  slotEpicSprite: {fileID: 21300000, guid: e00b12b3230beff468f0872b10ec8965, type: 3}
+  slotLegendarySprite: {fileID: 21300000, guid: f528ef2926de77b4d955fdda89648b56, type: 3}
+  monsterBaseOvalSprite: {fileID: 21300000, guid: 644d1eacf551b324ebec84f6aed63e34, type: 3}
+  talentBarFillSprite: {fileID: 21300000, guid: d80923a3ed345cc4c9f6728f00573517, type: 3}
+  payloadInspectorPanelSprite: {fileID: 21300000, guid: c4cf2c2f1f2b4b84be2c4ec541df39b2, type: 3}
+  squadPanelBackgroundSprite: {fileID: 21300000, guid: b0a7e2d3653643d498bd9dd3266f9101, type: 3}
+  monsterDisplayPanelSprite: {fileID: 21300000, guid: c4cf2c2f1f2b4b84be2c4ec541df39b2, type: 3}
   fallbackStarter: {fileID: 11400000, guid: 1134ba58e87fb4f41867b7b00b07aa15, type: 2}
 --- !u!224 &1787722293 stripped
 RectTransform:
@@ -6656,7 +6670,7 @@ MonoBehaviour:
   m_PhysicalUnit: 3
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
-  m_DynamicPixelsPerUnit: 1
+  m_DynamicPixelsPerUnit: 100
   m_PresetInfoIsWorld: 0
 --- !u!223 &2012614367
 Canvas:

@@ -12,7 +12,9 @@ Script Audit:
 using System;
 using System.Collections.Generic;
 using System.Text;
+using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 #if UNITY_EDITOR
 using UnityEditor;
@@ -33,6 +35,16 @@ public class MainTerminalController : MonoBehaviour
     private const string AlgoMonAssetSearchFolder = "Assets/_AlgoMon/ScriptableObjects/AlgoMons";
     private const string EncounterSpeciesCatalogResourcePath = "EncounterSpeciesCatalog";
     private const float BossRouteFallbackIdleFps = 8f;
+    private const string PanelButtonSpriteRoot = "Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue";
+    private const string PanelButtonNormalSpritePath = PanelButtonSpriteRoot + "/ButtonE_Unpressed.png";
+    private const string PanelButtonHighlightedSpritePath = PanelButtonSpriteRoot + "/ButtonE_Unpressed.png";
+    private const string PanelButtonPressedSpritePath = PanelButtonSpriteRoot + "/ButtonF_Pressed.png";
+    private const string PanelButtonHoverGlowSpritePath = PanelButtonSpriteRoot + "/ButtonStone_Highlighted.png";
+    private const string PanelFrameSpriteRoot = "Assets/_AlgoMon/Sprites/UI/MainTerminal/Inspector";
+    private const string SquadPanelFrameSpritePath = PanelFrameSpriteRoot + "/PanelFrame01.png";
+    private const string PayloadInspectorPanelSpritePath = PanelFrameSpriteRoot + "/PanelFrame03.png";
+    private const string MonsterDisplayPanelSpritePath = PanelFrameSpriteRoot + "/PanelFrame03.png";
+    private const float PanelButtonPixelsPerUnit = 100f;
     private const float BossRouteSelectionFlashSeconds = 0.34f;
     private const float BossRouteSelectionFlashStepSeconds = 0.055f;
     private const float BossRouteSelectionLineThickness = 5f;
@@ -46,11 +58,14 @@ public class MainTerminalController : MonoBehaviour
     private const float BossRouteLabelBitmapScale = 0.92f;
     private const float BossRouteElementBitmapScale = 0.96f;
     private const float BossRouteStatusBitmapScale = 0.96f;
-    private const string BossRouteBitmapFontAtlasPath = "Assets/_AlgoMon/Fonts/NicoBitmap/BoldBasic/BoldBasic.png";
-    private const string BossRouteBitmapFontMetricsPath = "Assets/_AlgoMon/Fonts/NicoBitmap/BoldBasic/BoldBasic.txt";
+    private const float DepthRecommendationBitmapScale = 0.62f;
+    private const float SystemStatusBitmapScale = 0.82f;
+    private const float BossRouteMetaBitmapScale = 0.58f;
+    private const float TmpReadableOutlineWidth = 0.085f;
     private static readonly Vector2 SourceLayoutBossRouteFallbackSize = new Vector2(118f, 232f);
     private static readonly Vector2 SourceLayoutBossRouteSelectionPadding = new Vector2(16f, 10f);
     private static readonly Vector2 BossRouteSelectionCornerSize = new Vector2(20f, 18f);
+    private static readonly Color TmpReadableOutlineColor = new Color(0.001f, 0.010f, 0.018f, 0.96f);
     private static readonly string[] PreferredReserveSpecies =
     {
         "Heapion",
@@ -95,6 +110,10 @@ public class MainTerminalController : MonoBehaviour
     [SerializeField] private Text payloadPortraitFallbackText;
     [SerializeField] private Text payloadListText;
     [SerializeField] private Text payloadDetailPanelText;
+    [SerializeField] private Button payloadPreviousButton;
+    [SerializeField] private Button payloadNextButton;
+    [SerializeField] private Button geneLabFuseButton;
+    [SerializeField] private Button geneLabEvolveButton;
     [SerializeField] private RectTransform depthTierPanel;
     [SerializeField] private Text depthTierTitleText;
     [SerializeField] private Text depthTierDetailText;
@@ -103,6 +122,23 @@ public class MainTerminalController : MonoBehaviour
 
     [Header("Visual Assets")]
     [SerializeField] private Sprite[] depthTierPseudoSprites;
+    [SerializeField] private Sprite backArrowSprite;
+    [SerializeField] private Sprite panelButtonNormalSprite;
+    [SerializeField] private Sprite panelButtonHighlightedSprite;
+    [SerializeField] private Sprite panelButtonPressedSprite;
+
+    [Header("Payload Storage Slots (PRO Cyberpunk HUD-derived)")]
+    [SerializeField] private Sprite slotNormalSprite;
+    [SerializeField] private Sprite slotSelectedSprite;
+    [SerializeField] private Sprite slotEpicSprite;
+    [SerializeField] private Sprite slotLegendarySprite;
+
+    [Header("Payload Inspector (game-programming assets)")]
+    [SerializeField] private Sprite monsterBaseOvalSprite;
+    [SerializeField] private Sprite talentBarFillSprite;
+    [SerializeField] private Sprite payloadInspectorPanelSprite;
+    [SerializeField] private Sprite squadPanelBackgroundSprite;
+    [SerializeField] private Sprite monsterDisplayPanelSprite;
 
     [Header("Starter Fallback")]
     [SerializeField] private AlgoMonData fallbackStarter;
@@ -111,6 +147,141 @@ public class MainTerminalController : MonoBehaviour
     private float bootTime;
     private Font defaultFont;
     private int selectedPayloadIndex = -1;
+    private int geneLabFusionSecondIndex = -1;
+    private bool showingGeneLabPanel;
+    private bool geneLabRouteSelectionMode;
+    private string geneLabActionMessage = string.Empty;
+    private string geneLabSkillMessage = string.Empty;
+    private string selectedGeneLabSpeciesCode = string.Empty;
+    private string payloadSkillMessage = string.Empty;
+    private bool showingPayloadSkillPanel;
+    private SkillData pendingPayloadSkillReplacement;
+    private Transform sourceLayoutVisual;
+    private bool sourceLayoutStaticLabelBitmapsReady;
+    private RectTransform[] menuContentGroups;
+    private RectTransform sectionViewRoot;
+    private Text sectionTitleText;
+    private Button sectionBackButton;
+    private bool inSectionView;
+
+    private const int PayloadGridColumns = 5;
+    private const int PayloadGridRows = 4;
+    private const int PayloadGridCellCount = PayloadGridColumns * PayloadGridRows;
+    private const int InitialPayloadFillCount = PayloadGridCellCount;
+    private RectTransform payloadGridRoot;
+    private Image[] payloadCellFrames;
+    private Image[] payloadCellSprites;
+    private Text[] payloadCellLabels;
+    private Text[] payloadCellFavoriteMarkers;
+    private Button[] payloadCellButtons;
+    private UnityEngine.Events.UnityAction[] payloadCellActions;
+    private int[] payloadCellPayloadIndices;
+    private readonly List<AlgoMonInstance> payloadDisplayOrder = new List<AlgoMonInstance>();
+    private int payloadPage;
+    private int hoveredPayloadCellIndex = -1;
+    private Button payloadPrevPageButton;
+    private Button payloadNextPageButton;
+    private Text payloadPageLabel;
+    private RectTransform geneLabPanelRoot;
+    private RectTransform geneLabRouteSelectionRoot;
+    private RectTransform geneLabBenchRoot;
+    private Text geneLabRoutePromptText;
+    private Button[] geneLabSpeciesButtons;
+    private Image[] geneLabSpeciesFrames;
+    private Text[] geneLabSpeciesLabels;
+    private Text[] geneLabSpeciesMetaLabels;
+    private Image[] geneLabRoutePortraitImages;
+    private Sprite[][] geneLabRouteIdleFrames;
+    private float[] geneLabRouteIdleFrameSeconds;
+    private float[] geneLabRouteIdleTimers;
+    private int[] geneLabRouteIdleFrameIndices;
+    private Button[] geneLabMiniPayloadButtons;
+    private Image[] geneLabMiniPayloadFrames;
+    private Image[] geneLabMiniPayloadSprites;
+    private Text[] geneLabMiniPayloadLabels;
+    private TextMeshProUGUI[] geneLabMiniPayloadBitmapLabels;
+    private int[] geneLabMiniPayloadIndices;
+    private Button geneLabMiniPayloadPrevButton;
+    private Button geneLabMiniPayloadNextButton;
+    private Text geneLabMiniPayloadPageLabel;
+    private int geneLabPayloadPage;
+    private Text geneLabFusionText;
+    private TextMeshProUGUI geneLabFusionBitmapText;
+    private RectTransform geneLabFusionTalentRoot;
+    private Text geneLabFusionTalentCaptionText;
+    private TextMeshProUGUI geneLabFusionTalentCaptionBitmapText;
+    private Image[] geneLabFusionTargetTalentFills;
+    private Image[] geneLabFusionMaterialTalentFills;
+    private Image[] geneLabFusionProjectedTalentFills;
+    private Text[] geneLabFusionTargetTalentValues;
+    private Text[] geneLabFusionMaterialTalentValues;
+    private Text[] geneLabFusionProjectedTalentValues;
+    private Image[] geneLabFusionPortraitImages;
+    private Text[] geneLabFusionNameTexts;
+    private Text[] geneLabFusionMetaTexts;
+    private Sprite[][] geneLabFusionIdleFrames;
+    private float[] geneLabFusionIdleFps;
+    private float[] geneLabFusionIdleTimers;
+    private int[] geneLabFusionIdleFrameIndices;
+    private string[] geneLabFusionIdleKeys;
+    private Button geneLabPreviousRecordButton;
+    private Button geneLabNextRecordButton;
+    private Button geneLabFuseActionButton;
+    private Button geneLabEvolveActionButton;
+    private RectTransform exitPanelRoot;
+    private Text exitPanelStatusText;
+    private Button exitReturnButton;
+    private Button exitConfirmButton;
+
+    private static readonly string[] StatAxisLabels = { "BAT", "CLK", "CPU", "THR", "FWL", "ENC" };
+    private static readonly Color GeneLabTargetTalentColor = new Color(0.20f, 1f, 0.95f, 0.96f);
+    private static readonly Color GeneLabMaterialTalentColor = new Color(1f, 0.34f, 0.88f, 0.94f);
+    private static readonly Color GeneLabProjectedTalentColor = new Color(1f, 0.86f, 0.30f, 0.98f);
+    private const float RadarMaxStat = 450f;
+    private const int GeneLabMiniPayloadCellCount = 8;
+    private const int InspectorSkillRowCount = 6;
+    private Button inspectorSquadButton;
+    private Text inspectorSquadButtonLabel;
+    private Button inspectorViewSquadButton;
+    private Button inspectorFavoriteButton;
+    private Text inspectorFavoriteButtonLabel;
+    private Button inspectorSkillsButton;
+    private Text inspectorSkillsButtonLabel;
+    private RectTransform squadPanelRoot;
+    private Text squadPanelTitle;
+    private Image[] squadSlotPortraits;
+    private Text[] squadSlotLabels;
+    private Text[] squadSlotLeadBadges;
+    private Button[] squadSlotLeadButtons;
+    private Button[] squadSlotActionButtons;
+    private Text[] squadSlotActionLabels;
+    private bool squadReplaceMode;
+    private AlgoMonInstance squadReplaceIncoming;
+    private Image inspectorPortraitImage;
+    private Text inspectorNameText;
+    private RadarChartGraphic inspectorRadar;
+    private RectTransform inspectorRadarRoot;
+    private Text[] inspectorRadarLabels;
+    private RectTransform inspectorTalentRoot;
+    private Image[] inspectorTalentFills;
+    private Text[] inspectorTalentValues;
+    private RectTransform inspectorSkillRoot;
+    private Text inspectorSkillMessageText;
+    private Button[] inspectorSkillButtons;
+    private Text[] inspectorSkillLabels;
+    private LearnsetEntry[] inspectorSkillEntries;
+    private Sprite[] inspectorIdleFrames;
+    private float inspectorIdleFps;
+    private float inspectorIdleTimer;
+    private int inspectorIdleFrame;
+    private string inspectorIdleKey;
+    private static Sprite cachedPanelButtonNormalSprite;
+    private static Sprite cachedPanelButtonHighlightedSprite;
+    private static Sprite cachedPanelButtonPressedSprite;
+    private static Sprite cachedPanelButtonHoverGlowSprite;
+    private static Sprite cachedPayloadInspectorPanelSprite;
+    private static Sprite cachedSquadPanelBackgroundSprite;
+    private static Sprite cachedMonsterDisplayPanelSprite;
     private UnityEngine.Events.UnityAction[] depthTierButtonActions;
     private Image depthTierAvatarImage;
     private Text depthTierSelectedSummaryText;
@@ -158,25 +329,25 @@ public class MainTerminalController : MonoBehaviour
     private Text[] sourceLayoutBossRouteCodes;
     private Text[] sourceLayoutBossRouteElementTags;
     private Text[] sourceLayoutBossRouteStatuses;
-    private CyberBitmapTextGraphic[] sourceLayoutBossRouteBitmapLabels;
-    private CyberBitmapTextGraphic[] sourceLayoutBossRouteBitmapCodes;
-    private CyberBitmapTextGraphic[] sourceLayoutBossRouteBitmapElementTags;
-    private CyberBitmapTextGraphic[] sourceLayoutBossRouteBitmapStatuses;
+    private TextMeshProUGUI[] sourceLayoutBossRouteBitmapLabels;
+    private TextMeshProUGUI[] sourceLayoutBossRouteBitmapCodes;
+    private TextMeshProUGUI[] sourceLayoutBossRouteBitmapElementTags;
+    private TextMeshProUGUI[] sourceLayoutBossRouteBitmapStatuses;
     private Transform[] sourceLayoutBossRouteSelectedRails;
     private string sourceLayoutBossRouteLastSelectedCode;
     private float sourceLayoutBossRouteSelectionFlashStartTime = -999f;
     private static Sprite bossRouteSelectionBarSprite;
     private static Sprite bossRouteSelectionPanelSprite;
     private static Font bossRouteDefaultFont;
-    private static Texture2D bossRouteBitmapFontAtlas;
-    private static TextAsset bossRouteBitmapFontMetrics;
+    private static TMP_FontAsset tmpMirrorFontAsset;
 
     private void Awake()
     {
-        defaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        defaultFont = ResolveTerminalDefaultFont();
         manager = GameManager.EnsureInstance();
         EnsureThreatTierAccess(manager);
         EnsureStarterParty(manager, fallbackStarter);
+        ConfigureCrispCanvas();
         EnsureHudWidgets();
         HideLegacySceneButtonVisuals();
         NormalizeMainTerminalFonts();
@@ -186,17 +357,22 @@ public class MainTerminalController : MonoBehaviour
     private void OnEnable()
     {
         WireButton(enterGridButton, StartRun);
-        WireButton(geneLabButton, ShowGeneLabPlaceholder);
+        WireButton(geneLabButton, ShowGeneLab);
         WireButton(payloadButton, ShowPayloadBox);
         WireButton(systemLogButton, ShowSystemLogPlaceholder);
         WireButton(settingsButton, ShowSettingsPlaceholder);
-        WireButton(exitButton, ShowExitPlaceholder);
+        WireButton(exitButton, ShowExitPanel);
         WireButton(sourceLayoutEnterGridButton, StartRun);
-        WireButton(sourceLayoutGeneLabButton, ShowGeneLabPlaceholder);
+        WireButton(sourceLayoutGeneLabButton, ShowGeneLab);
         WireButton(sourceLayoutPayloadButton, ShowPayloadBox);
         WireButton(sourceLayoutSettingsButton, ShowSettingsPlaceholder);
-        WireButton(sourceLayoutExitButton, ShowExitPlaceholder);
+        WireButton(sourceLayoutExitButton, ShowExitPanel);
         WireButton(launchProtocolButton, StartRun);
+        WireButton(payloadPreviousButton, SelectPreviousPayload);
+        WireButton(payloadNextButton, SelectNextPayload);
+        WireButton(geneLabFuseButton, FuseSelectedPayload);
+        WireButton(geneLabEvolveButton, EvolveSelectedPayload);
+        WireButton(sectionBackButton, ExitSectionView);
         WireDepthTierButtons();
         WireBossRouteButtons();
     }
@@ -204,17 +380,22 @@ public class MainTerminalController : MonoBehaviour
     private void OnDisable()
     {
         UnwireButton(enterGridButton, StartRun);
-        UnwireButton(geneLabButton, ShowGeneLabPlaceholder);
+        UnwireButton(geneLabButton, ShowGeneLab);
         UnwireButton(payloadButton, ShowPayloadBox);
         UnwireButton(systemLogButton, ShowSystemLogPlaceholder);
         UnwireButton(settingsButton, ShowSettingsPlaceholder);
-        UnwireButton(exitButton, ShowExitPlaceholder);
+        UnwireButton(exitButton, ShowExitPanel);
         UnwireButton(sourceLayoutEnterGridButton, StartRun);
-        UnwireButton(sourceLayoutGeneLabButton, ShowGeneLabPlaceholder);
+        UnwireButton(sourceLayoutGeneLabButton, ShowGeneLab);
         UnwireButton(sourceLayoutPayloadButton, ShowPayloadBox);
         UnwireButton(sourceLayoutSettingsButton, ShowSettingsPlaceholder);
-        UnwireButton(sourceLayoutExitButton, ShowExitPlaceholder);
+        UnwireButton(sourceLayoutExitButton, ShowExitPanel);
         UnwireButton(launchProtocolButton, StartRun);
+        UnwireButton(payloadPreviousButton, SelectPreviousPayload);
+        UnwireButton(payloadNextButton, SelectNextPayload);
+        UnwireButton(geneLabFuseButton, FuseSelectedPayload);
+        UnwireButton(geneLabEvolveButton, EvolveSelectedPayload);
+        UnwireButton(sectionBackButton, ExitSectionView);
         UnwireDepthTierButtons();
         UnwireBossRouteButtons();
     }
@@ -266,6 +447,8 @@ public class MainTerminalController : MonoBehaviour
             scanRect.offsetMax = Vector2.zero;
         }
 
+        TickInspectorIdle();
+        TickGeneLabFusionIdle();
         RefreshRunOverview();
     }
 
@@ -326,9 +509,20 @@ public class MainTerminalController : MonoBehaviour
         RefreshRunOverview();
     }
 
-    private void ShowGeneLabPlaceholder()
+    private void ShowGeneLab()
     {
-        SetModule("GENE_LAB", "LOCKED:", "GENE MERGE PROTOCOL OFFLINE.", "Gene Lab routing is scheduled for a later sprint.");
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        if (string.IsNullOrWhiteSpace(selectedGeneLabSpeciesCode))
+            selectedGeneLabSpeciesCode = NormalizeBossRouteCode(manager != null ? manager.SelectedBossSpeciesCodeName : BossRouteSpecies[0]);
+        geneLabRouteSelectionMode = true;
+        showingGeneLabPanel = true;
+        geneLabActionMessage = "Select a boss gene pool.";
+        EnterSectionView("GENE LAB");
+        HidePayloadPanel();
+        ShowPayloadGrid(false);
+        ShowGeneLabPanel(true);
+        ShowExitPanelRoot(false);
+        RefreshGeneLabModule();
     }
 
     private void ShowPayloadBox()
@@ -338,12 +532,227 @@ public class MainTerminalController : MonoBehaviour
         if (payloadCount > 0)
             selectedPayloadIndex = Mathf.Clamp(selectedPayloadIndex < 0 ? payloadCount - 1 : selectedPayloadIndex, 0, payloadCount - 1);
 
+        showingGeneLabPanel = false;
+        geneLabActionMessage = string.Empty;
+        geneLabSkillMessage = string.Empty;
+        geneLabFusionSecondIndex = -1;
+        payloadSkillMessage = string.Empty;
+        pendingPayloadSkillReplacement = null;
+        EnterSectionView("PAYLOAD");
         SetModule(
             "PAYLOAD_BOX",
             "PAYLOAD:",
-            $"{payloadCount} DATA FRAGMENT(S) STORED.",
+            $"{payloadCount} BASE FORM RECORD(S) STORED.",
             BuildPayloadPreview(manager));
-        RenderPayloadPanel(manager);
+        HidePayloadPanel();
+        ShowGeneLabPanel(false);
+        ShowExitPanelRoot(false);
+        CloseSquadPanel();
+        ShowPayloadGrid(true);
+        RenderPayloadGrid(manager);
+    }
+
+    private void EnterSectionView(string title)
+    {
+        inSectionView = true;
+
+        if (menuContentGroups != null)
+        {
+            for (int i = 0; i < menuContentGroups.Length; i++)
+            {
+                if (menuContentGroups[i] != null)
+                    menuContentGroups[i].gameObject.SetActive(false);
+            }
+        }
+
+        if (sectionTitleText != null)
+            sectionTitleText.text = title;
+
+        if (sectionViewRoot != null)
+            sectionViewRoot.gameObject.SetActive(true);
+    }
+
+    private void ExitSectionView()
+    {
+        if (showingGeneLabPanel && !geneLabRouteSelectionMode)
+        {
+            geneLabRouteSelectionMode = true;
+            geneLabActionMessage = "Select another boss gene pool.";
+            geneLabSkillMessage = string.Empty;
+            RefreshGeneLabModule();
+            return;
+        }
+
+        inSectionView = false;
+        showingGeneLabPanel = false;
+        geneLabRouteSelectionMode = false;
+        geneLabActionMessage = string.Empty;
+        geneLabSkillMessage = string.Empty;
+        geneLabFusionSecondIndex = -1;
+
+        HidePayloadPanel();
+        ShowPayloadGrid(false);
+        ShowGeneLabPanel(false);
+        ShowExitPanelRoot(false);
+        CloseSquadPanel();
+
+        if (sectionViewRoot != null)
+            sectionViewRoot.gameObject.SetActive(false);
+
+        if (menuContentGroups != null)
+        {
+            for (int i = 0; i < menuContentGroups.Length; i++)
+            {
+                if (menuContentGroups[i] != null)
+                    menuContentGroups[i].gameObject.SetActive(true);
+            }
+        }
+    }
+
+    private void RefreshGeneLabModule()
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        int payloadCount = manager != null && manager.payload != null ? manager.payload.Count : 0;
+        if (selectedPayloadIndex >= payloadCount)
+            selectedPayloadIndex = -1;
+        if (geneLabFusionSecondIndex >= payloadCount)
+            geneLabFusionSecondIndex = -1;
+
+        showingGeneLabPanel = true;
+        if (geneLabRouteSelectionMode)
+        {
+            SetModule(
+                "GENE_LAB",
+                "GENE LAB:",
+                "SELECT BOSS GENE POOL.",
+                BuildGeneLabRouteSelectDetail(manager));
+        }
+        else
+        {
+            SetModule(
+                "GENE_LAB",
+                "GENE LAB:",
+                "FUSION WORKBENCH ONLINE.",
+                BuildGeneLabModuleDetail(manager));
+        }
+        RenderGeneLabPanel(manager);
+    }
+
+    private void SelectPreviousPayload()
+    {
+        MovePayloadSelection(-1);
+    }
+
+    private void SelectNextPayload()
+    {
+        MovePayloadSelection(1);
+    }
+
+    private void MovePayloadSelection(int direction)
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        int payloadCount = manager != null && manager.payload != null ? manager.payload.Count : 0;
+        if (payloadCount <= 0)
+            return;
+
+        selectedPayloadIndex = (selectedPayloadIndex + direction + payloadCount) % payloadCount;
+        if (showingGeneLabPanel)
+        {
+            geneLabActionMessage = GeneLabSelectionStatus(manager);
+            RefreshGeneLabModule();
+        }
+        else
+        {
+            ShowPayloadBox();
+        }
+    }
+
+    private void SelectGeneLabSpecies(string speciesCodeName)
+    {
+        SelectGeneLabSpecies(speciesCodeName, true);
+    }
+
+    private void SelectGeneLabSpecies(string speciesCodeName, bool refresh)
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        selectedGeneLabSpeciesCode = NormalizeBossRouteCode(speciesCodeName);
+        geneLabRouteSelectionMode = false;
+        geneLabSkillMessage = string.Empty;
+
+        if (manager != null && !manager.IsRunActive)
+            manager.TrySetSelectedBossSpecies(selectedGeneLabSpeciesCode);
+
+        selectedPayloadIndex = -1;
+        geneLabFusionSecondIndex = -1;
+        FocusGeneLabMiniPayloadPageOn(manager, selectedGeneLabSpeciesCode, selectedPayloadIndex);
+        geneLabActionMessage = GeneLabSelectionStatus(manager);
+        if (refresh)
+            RefreshGeneLabModule();
+    }
+
+    private void MoveGeneLabTarget(int direction)
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        if (manager == null || manager.payload == null || manager.payload.Count == 0)
+            return;
+
+        string speciesCode = SelectedGeneLabSpeciesCode(manager);
+        int current = selectedPayloadIndex >= 0 ? selectedPayloadIndex : BestGeneLabTargetIndexForSpecies(manager, speciesCode);
+        int count = manager.payload.Count;
+        for (int step = 1; step <= count; step++)
+        {
+            int index = (current + direction * step + count) % count;
+            if (PayloadMatchesSpecies(PayloadAt(manager, index), speciesCode))
+            {
+                selectedPayloadIndex = index;
+                if (geneLabFusionSecondIndex == selectedPayloadIndex)
+                    geneLabFusionSecondIndex = -1;
+                FocusGeneLabMiniPayloadPageOn(manager, speciesCode, selectedPayloadIndex);
+                geneLabSkillMessage = string.Empty;
+                geneLabActionMessage = GeneLabSelectionStatus(manager);
+                RefreshGeneLabModule();
+                return;
+            }
+        }
+    }
+
+    private void FuseSelectedPayload()
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        if (manager == null)
+            return;
+
+        AlgoMonInstance selected = SelectedPayloadMon(manager);
+        if (!manager.CanFusePayload(selectedPayloadIndex, geneLabFusionSecondIndex, out string message))
+        {
+            geneLabActionMessage = message;
+            RefreshGeneLabModule();
+            return;
+        }
+
+        if (manager.TryFusePayload(selectedPayloadIndex, geneLabFusionSecondIndex, out message))
+        {
+            if (selected != null && manager.payload != null)
+                selectedPayloadIndex = Mathf.Max(0, manager.payload.IndexOf(selected));
+            geneLabFusionSecondIndex = -1;
+        }
+
+        geneLabActionMessage = message;
+        geneLabSkillMessage = string.Empty;
+        RefreshGeneLabModule();
+    }
+
+    private void EvolveSelectedPayload()
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        if (manager == null)
+            return;
+
+        manager.TryEvolvePayload(selectedPayloadIndex, out string message);
+        geneLabActionMessage = message;
+        geneLabSkillMessage = string.Empty;
+        geneLabFusionSecondIndex = -1;
+        RefreshGeneLabModule();
     }
 
     private void ShowSystemLogPlaceholder()
@@ -356,9 +765,37 @@ public class MainTerminalController : MonoBehaviour
         SetModule("SETTINGS", "LOCKED:", "CONFIG PANEL NOT DEPLOYED.", "Settings are outside the Sprint 3 playable loop.");
     }
 
-    private void ShowExitPlaceholder()
+    private void ShowExitPanel()
     {
-        SetModule("EXIT_SYSTEM", "STANDBY:", "TERMINAL SESSION HELD OPEN.", "Exit is disabled in editor builds.");
+        showingGeneLabPanel = false;
+        geneLabActionMessage = string.Empty;
+        geneLabSkillMessage = string.Empty;
+        geneLabFusionSecondIndex = -1;
+        EnterSectionView("EXIT");
+        HidePayloadPanel();
+        ShowPayloadGrid(false);
+        ShowGeneLabPanel(false);
+        ShowExitPanelRoot(true);
+        SetModule("EXIT_SYSTEM", "SESSION:", "EXIT PROTOCOL READY.", "Return to the terminal or close the current build session.");
+        RenderExitPanel();
+    }
+
+    private void ReturnFromExitPanel()
+    {
+        ExitSectionView();
+        SetModule("ENTER_GRID", "DEPTH TIER:", "GRID LINK READY", BuildDepthTierDetail(manager));
+    }
+
+    private void ConfirmExit()
+    {
+        if (exitPanelStatusText != null)
+            exitPanelStatusText.text = "EXIT SIGNAL SENT.";
+
+#if UNITY_EDITOR
+        EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 
     private void SetModule(string moduleId, string warning, string headline, string detail)
@@ -369,8 +806,13 @@ public class MainTerminalController : MonoBehaviour
             warningText.text = warning;
         if (detailText != null)
             detailText.text = $"{headline}\n\n{detail}";
-        if (moduleId != "PAYLOAD_BOX")
+        if (moduleId != "PAYLOAD_BOX" && moduleId != "GENE_LAB" && moduleId != "EXIT_SYSTEM")
+        {
+            showingGeneLabPanel = false;
             HidePayloadPanel();
+            ShowGeneLabPanel(false);
+            ShowExitPanelRoot(false);
+        }
     }
 
     private void RefreshRunOverview()
@@ -388,7 +830,7 @@ public class MainTerminalController : MonoBehaviour
         if (statsText != null)
         {
             int payloadCount = manager.payload != null ? manager.payload.Count : 0;
-            int evolutionDataCount = manager.evolutionDataSpeciesCodes != null ? manager.evolutionDataSpeciesCodes.Count : 0;
+            int evolvableCount = manager.EvolvablePayloadCount();
             string runStatus = manager.IsRunActive ? "ACTV" : "STBY";
             int rewardPercent = manager.IsRunActive
                 ? Mathf.RoundToInt(manager.currentRewardMultiplier * 100f)
@@ -396,18 +838,34 @@ public class MainTerminalController : MonoBehaviour
             statsText.text =
                 $"USER// XP {manager.playerExp:0000} CMP {manager.computeBalance:0000}\n" +
                 $"PAYLOAD// {payloadCount:00}\n" +
-                $"EVO// {evolutionDataCount:00}\n" +
+                $"GENE// {evolvableCount:00}\n" +
                 $"BOSS// {manager.SelectedBossSpeciesCodeName.ToUpperInvariant()}\n" +
                 $"RUN// {runStatus} T{manager.SelectedThreatTierNumber:00}/{manager.HighestUnlockedThreatTierNumber:00} x{rewardPercent:000}%\n" +
                 $"SQUAD// {PartyCount(manager):00}/{GameManager.MaxPartySize:00}";
         }
 
-        RefreshDepthTierSelector();
-        RefreshSourceLayoutBossRoutes();
-        RefreshLaunchProtocolText();
+        if (!inSectionView)
+        {
+            RefreshDepthTierSelector();
+            RefreshSourceLayoutBossRoutes();
+            RefreshLaunchProtocolText();
+        }
 
-        if (payloadPanel != null && payloadPanel.gameObject.activeSelf)
-            RenderPayloadPanel(manager);
+        if (inSectionView && !showingGeneLabPanel && payloadGridRoot != null && payloadGridRoot.gameObject.activeSelf)
+        {
+            RenderPayloadGrid(manager);
+        }
+        else if (inSectionView && showingGeneLabPanel && geneLabPanelRoot != null && geneLabPanelRoot.gameObject.activeSelf)
+        {
+            RenderGeneLabPanel(manager);
+        }
+        else if (payloadPanel != null && payloadPanel.gameObject.activeSelf)
+        {
+            if (showingGeneLabPanel)
+                RenderGeneLabPanel(manager);
+            else
+                RenderPayloadPanel(manager);
+        }
     }
 
     private void EnsureThreatTierAccess(GameManager targetManager)
@@ -525,10 +983,10 @@ public class MainTerminalController : MonoBehaviour
     private static string BuildPayloadPreview(GameManager targetManager)
     {
         if (targetManager == null || targetManager.payload == null || targetManager.payload.Count == 0)
-            return "No extracted AlgoMon data yet.\nDefeat encounters in TheArena to auto-store copies here.";
+            return "No base-form AlgoMon records yet.\nClear a selected boss route to archive that species here.";
 
         const int maxVisible = 8;
-        var builder = new StringBuilder("EXTRACTED DATA CACHE");
+        var builder = new StringBuilder("BASE FORM PAYLOAD CACHE");
         int visible = Mathf.Min(targetManager.payload.Count, maxVisible);
         for (int i = 0; i < visible; i++)
         {
@@ -550,7 +1008,8 @@ public class MainTerminalController : MonoBehaviour
 
         string name = DisplayNameFor(mon);
         string element = mon.data != null ? mon.data.elementType.ToString().ToUpperInvariant() : "NORMAL";
-        return $"{slot:00}// {name.ToUpperInvariant()} L{mon.level:00} [{ShortElement(element)}] BAT{mon.Battery:00} CPU{mon.ComputingPower:00} TP{mon.Throughput:00}";
+        string form = FormLabel(mon);
+        return $"{slot:00}// {name.ToUpperInvariant()} {form} L{mon.level:00} [{ShortElement(element)}] BAT{mon.Battery:00} CPU{mon.ComputingPower:00} TP{mon.Throughput:00}";
     }
 
     private void RenderPayloadPanel(GameManager targetManager)
@@ -566,7 +1025,8 @@ public class MainTerminalController : MonoBehaviour
             if (payloadListText != null)
                 payloadListText.text = "PAYLOAD INDEX\n-- EMPTY --";
             if (payloadDetailPanelText != null)
-                payloadDetailPanelText.text = "Defeat an encounter in TheArena to archive its persistent AlgoMon data here.";
+                payloadDetailPanelText.text = "Clear a selected boss route to archive that boss species' base form here.";
+            SetPayloadPanelControls(false, false, false, false);
             return;
         }
 
@@ -578,12 +1038,1301 @@ public class MainTerminalController : MonoBehaviour
             payloadListText.text = BuildPayloadList(targetManager, selectedPayloadIndex);
         if (payloadDetailPanelText != null)
             payloadDetailPanelText.text = BuildPayloadDetail(selected);
+        SetPayloadPanelControls(targetManager.payload.Count > 1, targetManager.payload.Count > 1, false, false);
+    }
+
+    private void RenderGeneLabPanel(GameManager targetManager)
+    {
+        if (geneLabPanelRoot != null)
+        {
+            geneLabPanelRoot.gameObject.SetActive(true);
+            RenderGeneLabDashboard(targetManager);
+            return;
+        }
+
+        if (payloadPanel == null)
+            return;
+
+        payloadPanel.gameObject.SetActive(true);
+        if (targetManager == null || targetManager.payload == null || targetManager.payload.Count == 0)
+        {
+            selectedPayloadIndex = -1;
+            SetPayloadPortrait(null, "GENE LAB");
+            if (payloadListText != null)
+                payloadListText.text = "GENE LAB INDEX\n-- EMPTY --";
+            if (payloadDetailPanelText != null)
+                payloadDetailPanelText.text = "No base forms available.\nClear a selected boss route to add a base unit.";
+            SetPayloadPanelControls(false, false, false, false);
+            return;
+        }
+
+        selectedPayloadIndex = Mathf.Clamp(selectedPayloadIndex, 0, targetManager.payload.Count - 1);
+        AlgoMonInstance selected = targetManager.payload[selectedPayloadIndex];
+        SetPayloadPortrait(ResolvePayloadSprite(selected), DisplayNameFor(selected).ToUpperInvariant());
+
+        bool canFuse = targetManager.CanFusePayload(selectedPayloadIndex, geneLabFusionSecondIndex, out _);
+        bool canEvolve = targetManager.CanEvolvePayload(selectedPayloadIndex, out _);
+
+        if (payloadListText != null)
+            payloadListText.text = BuildPayloadList(targetManager, selectedPayloadIndex);
+        if (payloadDetailPanelText != null)
+            payloadDetailPanelText.text = BuildGeneLabDetail(targetManager, selectedPayloadIndex, geneLabFusionSecondIndex, geneLabActionMessage);
+
+        SetPayloadPanelControls(
+            targetManager.payload.Count > 1,
+            targetManager.payload.Count > 1,
+            canFuse,
+            canEvolve);
+    }
+
+    private void RenderGeneLabDashboard(GameManager targetManager)
+    {
+        string speciesCode = SelectedGeneLabSpeciesCode(targetManager);
+        if (geneLabRouteSelectionMode)
+        {
+            ShowGeneLabRouteSelection(true);
+            ShowGeneLabBench(false);
+            RefreshGeneLabSpeciesButtons(targetManager, speciesCode);
+            if (geneLabRoutePromptText != null)
+                geneLabRoutePromptText.text = BuildGeneLabRouteSelectDetail(targetManager);
+            return;
+        }
+
+        ShowGeneLabRouteSelection(false);
+        ShowGeneLabBench(true);
+
+        if (targetManager == null || targetManager.payload == null || targetManager.payload.Count == 0)
+        {
+            selectedPayloadIndex = -1;
+            geneLabFusionSecondIndex = -1;
+            RefreshGeneLabMiniPayload(targetManager, speciesCode);
+            if (geneLabFusionText != null)
+                geneLabFusionText.text = "SELECT UNIT 1 // CLEAR THIS BOSS ROUTE TO ARCHIVE BASE UNIT";
+            RenderGeneLabFusionDisplays(null, -1, null, -1);
+            RenderGeneLabFusionTalentBars(null, null);
+            SetPanelButtonState(geneLabPreviousRecordButton, true, false);
+            SetPanelButtonState(geneLabNextRecordButton, true, false);
+            SetPanelButtonState(geneLabFuseActionButton, true, false);
+            SetPanelButtonState(geneLabEvolveActionButton, true, false);
+            return;
+        }
+
+        if (!PayloadMatchesSpecies(PayloadAt(targetManager, selectedPayloadIndex), speciesCode))
+            selectedPayloadIndex = -1;
+        if (!PayloadMatchesSpecies(PayloadAt(targetManager, geneLabFusionSecondIndex), speciesCode) ||
+            geneLabFusionSecondIndex == selectedPayloadIndex)
+        {
+            geneLabFusionSecondIndex = -1;
+        }
+        RefreshGeneLabMiniPayload(targetManager, speciesCode);
+
+        AlgoMonInstance selected = PayloadAt(targetManager, selectedPayloadIndex);
+        AlgoMonInstance material = PayloadAt(targetManager, geneLabFusionSecondIndex);
+        bool canFuse = targetManager.CanFusePayload(selectedPayloadIndex, geneLabFusionSecondIndex, out string fuseBlockReason);
+        bool canEvolve = selected != null && targetManager.CanEvolvePayload(selectedPayloadIndex, out _);
+        bool canCycle = CountPayloadForSpecies(targetManager, speciesCode) > 1;
+        RenderGeneLabFusionDisplays(selected, selectedPayloadIndex, material, geneLabFusionSecondIndex);
+        RenderGeneLabFusionTalentBars(selected, material);
+
+        if (geneLabFusionText != null)
+            geneLabFusionText.text = selected != null
+                ? BuildGeneLabFusionStatus(selected, material, canFuse, canEvolve, fuseBlockReason, geneLabActionMessage)
+                : "SELECT UNIT 1 FROM THE LEFT PAYLOAD POOL";
+
+        SetPanelButtonState(geneLabPreviousRecordButton, true, canCycle);
+        SetPanelButtonState(geneLabNextRecordButton, true, canCycle);
+        SetPanelButtonState(geneLabFuseActionButton, true, canFuse);
+        SetPanelButtonState(geneLabEvolveActionButton, true, canEvolve);
     }
 
     private void HidePayloadPanel()
     {
         if (payloadPanel != null)
             payloadPanel.gameObject.SetActive(false);
+    }
+
+    private void BuildPayloadDisplayOrder(GameManager targetManager)
+    {
+        payloadDisplayOrder.Clear();
+        if (targetManager == null || targetManager.payload == null)
+            return;
+
+        for (int i = 0; i < targetManager.payload.Count; i++)
+        {
+            AlgoMonInstance mon = targetManager.payload[i];
+            if (mon != null && targetManager.IsInParty(mon))
+                payloadDisplayOrder.Add(mon);
+        }
+        for (int i = 0; i < targetManager.payload.Count; i++)
+        {
+            AlgoMonInstance mon = targetManager.payload[i];
+            if (mon != null && !targetManager.IsInParty(mon) && mon.isFavorite)
+                payloadDisplayOrder.Add(mon);
+        }
+        for (int i = 0; i < targetManager.payload.Count; i++)
+        {
+            AlgoMonInstance mon = targetManager.payload[i];
+            if (mon != null && !targetManager.IsInParty(mon) && !mon.isFavorite)
+                payloadDisplayOrder.Add(mon);
+        }
+    }
+
+    private Sprite ResolvePayloadSlotSprite(GameManager targetManager, AlgoMonInstance mon, bool selected)
+    {
+        if (selected && slotSelectedSprite != null)
+            return slotSelectedSprite;
+        if (mon != null && targetManager != null && targetManager.IsInParty(mon) && slotLegendarySprite != null)
+            return slotLegendarySprite;
+        if (mon != null && mon.IsEvolvedForm && slotEpicSprite != null)
+            return slotEpicSprite;
+        return slotNormalSprite;
+    }
+
+    private void RenderPayloadGrid(GameManager targetManager)
+    {
+        if (payloadCellFrames == null)
+            return;
+
+        BuildPayloadDisplayOrder(targetManager);
+
+        AlgoMonInstance selectedMon = SelectedPayloadMon(targetManager);
+
+        int cellsPerPage = payloadCellFrames.Length;
+        int pageCount = Mathf.Max(1, Mathf.CeilToInt(payloadDisplayOrder.Count / (float)cellsPerPage));
+        payloadPage = Mathf.Clamp(payloadPage, 0, pageCount - 1);
+        int pageStart = payloadPage * cellsPerPage;
+
+        for (int cell = 0; cell < payloadCellFrames.Length; cell++)
+        {
+            int orderIndex = pageStart + cell;
+            AlgoMonInstance mon = orderIndex < payloadDisplayOrder.Count ? payloadDisplayOrder[orderIndex] : null;
+            int payloadIndex = mon != null && targetManager != null && targetManager.payload != null
+                ? targetManager.payload.IndexOf(mon)
+                : -1;
+            payloadCellPayloadIndices[cell] = payloadIndex;
+
+            bool isSelected = mon != null && ReferenceEquals(mon, selectedMon);
+            bool isParty = mon != null && targetManager != null && targetManager.IsInParty(mon);
+            bool isFavorite = mon != null && mon.isFavorite;
+            if (payloadCellFrames[cell] != null)
+            {
+                payloadCellFrames[cell].rectTransform.localScale = Vector3.one;
+                payloadCellFrames[cell].sprite = ResolvePayloadSlotSprite(targetManager, mon, isSelected);
+                payloadCellFrames[cell].color = mon == null
+                    ? new Color(1f, 1f, 1f, 0.32f)
+                    : isFavorite && !isParty && !isSelected
+                        ? new Color(1f, 0.88f, 0.42f, 1f)
+                        : Color.white;
+            }
+
+            bool showHover = hoveredPayloadCellIndex == cell && payloadIndex >= 0;
+            if (payloadCellFrames[cell] != null)
+            {
+                payloadCellFrames[cell].rectTransform.localScale = showHover
+                    ? new Vector3(1.035f, 1.035f, 1f)
+                    : Vector3.one;
+                if (showHover)
+                {
+                    payloadCellFrames[cell].color = isFavorite
+                        ? new Color(1f, 0.92f, 0.52f, 1f)
+                        : new Color(0.76f, 1f, 0.98f, 1f);
+                }
+            }
+
+            if (payloadCellSprites[cell] != null)
+            {
+                Sprite monSprite = ResolvePayloadSprite(mon);
+                payloadCellSprites[cell].sprite = monSprite;
+                payloadCellSprites[cell].enabled = monSprite != null;
+            }
+
+            if (payloadCellLabels[cell] != null)
+            {
+                payloadCellLabels[cell].text = mon != null
+                    ? $"{DisplayNameFor(mon).ToUpperInvariant()}\nL{mon.level:00}"
+                    : string.Empty;
+                payloadCellLabels[cell].color = isFavorite && !isParty
+                    ? new Color(1f, 0.88f, 0.42f, 1f)
+                    : new Color(0.86f, 1f, 0.96f, 1f);
+            }
+
+            if (payloadCellFavoriteMarkers != null && payloadCellFavoriteMarkers[cell] != null)
+            {
+                payloadCellFavoriteMarkers[cell].gameObject.SetActive(isFavorite);
+                payloadCellFavoriteMarkers[cell].color = isParty
+                    ? new Color(1f, 0.78f, 0.3f, 1f)
+                    : new Color(1f, 0.88f, 0.28f, 1f);
+            }
+
+            if (payloadCellButtons[cell] != null)
+            {
+                payloadCellButtons[cell].transition = Selectable.Transition.None;
+                payloadCellButtons[cell].interactable = mon != null;
+            }
+        }
+
+        if (payloadPageLabel != null)
+            payloadPageLabel.text = $"PAGE {payloadPage + 1}/{pageCount}";
+        if (payloadPrevPageButton != null)
+            payloadPrevPageButton.interactable = payloadPage > 0;
+        if (payloadNextPageButton != null)
+            payloadNextPageButton.interactable = payloadPage < pageCount - 1;
+
+        RenderPayloadDetailStub(selectedMon, targetManager);
+    }
+
+    private void RenderPayloadDetailStub(AlgoMonInstance mon, GameManager targetManager)
+    {
+        SetInspectorIdle(mon);
+
+        if (mon == null)
+        {
+            if (inspectorNameText != null)
+                inspectorNameText.text = "SELECT A UNIT";
+            if (inspectorRadar != null)
+                inspectorRadar.SetValues(new float[StatAxisLabels.Length]);
+            if (inspectorTalentFills != null)
+            {
+                for (int i = 0; i < inspectorTalentFills.Length; i++)
+                {
+                    if (inspectorTalentFills[i] != null)
+                        inspectorTalentFills[i].fillAmount = 0f;
+                    if (inspectorTalentValues[i] != null)
+                        inspectorTalentValues[i].text = "--";
+                }
+            }
+            UpdateRadarLabelText(null);
+            PositionRadarLabels();
+            UpdateSquadButton(null, targetManager);
+            UpdateFavoriteButton(null);
+            UpdateInspectorSkillPanel(null);
+            return;
+        }
+
+        string form = mon.IsEvolvedForm ? "EVOLVED" : "BASE";
+        string party = targetManager != null && targetManager.IsInParty(mon) ? "IN SQUAD" : "STORED";
+        if (inspectorNameText != null)
+            inspectorNameText.text = $"{DisplayNameFor(mon).ToUpperInvariant()}  L{mon.level:00}\n{form} / {party}";
+
+        int[] stats = { mon.Battery, mon.ClockSpeed, mon.ComputingPower, mon.Throughput, mon.Firewall, mon.Encryption };
+        int[] ivs = { mon.iv_Battery, mon.iv_ClockSpeed, mon.iv_ComputingPower, mon.iv_Throughput, mon.iv_Firewall, mon.iv_Encryption };
+
+        if (inspectorRadar != null)
+        {
+            float[] norm = new float[StatAxisLabels.Length];
+            for (int i = 0; i < norm.Length; i++)
+                norm[i] = Mathf.Clamp01(stats[i] / RadarMaxStat);
+            inspectorRadar.SetValues(norm);
+        }
+        UpdateRadarLabelText(stats);
+        PositionRadarLabels();
+
+        if (inspectorTalentFills != null)
+        {
+            for (int i = 0; i < inspectorTalentFills.Length; i++)
+            {
+                if (inspectorTalentFills[i] != null)
+                    inspectorTalentFills[i].fillAmount = Mathf.Clamp01(ivs[i] / 255f);
+                if (inspectorTalentValues[i] != null)
+                    inspectorTalentValues[i].text = ivs[i].ToString();
+            }
+        }
+
+        UpdateSquadButton(mon, targetManager);
+        UpdateFavoriteButton(mon);
+        UpdateInspectorSkillPanel(mon);
+    }
+
+    private void ToggleInspectorSkillPanel()
+    {
+        showingPayloadSkillPanel = !showingPayloadSkillPanel;
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        RenderPayloadGrid(manager);
+    }
+
+    private void UpdateInspectorSkillPanel(AlgoMonInstance mon)
+    {
+        if (inspectorTalentRoot != null)
+            inspectorTalentRoot.gameObject.SetActive(!showingPayloadSkillPanel);
+        if (inspectorSkillRoot != null)
+            inspectorSkillRoot.gameObject.SetActive(showingPayloadSkillPanel);
+        if (inspectorSkillsButtonLabel != null)
+            inspectorSkillsButtonLabel.text = showingPayloadSkillPanel ? "TALENT" : "SKILLS";
+
+        if (inspectorSkillButtons == null || inspectorSkillLabels == null || inspectorSkillEntries == null)
+            return;
+
+        if (mon == null)
+        {
+            pendingPayloadSkillReplacement = null;
+            if (inspectorSkillMessageText != null)
+                inspectorSkillMessageText.text = "SELECT A UNIT";
+            for (int i = 0; i < inspectorSkillButtons.Length; i++)
+            {
+                inspectorSkillEntries[i] = default(LearnsetEntry);
+                if (inspectorSkillLabels[i] != null)
+                    inspectorSkillLabels[i].text = string.Empty;
+                if (inspectorSkillButtons[i] != null)
+                    inspectorSkillButtons[i].interactable = false;
+            }
+            return;
+        }
+
+        mon.EnsurePersistentRuntimeState();
+        if (mon.knownSkills == null)
+            mon.knownSkills = new List<SkillData>();
+
+        if (inspectorSkillMessageText != null)
+        {
+            string loadout = $"{KnownSkillCount(mon)}/{AlgoMonInstance.MaxSkillSlots}";
+            string message = string.IsNullOrWhiteSpace(payloadSkillMessage)
+                ? "CLICK SKILL TO LOAD"
+                : payloadSkillMessage.Trim();
+            inspectorSkillMessageText.text = $"{loadout}\n{message}";
+        }
+
+        LearnsetEntry[] learnset = mon.data != null ? mon.data.learnset : null;
+        int learnsetIndex = 0;
+        for (int row = 0; row < inspectorSkillButtons.Length; row++)
+        {
+            LearnsetEntry entry = NextValidLearnsetEntry(learnset, ref learnsetIndex);
+            inspectorSkillEntries[row] = entry;
+            SkillData skill = entry.skill;
+            bool hasSkill = skill != null;
+            bool known = hasSkill && mon.knownSkills.Contains(skill);
+            bool locked = hasSkill && entry.unlockLevel > mon.level;
+            bool pending = hasSkill && pendingPayloadSkillReplacement == skill;
+
+            if (inspectorSkillLabels[row] != null)
+            {
+                inspectorSkillLabels[row].text = hasSkill
+                    ? $"{SkillLearnState(mon, entry)} L{entry.unlockLevel:00} {FormatSkillCompact(skill)}"
+                    : string.Empty;
+                inspectorSkillLabels[row].color = !hasSkill
+                    ? new Color(1f, 1f, 1f, 0.18f)
+                    : pending
+                        ? new Color(1f, 0.88f, 0.42f, 1f)
+                        : known
+                            ? new Color(0.50f, 1f, 0.92f, 1f)
+                            : locked
+                                ? new Color(0.54f, 0.64f, 0.70f, 0.78f)
+                                : new Color(0.86f, 1f, 0.96f, 1f);
+            }
+
+            if (inspectorSkillButtons[row] != null)
+                inspectorSkillButtons[row].interactable = hasSkill;
+        }
+    }
+
+    private void OnInspectorSkillClicked(int rowIndex)
+    {
+        if (inspectorSkillEntries == null || rowIndex < 0 || rowIndex >= inspectorSkillEntries.Length)
+            return;
+
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        AlgoMonInstance mon = SelectedPayloadMon(manager);
+        if (mon == null)
+            return;
+
+        LearnsetEntry entry = inspectorSkillEntries[rowIndex];
+        SkillData skill = entry.skill;
+        if (skill == null)
+            return;
+
+        mon.EnsurePersistentRuntimeState();
+        if (mon.knownSkills == null)
+            mon.knownSkills = new List<SkillData>();
+        mon.knownSkills.RemoveAll(knownSkill => knownSkill == null);
+
+        string skillName = SkillDisplayName(skill).ToUpperInvariant();
+        if (entry.unlockLevel > mon.level)
+        {
+            pendingPayloadSkillReplacement = null;
+            payloadSkillMessage = $"{skillName} UNLOCKS AT L{entry.unlockLevel:00}";
+            RenderPayloadGrid(manager);
+            return;
+        }
+
+        int knownIndex = mon.knownSkills.IndexOf(skill);
+        if (pendingPayloadSkillReplacement != null && knownIndex >= 0 && pendingPayloadSkillReplacement != skill)
+        {
+            string oldName = SkillDisplayName(skill).ToUpperInvariant();
+            string newName = SkillDisplayName(pendingPayloadSkillReplacement).ToUpperInvariant();
+            mon.knownSkills[knownIndex] = pendingPayloadSkillReplacement;
+            pendingPayloadSkillReplacement = null;
+            payloadSkillMessage = $"{oldName} -> {newName}";
+            RenderPayloadGrid(manager);
+            return;
+        }
+
+        if (knownIndex >= 0)
+        {
+            payloadSkillMessage = $"{skillName} ALREADY LOADED";
+            RenderPayloadGrid(manager);
+            return;
+        }
+
+        if (mon.knownSkills.Count < AlgoMonInstance.MaxSkillSlots)
+        {
+            mon.knownSkills.Add(skill);
+            pendingPayloadSkillReplacement = null;
+            payloadSkillMessage = $"{skillName} LOADED";
+            RenderPayloadGrid(manager);
+            return;
+        }
+
+        pendingPayloadSkillReplacement = skill;
+        payloadSkillMessage = $"CLICK KNOWN SKILL TO REPLACE";
+        RenderPayloadGrid(manager);
+    }
+
+    private void ToggleSelectedFavorite()
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        AlgoMonInstance mon = SelectedPayloadMon(manager);
+        if (mon == null)
+            return;
+
+        mon.isFavorite = !mon.isFavorite;
+        FocusPayloadPageOn(mon, manager);
+        RenderPayloadGrid(manager);
+    }
+
+    private void FocusPayloadPageOn(AlgoMonInstance mon, GameManager targetManager)
+    {
+        if (mon == null || targetManager == null || payloadCellFrames == null || payloadCellFrames.Length == 0)
+            return;
+
+        BuildPayloadDisplayOrder(targetManager);
+        int orderIndex = payloadDisplayOrder.IndexOf(mon);
+        if (orderIndex >= 0)
+            payloadPage = orderIndex / payloadCellFrames.Length;
+    }
+
+    private void ToggleSelectedSquad()
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        AlgoMonInstance mon = SelectedPayloadMon(manager);
+        if (mon == null)
+            return;
+
+        if (manager.IsInParty(mon))
+        {
+            manager.RemoveFromParty(mon);
+            RenderPayloadGrid(manager);
+        }
+        else if (manager.party != null && manager.party.Count < GameManager.MaxPartySize)
+        {
+            manager.AddToParty(mon);
+            RenderPayloadGrid(manager);
+        }
+        else
+        {
+            // Squad full: open the replace picker so the player swaps one out.
+            OpenSquadPanel(true, mon);
+        }
+    }
+
+    private void EnsureSquadPanel(Transform parent)
+    {
+        squadPanelRoot = CreateRect("SquadPanel", parent);
+        SetAnchors(squadPanelRoot, Vector2.zero, Vector2.one);
+
+        Image backdrop = squadPanelRoot.gameObject.AddComponent<Image>();
+        backdrop.color = new Color(0f, 0f, 0f, 0.66f);
+        backdrop.raycastTarget = true;
+        Button backdropButton = squadPanelRoot.gameObject.AddComponent<Button>();
+        backdropButton.transition = Selectable.Transition.None;
+        backdropButton.onClick.AddListener(CloseSquadPanel);
+
+        RectTransform box = CreateRect("SquadPanelBox", squadPanelRoot);
+        SetAnchors(box, new Vector2(0.12f, 0.26f), new Vector2(0.88f, 0.78f));
+        Image boxBg = box.gameObject.AddComponent<Image>();
+        ApplyPanelFrameBackground(
+            boxBg,
+            ResolveSquadPanelBackgroundSprite(),
+            new Color(0.02f, 0.05f, 0.09f, 0.99f),
+            false);
+        boxBg.raycastTarget = true;
+
+        squadPanelTitle = CreateText("SquadTitle", box, 21, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.7f, 0.98f, 1f, 1f));
+        ApplyCrispCyberText(squadPanelTitle, new Color(0f, 0.14f, 0.2f, 1f));
+        SetAnchors(squadPanelTitle.rectTransform, new Vector2(0.05f, 0.765f), new Vector2(0.78f, 0.875f));
+        squadPanelTitle.text = "ACTIVE SQUAD";
+
+        Button closeButton = FindOrCreatePanelButton("SquadCloseButton", box, "CLOSE", new Vector2(0.82f, 0.770f), new Vector2(0.97f, 0.875f));
+        SetPanelButtonLabelSize(closeButton, 13);
+        closeButton.onClick.AddListener(CloseSquadPanel);
+
+        int max = GameManager.MaxPartySize;
+        squadSlotPortraits = new Image[max];
+        squadSlotLabels = new Text[max];
+        squadSlotLeadBadges = new Text[max];
+        squadSlotLeadButtons = new Button[max];
+        squadSlotActionButtons = new Button[max];
+        squadSlotActionLabels = new Text[max];
+
+        float slotW = 0.9f / max;
+        const float gap = 0.02f;
+        for (int i = 0; i < max; i++)
+        {
+            float x0 = 0.05f + i * slotW + gap * 0.5f;
+            float x1 = 0.05f + (i + 1) * slotW - gap * 0.5f;
+            RectTransform slot = CreateRect("SquadSlot_" + i, box);
+            SetAnchors(slot, new Vector2(x0, 0.055f), new Vector2(x1, 0.740f));
+            Image slotBg = slot.gameObject.AddComponent<Image>();
+            ApplyPanelFrameBackground(
+                slotBg,
+                ResolveMonsterDisplayPanelSprite(),
+                new Color(0.05f, 0.12f, 0.2f, 0.9f),
+                false);
+            slotBg.raycastTarget = false;
+
+            Image portrait = CreateImage("SquadSlotPortrait_" + i, slot, Color.white);
+            portrait.preserveAspect = true;
+            portrait.raycastTarget = false;
+            SetAnchors(portrait.rectTransform, new Vector2(0.1f, 0.45f), new Vector2(0.9f, 0.84f));
+            squadSlotPortraits[i] = portrait;
+
+            Text badge = CreateText("SquadSlotLead_" + i, slot, 14, FontStyle.Bold, TextAnchor.UpperLeft, new Color(1f, 0.78f, 0.3f, 1f));
+            ApplyCyberText(badge, new Color(0.1f, 0.05f, 0f, 1f), new Vector2(1f, -1f));
+            SetAnchors(badge.rectTransform, new Vector2(0.08f, 0.760f), new Vector2(0.76f, 0.860f));
+            badge.text = "#1 LEAD";
+            squadSlotLeadBadges[i] = badge;
+
+            Text label = CreateText("SquadSlotLabel_" + i, slot, 15, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.86f, 1f, 0.96f, 1f));
+            ApplyCrispCyberText(label, new Color(0f, 0.12f, 0.18f, 0.95f));
+            SetAnchors(label.rectTransform, new Vector2(0.02f, 0.325f), new Vector2(0.98f, 0.440f));
+            squadSlotLabels[i] = label;
+
+            int captured = i;
+            Button leadButton = FindOrCreatePanelButton("SquadSlotLeadBtn_" + i, slot, "SET #1", new Vector2(0.08f, 0.18f), new Vector2(0.92f, 0.31f));
+            SetPanelButtonLabelSize(leadButton, 12);
+            leadButton.onClick.AddListener(() => SquadSetLead(captured));
+            squadSlotLeadButtons[i] = leadButton;
+
+            Button actionButton = FindOrCreatePanelButton("SquadSlotActionBtn_" + i, slot, "REMOVE", new Vector2(0.08f, 0.03f), new Vector2(0.92f, 0.16f));
+            SetPanelButtonLabelSize(actionButton, 13);
+            actionButton.onClick.AddListener(() => SquadSlotAction(captured));
+            squadSlotActionButtons[i] = actionButton;
+            Transform al = actionButton.transform.Find("Text");
+            squadSlotActionLabels[i] = al != null ? al.GetComponent<Text>() : null;
+        }
+
+        squadPanelRoot.gameObject.SetActive(false);
+    }
+
+    private void OpenSquadPanel(bool replaceMode, AlgoMonInstance incoming)
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        if (squadPanelRoot == null)
+            return;
+
+        squadReplaceMode = replaceMode;
+        squadReplaceIncoming = incoming;
+        squadPanelRoot.gameObject.SetActive(true);
+        squadPanelRoot.SetAsLastSibling();
+        RenderSquadPanel();
+    }
+
+    private void CloseSquadPanel()
+    {
+        squadReplaceMode = false;
+        squadReplaceIncoming = null;
+        if (squadPanelRoot != null)
+            squadPanelRoot.gameObject.SetActive(false);
+    }
+
+    private void RenderSquadPanel()
+    {
+        if (squadPanelRoot == null)
+            return;
+
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        List<AlgoMonInstance> party = manager.party;
+        int max = GameManager.MaxPartySize;
+
+        if (squadPanelTitle != null)
+        {
+            squadPanelTitle.text = squadReplaceMode && squadReplaceIncoming != null
+                ? $"SQUAD FULL - REPLACE WHO WITH {DisplayNameFor(squadReplaceIncoming).ToUpperInvariant()}?"
+                : "ACTIVE SQUAD  (#1 = LEAD)";
+        }
+
+        for (int i = 0; i < max; i++)
+        {
+            AlgoMonInstance mon = (party != null && i < party.Count) ? party[i] : null;
+
+            if (squadSlotPortraits[i] != null)
+            {
+                Sprite s = ResolvePayloadSprite(mon);
+                squadSlotPortraits[i].sprite = s;
+                squadSlotPortraits[i].enabled = s != null;
+            }
+            if (squadSlotLabels[i] != null)
+                squadSlotLabels[i].text = mon != null ? $"{DisplayNameFor(mon).ToUpperInvariant()}\nL{mon.level:00}" : "EMPTY";
+            if (squadSlotLeadBadges[i] != null)
+                squadSlotLeadBadges[i].gameObject.SetActive(mon != null && i == 0);
+            if (squadSlotLeadButtons[i] != null)
+                squadSlotLeadButtons[i].gameObject.SetActive(!squadReplaceMode && mon != null && i > 0);
+            if (squadSlotActionButtons[i] != null)
+            {
+                bool filled = mon != null;
+                squadSlotActionButtons[i].gameObject.SetActive(filled);
+                squadSlotActionButtons[i].interactable = filled;
+                if (squadSlotActionLabels[i] != null)
+                    squadSlotActionLabels[i].text = squadReplaceMode ? "REPLACE" : "REMOVE";
+            }
+        }
+    }
+
+    private void SquadSetLead(int index)
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        List<AlgoMonInstance> party = manager.party;
+        if (party == null || index <= 0 || index >= party.Count)
+            return;
+
+        AlgoMonInstance mon = party[index];
+        party.RemoveAt(index);
+        party.Insert(0, mon);
+        RenderSquadPanel();
+        RenderPayloadGrid(manager);
+    }
+
+    private void SquadSlotAction(int index)
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        List<AlgoMonInstance> party = manager.party;
+        if (party == null || index < 0 || index >= party.Count)
+            return;
+
+        if (squadReplaceMode)
+        {
+            if (squadReplaceIncoming != null && !manager.IsInParty(squadReplaceIncoming))
+            {
+                if (manager.TryReplacePartyMember(index, squadReplaceIncoming))
+                {
+                    CloseSquadPanel();
+                    RenderPayloadGrid(manager);
+                }
+            }
+            return;
+        }
+
+        manager.RemoveFromParty(party[index]);
+        RenderSquadPanel();
+        RenderPayloadGrid(manager);
+    }
+
+    private void UpdateSquadButton(AlgoMonInstance mon, GameManager targetManager)
+    {
+        if (inspectorSquadButton == null)
+            return;
+
+        if (mon == null || targetManager == null)
+        {
+            inspectorSquadButton.interactable = false;
+            if (inspectorSquadButtonLabel != null)
+            {
+                inspectorSquadButtonLabel.text = "--";
+                inspectorSquadButtonLabel.color = new Color(0.56f, 0.68f, 0.72f, 1f);
+            }
+            return;
+        }
+
+        int count = targetManager.party != null ? targetManager.party.Count : 0;
+        int max = GameManager.MaxPartySize;
+
+        if (targetManager.IsInParty(mon))
+        {
+            inspectorSquadButton.interactable = true;
+            if (inspectorSquadButtonLabel != null)
+            {
+                inspectorSquadButtonLabel.text = "REMOVE FROM SQUAD";
+                inspectorSquadButtonLabel.color = new Color(1f, 0.66f, 0.76f, 1f);
+            }
+        }
+        else if (count >= max)
+        {
+            inspectorSquadButton.interactable = false;
+            if (inspectorSquadButtonLabel != null)
+            {
+                inspectorSquadButtonLabel.text = "SQUAD FULL";
+                inspectorSquadButtonLabel.color = new Color(0.56f, 0.68f, 0.72f, 1f);
+            }
+        }
+        else
+        {
+            inspectorSquadButton.interactable = true;
+            if (inspectorSquadButtonLabel != null)
+            {
+                inspectorSquadButtonLabel.text = "ADD TO SQUAD";
+                inspectorSquadButtonLabel.color = new Color(0.82f, 1f, 0.94f, 1f);
+            }
+        }
+    }
+
+    private void UpdateFavoriteButton(AlgoMonInstance mon)
+    {
+        if (inspectorFavoriteButton == null)
+            return;
+
+        bool hasMon = mon != null;
+        inspectorFavoriteButton.interactable = hasMon;
+        if (inspectorFavoriteButtonLabel == null)
+            return;
+
+        if (!hasMon)
+        {
+            inspectorFavoriteButtonLabel.text = "--";
+            inspectorFavoriteButtonLabel.color = new Color(0.56f, 0.68f, 0.72f, 1f);
+            return;
+        }
+
+        inspectorFavoriteButtonLabel.text = mon.isFavorite ? "FAV*" : "FAV";
+        inspectorFavoriteButtonLabel.color = mon.isFavorite
+            ? new Color(1f, 0.82f, 0.32f, 1f)
+            : new Color(0.82f, 1f, 0.94f, 1f);
+    }
+
+    private void SetInspectorIdle(AlgoMonInstance mon)
+    {
+        string nextIdleKey = InspectorIdleKey(mon);
+        if (nextIdleKey == inspectorIdleKey)
+            return;
+
+        inspectorIdleKey = nextIdleKey;
+        inspectorIdleFrame = 0;
+        inspectorIdleTimer = 0f;
+        inspectorIdleFrames = null;
+        inspectorIdleFps = 8f;
+
+        if (inspectorPortraitImage == null)
+            return;
+
+        if (mon == null)
+        {
+            inspectorPortraitImage.enabled = false;
+            ApplyInspectorPortraitScale(1f);
+            return;
+        }
+
+        // Match battle: prefer the form-aware idle clip so evolved bodies animate
+        // with their evolved frames, and honor the per-species visualScaleMultiplier
+        // so framing-heavy sprites (e.g. Nullbyte) read at a consistent size.
+        float scale = 1f;
+        BattleAnimationProfile profile = ResolveInspectorProfile(mon);
+        if (profile != null)
+        {
+            if (profile.visualScaleMultiplier > 0f)
+                scale = profile.visualScaleMultiplier;
+            if (profile.idle != null && profile.idle.HasFrames)
+            {
+                inspectorIdleFrames = profile.idle.frames;
+                inspectorIdleFps = Mathf.Max(1f, profile.idle.fps);
+            }
+        }
+
+        Sprite first = inspectorIdleFrames != null && inspectorIdleFrames.Length > 0 && inspectorIdleFrames[0] != null
+            ? inspectorIdleFrames[0]
+            : ResolvePayloadSprite(mon);
+        inspectorPortraitImage.sprite = first;
+        inspectorPortraitImage.enabled = first != null;
+        ApplyInspectorPortraitScale(scale);
+    }
+
+    private static string InspectorIdleKey(AlgoMonInstance mon)
+    {
+        if (mon == null)
+            return string.Empty;
+
+        mon.EnsurePersistentRuntimeState();
+        return $"{mon.instanceId}:{mon.SpeciesCodeName}:{mon.FormName}";
+    }
+
+    private BattleAnimationProfile ResolveInspectorProfile(AlgoMonInstance mon)
+    {
+        if (mon == null)
+            return null;
+#if UNITY_EDITOR
+        string code = mon.SpeciesCodeName;
+        string form = mon.IsEvolvedForm ? "Evolved" : "Base";
+        BattleAnimationProfile editorProfile = BattleAnimationProfileLoader.TryLoadEditorProfile(code, form);
+        if (editorProfile != null)
+            return editorProfile;
+#endif
+        return mon.data != null ? mon.data.battleAnimationProfile : null;
+    }
+
+    private void ApplyInspectorPortraitScale(float scale)
+    {
+        if (inspectorPortraitImage == null)
+            return;
+        inspectorPortraitImage.rectTransform.localScale = new Vector3(scale, scale, 1f);
+    }
+
+    private void UpdateRadarLabelText(int[] stats)
+    {
+        if (inspectorRadarLabels == null)
+            return;
+        for (int i = 0; i < inspectorRadarLabels.Length; i++)
+        {
+            if (inspectorRadarLabels[i] == null)
+                continue;
+            inspectorRadarLabels[i].text = stats != null ? $"{StatAxisLabels[i]} {stats[i]}" : StatAxisLabels[i];
+        }
+    }
+
+    private void PositionRadarLabels()
+    {
+        if (inspectorRadarLabels == null || inspectorRadar == null || inspectorRadarRoot == null)
+            return;
+        Rect r = inspectorRadarRoot.rect;
+        float radius = Mathf.Min(r.width, r.height) * 0.5f * inspectorRadar.FillScale;
+        if (radius <= 1f)
+            return;
+        for (int i = 0; i < inspectorRadarLabels.Length; i++)
+        {
+            if (inspectorRadarLabels[i] == null)
+                continue;
+            Vector2 dir = inspectorRadar.AxisDirection(i);
+            inspectorRadarLabels[i].rectTransform.anchoredPosition = dir * (radius + 22f);
+        }
+    }
+
+    private void TickInspectorIdle()
+    {
+        if (!inSectionView || showingGeneLabPanel)
+            return;
+        if (payloadGridRoot == null || !payloadGridRoot.gameObject.activeInHierarchy)
+            return;
+
+        PositionRadarLabels();
+
+        if (inspectorPortraitImage == null || inspectorIdleFrames == null || inspectorIdleFrames.Length < 2)
+            return;
+
+        inspectorIdleTimer += Time.unscaledDeltaTime;
+        float secondsPerFrame = 1f / inspectorIdleFps;
+        if (inspectorIdleTimer >= secondsPerFrame)
+        {
+            inspectorIdleTimer -= secondsPerFrame;
+            inspectorIdleFrame = (inspectorIdleFrame + 1) % inspectorIdleFrames.Length;
+            Sprite frame = inspectorIdleFrames[inspectorIdleFrame];
+            if (frame != null)
+                inspectorPortraitImage.sprite = frame;
+        }
+    }
+
+    private void OnPayloadCellClicked(int cellIndex)
+    {
+        if (payloadCellPayloadIndices == null || cellIndex < 0 || cellIndex >= payloadCellPayloadIndices.Length)
+            return;
+
+        int payloadIndex = payloadCellPayloadIndices[cellIndex];
+        if (payloadIndex < 0)
+            return;
+
+        if (selectedPayloadIndex != payloadIndex)
+        {
+            payloadSkillMessage = string.Empty;
+            pendingPayloadSkillReplacement = null;
+        }
+
+        selectedPayloadIndex = payloadIndex;
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        RenderPayloadGrid(manager);
+    }
+
+    private void ConfigurePayloadCellHover(Button button, int cellIndex)
+    {
+        if (button == null)
+            return;
+
+        EventTrigger trigger = button.GetComponent<EventTrigger>();
+        if (trigger == null)
+            trigger = button.gameObject.AddComponent<EventTrigger>();
+        trigger.triggers.Clear();
+
+        EventTrigger.Entry enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        enter.callback.AddListener(_ => SetPayloadCellHover(cellIndex, true));
+        trigger.triggers.Add(enter);
+
+        EventTrigger.Entry down = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
+        down.callback.AddListener(_ =>
+        {
+            SetPayloadCellHover(cellIndex, true);
+            OnPayloadCellClicked(cellIndex);
+        });
+        trigger.triggers.Add(down);
+
+        EventTrigger.Entry exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+        exit.callback.AddListener(_ => SetPayloadCellHover(cellIndex, false));
+        trigger.triggers.Add(exit);
+    }
+
+    private void SetPayloadCellHover(int cellIndex, bool hovered)
+    {
+        if (payloadCellPayloadIndices == null)
+            return;
+        if (cellIndex < 0 || cellIndex >= payloadCellPayloadIndices.Length)
+            return;
+
+        if (hovered)
+            hoveredPayloadCellIndex = cellIndex;
+        else if (hoveredPayloadCellIndex == cellIndex)
+            hoveredPayloadCellIndex = -1;
+
+        bool show = hovered && payloadCellPayloadIndices[cellIndex] >= 0;
+        if (payloadCellFrames != null && cellIndex < payloadCellFrames.Length && payloadCellFrames[cellIndex] != null)
+        {
+            payloadCellFrames[cellIndex].rectTransform.localScale = show
+                ? new Vector3(1.035f, 1.035f, 1f)
+                : Vector3.one;
+        }
+    }
+
+    private void ShowPayloadGrid(bool show)
+    {
+        if (payloadGridRoot != null)
+            payloadGridRoot.gameObject.SetActive(show);
+        if (inspectorViewSquadButton != null)
+            inspectorViewSquadButton.gameObject.SetActive(show);
+    }
+
+    private void ShowGeneLabPanel(bool show)
+    {
+        if (geneLabPanelRoot != null)
+            geneLabPanelRoot.gameObject.SetActive(show);
+    }
+
+    private void ShowGeneLabRouteSelection(bool show)
+    {
+        if (geneLabRouteSelectionRoot != null)
+            geneLabRouteSelectionRoot.gameObject.SetActive(show);
+    }
+
+    private void ShowGeneLabBench(bool show)
+    {
+        if (geneLabBenchRoot != null)
+            geneLabBenchRoot.gameObject.SetActive(show);
+    }
+
+    private void ShowExitPanelRoot(bool show)
+    {
+        if (exitPanelRoot != null)
+            exitPanelRoot.gameObject.SetActive(show);
+    }
+
+    private void RenderExitPanel()
+    {
+        if (exitPanelStatusText != null)
+        {
+            exitPanelStatusText.text =
+                "SESSION CONTROL\n" +
+                "RETURN keeps the terminal open.\n" +
+                "QUIT closes the current play session.";
+        }
+
+        if (exitReturnButton != null)
+            exitReturnButton.interactable = true;
+        if (exitConfirmButton != null)
+            exitConfirmButton.interactable = true;
+    }
+
+    private void RenderGeneLabFusionDisplays(AlgoMonInstance target, int targetIndex, AlgoMonInstance material, int materialIndex)
+    {
+        SetGeneLabFusionDisplay(0, target, targetIndex);
+        SetGeneLabFusionDisplay(1, material, materialIndex);
+    }
+
+    private void RenderGeneLabFusionTalentBars(AlgoMonInstance target, AlgoMonInstance material)
+    {
+        if (geneLabFusionTalentRoot == null)
+            return;
+
+        if (geneLabFusionTalentCaptionText != null)
+        {
+            geneLabFusionTalentCaptionText.text = material != null
+                ? "TALENT MERGE // UNIT 1 + UNIT 2 -> RESULT"
+                : "TALENT MERGE // SELECT UNIT 2";
+        }
+
+        for (int i = 0; i < StatAxisLabels.Length; i++)
+        {
+            int targetValue = TalentValueAt(target, i);
+            int materialValue = TalentValueAt(material, i);
+            int projectedValue = target != null
+                ? (material != null ? Mathf.Max(targetValue, materialValue) : targetValue)
+                : 0;
+
+            SetGeneLabTalentFill(geneLabFusionTargetTalentFills, i, target != null ? targetValue : 0, GeneLabTargetTalentColor);
+            SetGeneLabTalentFill(geneLabFusionMaterialTalentFills, i, material != null ? materialValue : 0, GeneLabMaterialTalentColor);
+            SetGeneLabTalentFill(geneLabFusionProjectedTalentFills, i, target != null ? projectedValue : 0, GeneLabProjectedTalentColor);
+
+            SetGeneLabTalentValue(geneLabFusionTargetTalentValues, i, target != null ? targetValue.ToString("000") : "---");
+            SetGeneLabTalentValue(geneLabFusionMaterialTalentValues, i, material != null ? materialValue.ToString("000") : "---");
+            SetGeneLabTalentValue(geneLabFusionProjectedTalentValues, i, target != null ? projectedValue.ToString("000") : "---");
+        }
+    }
+
+    private static void SetGeneLabTalentFill(Image[] fills, int index, int value, Color color)
+    {
+        if (fills == null || index < 0 || index >= fills.Length || fills[index] == null)
+            return;
+
+        fills[index].fillAmount = Mathf.Clamp01(value / 255f);
+        fills[index].color = color;
+    }
+
+    private static void SetGeneLabTalentValue(Text[] values, int index, string text)
+    {
+        if (values == null || index < 0 || index >= values.Length || values[index] == null)
+            return;
+
+        values[index].text = text;
+    }
+
+    private void SetGeneLabFusionDisplay(int slot, AlgoMonInstance mon, int payloadIndex)
+    {
+        if (geneLabFusionNameTexts == null || slot < 0 || slot >= geneLabFusionNameTexts.Length)
+            return;
+
+        if (mon == null)
+        {
+            if (geneLabFusionNameTexts[slot] != null)
+                geneLabFusionNameTexts[slot].text = slot == 0
+                    ? "NO UNIT 1\nSELECT LEFT"
+                    : "NO UNIT 2\nSELECT LEFT";
+            if (geneLabFusionMetaTexts != null && geneLabFusionMetaTexts[slot] != null)
+                geneLabFusionMetaTexts[slot].text = "--";
+            if (geneLabFusionPortraitImages != null && geneLabFusionPortraitImages[slot] != null)
+            {
+                geneLabFusionPortraitImages[slot].sprite = null;
+                geneLabFusionPortraitImages[slot].enabled = false;
+            }
+            ClearGeneLabFusionIdle(slot);
+            return;
+        }
+
+        mon.EnsurePersistentRuntimeState();
+        if (geneLabFusionNameTexts[slot] != null)
+        {
+            geneLabFusionNameTexts[slot].text =
+                $"{DisplayNameFor(mon).ToUpperInvariant()}\n" +
+                $"L{mon.level:00}  {FormLabel(mon)}";
+        }
+        if (geneLabFusionMetaTexts != null && geneLabFusionMetaTexts[slot] != null)
+        {
+            geneLabFusionMetaTexts[slot].text = $"FUSED {mon.FusionProgressText}";
+        }
+
+        SetGeneLabFusionIdle(slot, mon);
+    }
+
+    private void SetGeneLabFusionIdle(int slot, AlgoMonInstance mon)
+    {
+        if (geneLabFusionPortraitImages == null || slot < 0 || slot >= geneLabFusionPortraitImages.Length)
+            return;
+
+        Image portrait = geneLabFusionPortraitImages[slot];
+        if (portrait == null)
+            return;
+
+        string key = mon != null
+            ? $"{mon.instanceId}:{mon.SpeciesCodeName}:{FormLabel(mon)}"
+            : string.Empty;
+        if (geneLabFusionIdleKeys != null &&
+            slot < geneLabFusionIdleKeys.Length &&
+            string.Equals(geneLabFusionIdleKeys[slot], key, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        if (geneLabFusionIdleKeys != null && slot < geneLabFusionIdleKeys.Length)
+            geneLabFusionIdleKeys[slot] = key;
+        if (geneLabFusionIdleTimers != null && slot < geneLabFusionIdleTimers.Length)
+            geneLabFusionIdleTimers[slot] = 0f;
+        if (geneLabFusionIdleFrameIndices != null && slot < geneLabFusionIdleFrameIndices.Length)
+            geneLabFusionIdleFrameIndices[slot] = 0;
+
+        BattleAnimationProfile profile = ResolveInspectorProfile(mon);
+        Sprite[] frames = profile != null && profile.idle != null && profile.idle.HasFrames
+            ? profile.idle.frames
+            : null;
+        if (geneLabFusionIdleFrames != null && slot < geneLabFusionIdleFrames.Length)
+            geneLabFusionIdleFrames[slot] = frames ?? Array.Empty<Sprite>();
+        if (geneLabFusionIdleFps != null && slot < geneLabFusionIdleFps.Length)
+            geneLabFusionIdleFps[slot] = profile != null && profile.idle != null ? Mathf.Max(1f, profile.idle.fps) : 0f;
+
+        Sprite first = frames != null && frames.Length > 0 ? frames[0] : ResolvePayloadSprite(mon);
+        portrait.sprite = first;
+        portrait.enabled = first != null;
+        portrait.color = Color.white;
+    }
+
+    private void ClearGeneLabFusionIdle(int slot)
+    {
+        if (geneLabFusionIdleKeys != null && slot >= 0 && slot < geneLabFusionIdleKeys.Length)
+            geneLabFusionIdleKeys[slot] = string.Empty;
+        if (geneLabFusionIdleFrames != null && slot >= 0 && slot < geneLabFusionIdleFrames.Length)
+            geneLabFusionIdleFrames[slot] = Array.Empty<Sprite>();
+        if (geneLabFusionIdleTimers != null && slot >= 0 && slot < geneLabFusionIdleTimers.Length)
+            geneLabFusionIdleTimers[slot] = 0f;
+        if (geneLabFusionIdleFrameIndices != null && slot >= 0 && slot < geneLabFusionIdleFrameIndices.Length)
+            geneLabFusionIdleFrameIndices[slot] = 0;
+    }
+
+    private void TickGeneLabFusionIdle()
+    {
+        if (!inSectionView || !showingGeneLabPanel || geneLabRouteSelectionMode)
+            return;
+        if (geneLabFusionPortraitImages == null || geneLabFusionIdleFrames == null)
+            return;
+
+        int count = Mathf.Min(geneLabFusionPortraitImages.Length, geneLabFusionIdleFrames.Length);
+        for (int i = 0; i < count; i++)
+        {
+            Image portrait = geneLabFusionPortraitImages[i];
+            Sprite[] frames = geneLabFusionIdleFrames[i];
+            if (portrait == null || frames == null || frames.Length < 2)
+                continue;
+
+            float fps = geneLabFusionIdleFps != null && i < geneLabFusionIdleFps.Length
+                ? geneLabFusionIdleFps[i]
+                : BossRouteFallbackIdleFps;
+            float secondsPerFrame = 1f / Mathf.Max(1f, fps);
+            geneLabFusionIdleTimers[i] += Time.unscaledDeltaTime;
+            while (geneLabFusionIdleTimers[i] >= secondsPerFrame)
+            {
+                geneLabFusionIdleTimers[i] -= secondsPerFrame;
+                geneLabFusionIdleFrameIndices[i] = (geneLabFusionIdleFrameIndices[i] + 1) % frames.Length;
+            }
+
+            portrait.sprite = frames[geneLabFusionIdleFrameIndices[i]];
+            portrait.enabled = portrait.sprite != null;
+        }
+    }
+
+    private void RefreshGeneLabMiniPayload(GameManager targetManager, string speciesCode)
+    {
+        if (geneLabMiniPayloadButtons == null)
+            return;
+
+        int total = CountPayloadForSpecies(targetManager, speciesCode);
+        int pageCount = Mathf.Max(1, Mathf.CeilToInt(total / (float)GeneLabMiniPayloadCellCount));
+        geneLabPayloadPage = Mathf.Clamp(geneLabPayloadPage, 0, pageCount - 1);
+        int pageStart = geneLabPayloadPage * GeneLabMiniPayloadCellCount;
+
+        for (int cell = 0; cell < GeneLabMiniPayloadCellCount; cell++)
+        {
+            int payloadIndex = PayloadIndexForSpeciesAtOrder(targetManager, speciesCode, pageStart + cell);
+            AlgoMonInstance mon = PayloadAt(targetManager, payloadIndex);
+            bool selected = payloadIndex >= 0 && payloadIndex == selectedPayloadIndex;
+            bool second = payloadIndex >= 0 && payloadIndex == geneLabFusionSecondIndex;
+            geneLabMiniPayloadIndices[cell] = payloadIndex;
+
+            if (geneLabMiniPayloadFrames[cell] != null)
+            {
+                geneLabMiniPayloadFrames[cell].sprite = ResolvePayloadSlotSprite(targetManager, mon, selected || second);
+                geneLabMiniPayloadFrames[cell].color = mon == null
+                    ? new Color(1f, 1f, 1f, 0.24f)
+                    : selected
+                        ? new Color(0.72f, 1f, 0.98f, 1f)
+                        : second
+                            ? new Color(1f, 0.56f, 0.96f, 1f)
+                            : Color.white;
+            }
+
+            if (geneLabMiniPayloadSprites[cell] != null)
+            {
+                Sprite sprite = ResolvePayloadSprite(mon);
+                geneLabMiniPayloadSprites[cell].sprite = sprite;
+                geneLabMiniPayloadSprites[cell].enabled = sprite != null;
+            }
+
+            if (geneLabMiniPayloadLabels[cell] != null)
+            {
+                string role = selected ? "U1 " : second ? "U2 " : string.Empty;
+                geneLabMiniPayloadLabels[cell].text = mon != null
+                    ? $"{role}{DisplayNameFor(mon).ToUpperInvariant()}\nF{mon.FusionProgressText}"
+                    : string.Empty;
+            }
+
+            if (geneLabMiniPayloadButtons[cell] != null)
+                geneLabMiniPayloadButtons[cell].interactable = payloadIndex >= 0;
+        }
+
+        if (geneLabMiniPayloadPageLabel != null)
+            geneLabMiniPayloadPageLabel.text = $"PAGE {geneLabPayloadPage + 1}/{pageCount}";
+        if (geneLabMiniPayloadPrevButton != null)
+            geneLabMiniPayloadPrevButton.interactable = geneLabPayloadPage > 0;
+        if (geneLabMiniPayloadNextButton != null)
+            geneLabMiniPayloadNextButton.interactable = geneLabPayloadPage < pageCount - 1;
+    }
+
+    private void ChangeGeneLabMiniPayloadPage(int delta)
+    {
+        geneLabPayloadPage += delta;
+        RefreshGeneLabModule();
+    }
+
+    private void OnGeneLabMiniPayloadClicked(int cellIndex)
+    {
+        if (geneLabMiniPayloadIndices == null || cellIndex < 0 || cellIndex >= geneLabMiniPayloadIndices.Length)
+            return;
+
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        int payloadIndex = geneLabMiniPayloadIndices[cellIndex];
+        if (payloadIndex < 0)
+            return;
+
+        string speciesCode = SelectedGeneLabSpeciesCode(manager);
+        if (payloadIndex == selectedPayloadIndex)
+        {
+            selectedPayloadIndex = -1;
+            geneLabFusionSecondIndex = -1;
+            geneLabActionMessage = "UNIT 1 cleared. Select UNIT 1 to start a new fusion pair.";
+        }
+        else if (selectedPayloadIndex < 0 ||
+            !PayloadMatchesSpecies(PayloadAt(manager, selectedPayloadIndex), speciesCode))
+        {
+            selectedPayloadIndex = payloadIndex;
+            if (geneLabFusionSecondIndex == selectedPayloadIndex)
+                geneLabFusionSecondIndex = -1;
+            geneLabActionMessage = "UNIT 1 selected. Select UNIT 2 from the same gene pool.";
+        }
+        else if (payloadIndex == geneLabFusionSecondIndex)
+        {
+            geneLabFusionSecondIndex = -1;
+            geneLabActionMessage = "UNIT 2 cleared. Select another UNIT 2.";
+        }
+        else
+        {
+            geneLabFusionSecondIndex = payloadIndex;
+            geneLabActionMessage = "UNIT 2 selected. Fusion pair is ready if both units are valid.";
+        }
+
+        FocusGeneLabMiniPayloadPageOn(manager, speciesCode, payloadIndex);
+        RefreshGeneLabModule();
+    }
+
+    private void SetPayloadPanelControls(bool showPrevious, bool showNext, bool showFuse, bool showEvolve)
+    {
+        SetPanelButtonState(payloadPreviousButton, showPrevious, showPrevious);
+        SetPanelButtonState(payloadNextButton, showNext, showNext);
+        SetPanelButtonState(geneLabFuseButton, showFuse, showFuse);
+        SetPanelButtonState(geneLabEvolveButton, showEvolve, showEvolve);
+    }
+
+    private static void SetPanelButtonState(Button button, bool visible, bool interactable)
+    {
+        if (button == null)
+            return;
+
+        button.gameObject.SetActive(visible);
+        button.interactable = interactable;
     }
 
     private void SetPayloadPortrait(Sprite sprite, string fallbackLabel)
@@ -616,7 +2365,7 @@ public class MainTerminalController : MonoBehaviour
             AlgoMonInstance mon = targetManager.payload[i];
             string marker = i == selectedIndex ? ">" : " ";
             string label = mon != null
-                ? $"{DisplayNameFor(mon).ToUpperInvariant()} L{mon.level:00}"
+                ? $"{DisplayNameFor(mon).ToUpperInvariant()} {FormLabel(mon)} F{mon.FusionProgressText}"
                 : "CORRUPTED RECORD";
             builder.Append('\n');
             builder.Append($"{marker} {i + 1:00}// {label}");
@@ -630,6 +2379,7 @@ public class MainTerminalController : MonoBehaviour
         if (mon == null)
             return "CORRUPTED RECORD";
 
+        mon.EnsurePersistentRuntimeState();
         AlgoMonData data = mon.data;
         string codeName = data != null && !string.IsNullOrWhiteSpace(data.codeName) ? data.codeName.Trim() : DisplayNameFor(mon);
         string element = data != null ? data.elementType.ToString().ToUpperInvariant() : "NORMAL";
@@ -640,6 +2390,7 @@ public class MainTerminalController : MonoBehaviour
         var builder = new StringBuilder();
         builder.AppendLine($"{DisplayNameFor(mon).ToUpperInvariant()}");
         builder.AppendLine($"CODE: {codeName.ToUpperInvariant()}  ELEMENT: {element}");
+        builder.AppendLine($"FORM: {FormLabel(mon)}  FUSION: {mon.FusionProgressText}");
         builder.AppendLine($"LV {mon.level:00}/{AlgoMonInstance.MAX_LEVEL}  EXP {mon.exp}/{mon.expToNextLevel}");
         builder.AppendLine($"DATA QUALITY: {EncounterReward.FormatQuality(mon.dataQuality)}");
         builder.AppendLine($"SUBROUTINE: {subroutine.ToUpperInvariant()}");
@@ -649,7 +2400,7 @@ public class MainTerminalController : MonoBehaviour
         builder.AppendLine($"CPU {mon.ComputingPower:000}  TP  {mon.Throughput:000}");
         builder.AppendLine($"FW  {mon.Firewall:000}  ENC {mon.Encryption:000}");
         builder.AppendLine();
-        builder.AppendLine("HARDWARE IV");
+        builder.AppendLine("TALENTS / HARDWARE IV");
         builder.AppendLine($"BAT {mon.iv_Battery:000}  SPD {mon.iv_ClockSpeed:000}");
         builder.AppendLine($"CPU {mon.iv_ComputingPower:000}  TP  {mon.iv_Throughput:000}");
         builder.AppendLine($"FW  {mon.iv_Firewall:000}  ENC {mon.iv_Encryption:000}");
@@ -665,6 +2416,619 @@ public class MainTerminalController : MonoBehaviour
         }
 
         return builder.ToString();
+    }
+
+    private static string BuildGeneLabPreview(GameManager targetManager, int unit1Index, int unit2Index, string status)
+    {
+        if (targetManager == null || targetManager.payload == null || targetManager.payload.Count == 0)
+            return "No base-form bodies in payload.\nClear the selected boss route to add the matching initial form.";
+
+        AlgoMonInstance selected = PayloadAt(targetManager, unit1Index);
+        if (selected == null)
+            return "UNIT 1: NONE\nUNIT 2: NONE\nClick a payload unit to begin pairing.";
+
+        selected.EnsurePersistentRuntimeState();
+        AlgoMonInstance unit2 = PayloadAt(targetManager, unit2Index);
+        string unit2Line = unit2 != null
+            ? $"UNIT 2: #{unit2Index + 1:00} {DisplayNameFor(unit2).ToUpperInvariant()} {FormLabel(unit2)}"
+            : "UNIT 2: NONE";
+        string evolveLine = selected.CanEvolve
+            ? "EVOLUTION: READY"
+            : selected.IsEvolvedForm
+                ? "EVOLUTION: COMPLETE"
+                : $"EVOLUTION: NEED {selected.RemainingFusionCopies} MORE";
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"UNIT 1: #{unit1Index + 1:00} {DisplayNameFor(selected).ToUpperInvariant()} {FormLabel(selected)}");
+        builder.AppendLine(unit2Line);
+        builder.AppendLine($"FUSION: {selected.FusionProgressText}  {evolveLine}");
+        if (!string.IsNullOrWhiteSpace(status))
+            builder.Append($"STATUS: {status}");
+        return builder.ToString();
+    }
+
+    private string BuildGeneLabModuleDetail(GameManager targetManager)
+    {
+        string speciesCode = SelectedGeneLabSpeciesCode(targetManager);
+        AlgoMonInstance selected = PayloadAt(targetManager, selectedPayloadIndex);
+        if (!PayloadMatchesSpecies(selected, speciesCode))
+            selected = null;
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"CATEGORY: {speciesCode}");
+        if (selected != null)
+        {
+            builder.Append(BuildGeneLabPreview(targetManager, selectedPayloadIndex, geneLabFusionSecondIndex, geneLabActionMessage));
+        }
+        else
+        {
+            builder.AppendLine("UNIT 1: NONE");
+            builder.AppendLine("UNIT 2: NONE");
+            builder.AppendLine("FUSION: WAITING FOR MATCHING BASE FORM");
+        }
+
+        if (!string.IsNullOrWhiteSpace(geneLabSkillMessage))
+        {
+            builder.AppendLine();
+            builder.Append($"SKILL: {geneLabSkillMessage.Trim()}");
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildGeneLabRouteSelectDetail(GameManager targetManager)
+    {
+        var builder = new StringBuilder();
+        builder.AppendLine("SELECT ONE BOSS STRAIN TO OPEN ITS FUSION WORKBENCH.");
+        builder.Append(targetManager == null
+            ? "PAYLOAD DATA UNAVAILABLE."
+            : "EACH ROUTE SHOWS BASE / FUSION / EVOLUTION READY COUNTS.");
+
+        return builder.ToString();
+    }
+
+    private void RefreshGeneLabSpeciesButtons(GameManager targetManager, string selectedCode)
+    {
+        if (geneLabSpeciesButtons == null)
+            return;
+
+        bool locked = targetManager != null && targetManager.IsRunActive;
+        int count = Mathf.Min(geneLabSpeciesButtons.Length, BossRouteSpecies.Length);
+        for (int i = 0; i < count; i++)
+        {
+            string speciesCode = NormalizeBossRouteCode(BossRouteSpecies[i]);
+            bool selected = string.Equals(speciesCode, selectedCode, StringComparison.OrdinalIgnoreCase);
+            int speciesUnitCount = CountPayloadForSpecies(targetManager, speciesCode);
+
+            Button button = geneLabSpeciesButtons[i];
+            if (button != null)
+                button.interactable = !locked;
+
+            Image frame = geneLabSpeciesFrames != null && i < geneLabSpeciesFrames.Length
+                ? geneLabSpeciesFrames[i]
+                : (button != null ? button.GetComponent<Image>() : null);
+            if (frame != null)
+            {
+                frame.color = selected
+                    ? new Color(0.72f, 1f, 0.98f, 1f)
+                    : new Color(1f, 1f, 1f, locked ? 0.42f : 0.82f);
+            }
+
+            Text label = geneLabSpeciesLabels != null && i < geneLabSpeciesLabels.Length
+                ? geneLabSpeciesLabels[i]
+                : null;
+            if (label != null)
+            {
+                label.text = speciesCode;
+                label.color = selected
+                    ? new Color(0.98f, 1f, 1f, 1f)
+                    : new Color(0.82f, 1f, 0.96f, locked ? 0.58f : 0.94f);
+            }
+
+            Text meta = geneLabSpeciesMetaLabels != null && i < geneLabSpeciesMetaLabels.Length
+                ? geneLabSpeciesMetaLabels[i]
+                : null;
+            if (meta != null)
+            {
+                meta.text = $"x{speciesUnitCount}";
+                meta.color = selected
+                    ? new Color(0.45f, 1f, 0.95f, 1f)
+                    : new Color(0.55f, 0.95f, 1f, locked ? 0.48f : 0.82f);
+            }
+
+            ApplyGeneLabRouteIdleFrame(i, !locked);
+        }
+    }
+
+    private string BuildGeneLabSpeciesSummary(GameManager targetManager, string speciesCode, AlgoMonInstance selected)
+    {
+        int totalCount = CountPayloadForSpecies(targetManager, speciesCode);
+        int baseCount = CountBasePayloadForSpecies(targetManager, speciesCode);
+        int fuseReady = CountFusionReadyForSpecies(targetManager, speciesCode);
+        int evolveReady = CountEvolvableForSpecies(targetManager, speciesCode);
+        string lockState = targetManager != null && targetManager.IsRunActive ? "LOCKED DURING RUN" : "ONLINE";
+
+        var builder = new StringBuilder();
+        builder.AppendLine($"CATEGORY: {speciesCode} PRIME  [{lockState}]");
+        builder.AppendLine($"PAYLOAD: {totalCount:00} RECORDS / {baseCount:00} BASE UNITS");
+        builder.AppendLine($"READY: FUSE {fuseReady:00} / EVOLVE {evolveReady:00}");
+        if (selected != null)
+        {
+            selected.EnsurePersistentRuntimeState();
+            builder.Append($"UNIT 1: {DisplayNameFor(selected).ToUpperInvariant()}  {FormLabel(selected)}  FUSED {selected.FusionProgressText}");
+        }
+        else
+        {
+            builder.Append("UNIT 1: NO PAYLOAD RECORD SELECTED");
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildGeneLabDetail(
+        GameManager targetManager,
+        int selectedIndex,
+        int materialIndex,
+        string status)
+    {
+        AlgoMonInstance target = PayloadAt(targetManager, selectedIndex);
+        if (target == null)
+            return "Select a valid payload record.";
+
+        target.EnsurePersistentRuntimeState();
+        var builder = new StringBuilder();
+        builder.AppendLine("GENE LAB UNIT 1");
+        builder.AppendLine($"{DisplayNameFor(target).ToUpperInvariant()}  {FormLabel(target)}");
+        builder.AppendLine($"SPECIES: {target.SpeciesCodeName.ToUpperInvariant()}");
+        builder.AppendLine($"FUSED COUNT: {target.FusionProgressText}  QUALITY: {EncounterReward.FormatQuality(target.dataQuality)}");
+        builder.AppendLine($"EVOLUTION: {EvolutionStatus(target)}");
+        builder.AppendLine();
+        builder.AppendLine("CURRENT TALENTS");
+        AppendTalentLine(builder, target);
+
+        AlgoMonInstance material = PayloadAt(targetManager, materialIndex);
+        if (material != null)
+        {
+            material.EnsurePersistentRuntimeState();
+            builder.AppendLine();
+            builder.AppendLine("GENE LAB UNIT 2");
+            builder.AppendLine($"{materialIndex + 1:00}// {DisplayNameFor(material).ToUpperInvariant()}  {FormLabel(material)}");
+            builder.AppendLine($"FUSION VALUE: +{1 + material.FusionProgress} BASE COPY");
+            builder.AppendLine($"LEVEL AFTER FUSION: L{Mathf.Max(target.level, material.level):00}");
+            builder.AppendLine("PROJECTED TALENTS");
+            AppendProjectedTalentLine(builder, target, material);
+        }
+        else
+        {
+            builder.AppendLine();
+            builder.AppendLine("GENE LAB UNIT 2");
+            builder.AppendLine("Select another same-species base form.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(status))
+        {
+            builder.AppendLine();
+            builder.AppendLine("ACTION STATUS");
+            builder.Append(status.Trim());
+        }
+
+        return builder.ToString();
+    }
+
+    private static string BuildGeneLabFusionStatus(
+        AlgoMonInstance target,
+        AlgoMonInstance material,
+        bool canFuse,
+        bool canEvolve,
+        string fuseBlockReason,
+        string status)
+    {
+        if (target == null)
+            return "SELECT UNIT 1 // NO PAYLOAD RECORD SELECTED";
+
+        target.EnsurePersistentRuntimeState();
+        string actionStatus = CompactGeneLabActionStatus(status);
+        if (!string.IsNullOrEmpty(actionStatus))
+            return actionStatus;
+
+        if (canEvolve)
+            return $"EVOLVE READY // U1 {DisplayNameFor(target).ToUpperInvariant()} // F{target.FusionProgressText}";
+
+        if (material == null)
+            return $"SELECT U2 // NEED {target.RemainingFusionCopies} SAME-SPECIES BASE FUSION(S)";
+
+        material.EnsurePersistentRuntimeState();
+        if (!canFuse)
+        {
+            string reason = string.IsNullOrWhiteSpace(fuseBlockReason)
+                ? "PAIR IS NOT READY"
+                : CompactFusionBlockReason(fuseBlockReason);
+            return $"BLOCKED // {reason.ToUpperInvariant()}";
+        }
+
+        int projectedFusion = Mathf.Clamp(
+            target.FusionProgress + 1 + material.FusionProgress,
+            0,
+            AlgoMonInstance.FusionCopiesForEvolution);
+        int projectedLevel = Mathf.Max(target.level, material.level);
+        int remaining = Mathf.Max(0, AlgoMonInstance.FusionCopiesForEvolution - projectedFusion);
+        string unlock = remaining == 0
+            ? "EVOLVE READY"
+            : $"NEED {remaining}";
+
+        return $"READY // U1 + U2 -> U1 // L{projectedLevel:00} // F{projectedFusion}/{AlgoMonInstance.FusionCopiesForEvolution} // {unlock}";
+    }
+
+    private static string CompactFusionBlockReason(string reason)
+    {
+        if (string.IsNullOrWhiteSpace(reason))
+            return "Pair is not ready";
+
+        string lower = reason.ToLowerInvariant();
+        if (lower.Contains("active squad"))
+            return "Remove U1/U2 from squad";
+        if (lower.Contains("different"))
+            return "Pick two different units";
+        if (lower.Contains("base-form") || lower.Contains("base form"))
+            return "Base forms only";
+        if (lower.Contains("same species"))
+            return "Same species only";
+        if (lower.Contains("ready to evolve"))
+            return "U1 can evolve";
+
+        return reason.Trim();
+    }
+
+    private static string CompactGeneLabActionStatus(string status)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+            return string.Empty;
+
+        string trimmed = status.Trim();
+        if (trimmed.IndexOf("fused", StringComparison.OrdinalIgnoreCase) >= 0)
+            return "FUSION COMPLETE // U1 UPDATED";
+        if (trimmed.IndexOf("evolved", StringComparison.OrdinalIgnoreCase) >= 0)
+            return "EVOLUTION COMPLETE";
+
+        bool isActionResult =
+            trimmed.IndexOf("cannot", StringComparison.OrdinalIgnoreCase) >= 0 ||
+            trimmed.IndexOf("already", StringComparison.OrdinalIgnoreCase) >= 0;
+
+        if (!isActionResult)
+            return string.Empty;
+
+        return trimmed.Length > 56
+            ? trimmed.Substring(0, 56).Trim().ToUpperInvariant() + "..."
+            : trimmed.ToUpperInvariant();
+    }
+
+    private string GeneLabSelectionStatus(GameManager targetManager)
+    {
+        if (targetManager == null || targetManager.payload == null || targetManager.payload.Count == 0)
+            return "Gene Lab is waiting for boss base-form records.";
+        if (targetManager.IsRunActive)
+            return "Gene Lab is locked during active runs.";
+
+        if (selectedPayloadIndex < 0)
+            return "Select UNIT 1 from the payload pool.";
+
+        AlgoMonInstance selected = PayloadAt(targetManager, selectedPayloadIndex);
+        if (selected == null)
+            return "Select a valid UNIT 1 record.";
+
+        selected.EnsurePersistentRuntimeState();
+        if (selected.IsEvolvedForm)
+            return "UNIT 1 is already evolved.";
+        if (targetManager.CanEvolvePayload(selectedPayloadIndex, out _))
+            return "Evolution is ready.";
+
+        if (geneLabFusionSecondIndex < 0)
+            return "Select UNIT 2 from the same gene pool.";
+        if (targetManager.CanFusePayload(selectedPayloadIndex, geneLabFusionSecondIndex, out string reason))
+            return "UNIT 1 and UNIT 2 are ready to fuse.";
+        return reason;
+    }
+
+    private string SelectedGeneLabSpeciesCode(GameManager targetManager)
+    {
+        string fallback = targetManager != null ? targetManager.SelectedBossSpeciesCodeName : BossRouteSpecies[0];
+        if (string.IsNullOrWhiteSpace(selectedGeneLabSpeciesCode))
+            selectedGeneLabSpeciesCode = NormalizeBossRouteCode(fallback);
+        else
+            selectedGeneLabSpeciesCode = NormalizeBossRouteCode(selectedGeneLabSpeciesCode);
+
+        return selectedGeneLabSpeciesCode;
+    }
+
+    private int BestGeneLabTargetIndexForSpecies(GameManager targetManager, string speciesCode)
+    {
+        if (targetManager == null || targetManager.payload == null || targetManager.payload.Count == 0)
+            return -1;
+
+        speciesCode = NormalizeBossRouteCode(speciesCode);
+        if (PayloadMatchesSpecies(PayloadAt(targetManager, selectedPayloadIndex), speciesCode))
+            return selectedPayloadIndex;
+
+        int firstFuseReady = -1;
+        int firstStoredBase = -1;
+        int firstStoredAny = -1;
+        int firstBase = -1;
+        int firstAny = -1;
+        for (int i = 0; i < targetManager.payload.Count; i++)
+        {
+            AlgoMonInstance mon = targetManager.payload[i];
+            if (!PayloadMatchesSpecies(mon, speciesCode))
+                continue;
+
+            bool inParty = mon != null && targetManager.IsInParty(mon);
+            if (firstAny < 0)
+                firstAny = i;
+            if (!inParty && firstStoredAny < 0)
+                firstStoredAny = i;
+            if (mon != null && mon.IsBaseForm && firstBase < 0)
+                firstBase = i;
+            if (mon != null && mon.IsBaseForm && !inParty && firstStoredBase < 0)
+                firstStoredBase = i;
+            if (targetManager.CanEvolvePayload(i, out _))
+                return i;
+            if (firstFuseReady < 0 && targetManager.FirstFusionCandidateIndexFor(i) >= 0)
+                firstFuseReady = i;
+        }
+
+        if (firstFuseReady >= 0)
+            return firstFuseReady;
+        if (firstStoredBase >= 0)
+            return firstStoredBase;
+        if (firstBase >= 0)
+            return firstBase;
+        if (firstStoredAny >= 0)
+            return firstStoredAny;
+        return firstAny;
+    }
+
+    private static bool PayloadMatchesSpecies(AlgoMonInstance mon, string speciesCode)
+    {
+        if (mon == null)
+            return false;
+
+        string monCode = NormalizeBossRouteCode(mon.SpeciesCodeName);
+        return string.Equals(monCode, NormalizeBossRouteCode(speciesCode), StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static int CountPayloadForSpecies(GameManager targetManager, string speciesCode)
+    {
+        if (targetManager == null || targetManager.payload == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < targetManager.payload.Count; i++)
+        {
+            if (PayloadMatchesSpecies(targetManager.payload[i], speciesCode))
+                count++;
+        }
+
+        return count;
+    }
+
+    private static int PayloadIndexForSpeciesAtOrder(GameManager targetManager, string speciesCode, int order)
+    {
+        if (targetManager == null || targetManager.payload == null || order < 0)
+            return -1;
+
+        int matchIndex = 0;
+        for (int i = 0; i < targetManager.payload.Count; i++)
+        {
+            if (!PayloadMatchesSpecies(targetManager.payload[i], speciesCode))
+                continue;
+
+            if (matchIndex == order)
+                return i;
+
+            matchIndex++;
+        }
+
+        return -1;
+    }
+
+    private void FocusGeneLabMiniPayloadPageOn(GameManager targetManager, string speciesCode, int payloadIndex)
+    {
+        if (targetManager == null || targetManager.payload == null || payloadIndex < 0)
+            return;
+
+        int order = 0;
+        for (int i = 0; i < targetManager.payload.Count; i++)
+        {
+            AlgoMonInstance mon = targetManager.payload[i];
+            if (!PayloadMatchesSpecies(mon, speciesCode))
+                continue;
+
+            if (i == payloadIndex)
+            {
+                geneLabPayloadPage = order / GeneLabMiniPayloadCellCount;
+                return;
+            }
+
+            order++;
+        }
+    }
+
+    private static int CountBasePayloadForSpecies(GameManager targetManager, string speciesCode)
+    {
+        if (targetManager == null || targetManager.payload == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < targetManager.payload.Count; i++)
+        {
+            AlgoMonInstance mon = targetManager.payload[i];
+            if (PayloadMatchesSpecies(mon, speciesCode) && mon.IsBaseForm)
+                count++;
+        }
+
+        return count;
+    }
+
+    private static int CountFusionReadyForSpecies(GameManager targetManager, string speciesCode)
+    {
+        if (targetManager == null || targetManager.payload == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < targetManager.payload.Count; i++)
+        {
+            if (PayloadMatchesSpecies(targetManager.payload[i], speciesCode) &&
+                targetManager.FirstFusionCandidateIndexFor(i) >= 0)
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int CountEvolvableForSpecies(GameManager targetManager, string speciesCode)
+    {
+        if (targetManager == null || targetManager.payload == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < targetManager.payload.Count; i++)
+        {
+            if (PayloadMatchesSpecies(targetManager.payload[i], speciesCode) &&
+                targetManager.CanEvolvePayload(i, out _))
+            {
+                count++;
+            }
+        }
+
+        return count;
+    }
+
+    private static int KnownSkillCount(AlgoMonInstance mon)
+    {
+        if (mon == null || mon.knownSkills == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < mon.knownSkills.Count; i++)
+        {
+            if (mon.knownSkills[i] != null)
+                count++;
+        }
+
+        return count;
+    }
+
+    private static LearnsetEntry NextValidLearnsetEntry(LearnsetEntry[] learnset, ref int startIndex)
+    {
+        if (learnset == null)
+            return default(LearnsetEntry);
+
+        while (startIndex < learnset.Length)
+        {
+            LearnsetEntry entry = learnset[startIndex];
+            startIndex++;
+            if (entry.skill != null)
+                return entry;
+        }
+
+        return default(LearnsetEntry);
+    }
+
+    private static string SkillLearnState(AlgoMonInstance mon, LearnsetEntry entry)
+    {
+        if (mon != null && mon.knownSkills != null && mon.knownSkills.Contains(entry.skill))
+            return "KNOWN";
+        if (mon == null || entry.unlockLevel > mon.level)
+            return "LOCKD";
+        return KnownSkillCount(mon) >= AlgoMonInstance.MaxSkillSlots ? "FULL " : "READY";
+    }
+
+    private static string FormatSkillCompact(SkillData skill)
+    {
+        if (skill == null)
+            return "CORRUPTED";
+
+        string type = skill.instructionType.ToString().ToUpperInvariant();
+        string element = skill.elementType.ToString().ToUpperInvariant();
+        return $"{SkillDisplayName(skill).ToUpperInvariant()} [{ShortElement(type)}/{ShortElement(element)}] P{skill.basePower:00} C{skill.cpCost:00}";
+    }
+
+    private static string SkillDisplayName(SkillData skill)
+    {
+        if (skill == null)
+            return "Skill";
+        return !string.IsNullOrWhiteSpace(skill.skillName) ? skill.skillName.Trim() : skill.name;
+    }
+
+    private AlgoMonInstance SelectedPayloadMon(GameManager targetManager)
+    {
+        return PayloadAt(targetManager, selectedPayloadIndex);
+    }
+
+    private static AlgoMonInstance PayloadAt(GameManager targetManager, int index)
+    {
+        if (targetManager == null || targetManager.payload == null || index < 0 || index >= targetManager.payload.Count)
+            return null;
+        return targetManager.payload[index];
+    }
+
+    private static string FormLabel(AlgoMonInstance mon)
+    {
+        if (mon == null)
+            return "BASE";
+
+        mon.EnsurePersistentRuntimeState();
+        return mon.IsEvolvedForm ? "EVOLVED" : "BASE";
+    }
+
+    private static string EvolutionStatus(AlgoMonInstance mon)
+    {
+        if (mon == null)
+            return "UNKNOWN";
+        if (mon.IsEvolvedForm)
+            return "COMPLETE";
+        if (mon.CanEvolve)
+            return "READY";
+        return $"NEED {mon.RemainingFusionCopies} MORE";
+    }
+
+    private static void AppendTalentLine(StringBuilder builder, AlgoMonInstance mon)
+    {
+        builder.AppendLine($"BAT {mon.iv_Battery:000}  SPD {mon.iv_ClockSpeed:000}");
+        builder.AppendLine($"CPU {mon.iv_ComputingPower:000}  TP  {mon.iv_Throughput:000}");
+        builder.AppendLine($"FW  {mon.iv_Firewall:000}  ENC {mon.iv_Encryption:000}");
+    }
+
+    private static void AppendProjectedTalentLine(StringBuilder builder, AlgoMonInstance target, AlgoMonInstance material)
+    {
+        builder.AppendLine($"BAT {Mathf.Max(target.iv_Battery, material.iv_Battery):000}  SPD {Mathf.Max(target.iv_ClockSpeed, material.iv_ClockSpeed):000}");
+        builder.AppendLine($"CPU {Mathf.Max(target.iv_ComputingPower, material.iv_ComputingPower):000}  TP  {Mathf.Max(target.iv_Throughput, material.iv_Throughput):000}");
+        builder.AppendLine($"FW  {Mathf.Max(target.iv_Firewall, material.iv_Firewall):000}  ENC {Mathf.Max(target.iv_Encryption, material.iv_Encryption):000}");
+    }
+
+    private static int TalentValueAt(AlgoMonInstance mon, int statIndex)
+    {
+        if (mon == null)
+            return 0;
+
+        switch (statIndex)
+        {
+            case 0:
+                return mon.iv_Battery;
+            case 1:
+                return mon.iv_ClockSpeed;
+            case 2:
+                return mon.iv_ComputingPower;
+            case 3:
+                return mon.iv_Throughput;
+            case 4:
+                return mon.iv_Firewall;
+            case 5:
+                return mon.iv_Encryption;
+            default:
+                return 0;
+        }
     }
 
     private static void AppendPayloadSkills(StringBuilder builder, AlgoMonInstance mon)
@@ -696,19 +3060,24 @@ public class MainTerminalController : MonoBehaviour
         if (mon == null || mon.data == null)
             return null;
 
-        if (mon.data.portrait != null)
-            return mon.data.portrait;
-
 #if UNITY_EDITOR
         string codeName = PayloadSpriteName(mon.data.codeName);
-        if (string.IsNullOrEmpty(codeName))
-            return null;
+        if (!string.IsNullOrEmpty(codeName))
+        {
+            string form = mon != null && mon.IsEvolvedForm ? "Evolved" : "Base";
+            string path = $"Assets/_AlgoMon/Sprites/{codeName.ToUpperInvariant()}/{codeName}_{form}.png";
+            Sprite formSprite = AssetDatabase.LoadAssetAtPath<Sprite>(path);
+            if (formSprite != null)
+                return formSprite;
 
-        string path = $"Assets/_AlgoMon/Sprites/{codeName.ToUpperInvariant()}/{codeName}_Base.png";
-        return AssetDatabase.LoadAssetAtPath<Sprite>(path);
-#else
-        return null;
+            string basePath = $"Assets/_AlgoMon/Sprites/{codeName.ToUpperInvariant()}/{codeName}_Base.png";
+            Sprite baseSprite = AssetDatabase.LoadAssetAtPath<Sprite>(basePath);
+            if (baseSprite != null)
+                return baseSprite;
+        }
 #endif
+
+        return mon.data.portrait;
     }
 
     private static string PayloadSpriteName(string codeName)
@@ -775,6 +3144,7 @@ public class MainTerminalController : MonoBehaviour
             BindSourceLayoutMenuButtons();
             BindSourceLayoutDepthButtons();
             BindSourceLayoutBossRouteButtons();
+            ApplySourceLayoutStaticLabelBitmaps();
         }
         else
         {
@@ -866,6 +3236,898 @@ public class MainTerminalController : MonoBehaviour
 
         EnsurePayloadPanel(overlay);
         HidePayloadPanel();
+
+        if (useSourceLayoutTrialVisual)
+            EnsureSectionView();
+    }
+
+    private void EnsureSectionView()
+    {
+        Transform visual = FindSourceLayoutTrialVisual();
+        if (visual == null)
+            return;
+
+        sourceLayoutVisual = visual;
+
+        menuContentGroups = new[]
+        {
+            visual.Find("Trial_SystemTitle") as RectTransform,
+            visual.Find("Trial_MenuPanel") as RectTransform,
+            visual.Find("Trial_DepthSelect") as RectTransform,
+            visual.Find("Trial_BossRouteSelector") as RectTransform
+        };
+
+        sectionViewRoot = CreateRect("Trial_SectionView", visual);
+        RectTransform innerBackground = visual.Find("Trial_TerminalInnerBackground") as RectTransform;
+        if (innerBackground != null)
+        {
+            sectionViewRoot.anchorMin = innerBackground.anchorMin;
+            sectionViewRoot.anchorMax = innerBackground.anchorMax;
+            sectionViewRoot.pivot = innerBackground.pivot;
+            sectionViewRoot.anchoredPosition = innerBackground.anchoredPosition;
+            sectionViewRoot.sizeDelta = innerBackground.sizeDelta;
+        }
+        else
+        {
+            sectionViewRoot.anchorMin = new Vector2(0.05f, 0.08f);
+            sectionViewRoot.anchorMax = new Vector2(0.97f, 0.925f);
+            sectionViewRoot.offsetMin = Vector2.zero;
+            sectionViewRoot.offsetMax = Vector2.zero;
+        }
+        sectionViewRoot.SetAsLastSibling();
+
+        sectionBackButton = CreateSectionBackButton(sectionViewRoot);
+
+        sectionTitleText = CreateText("SectionTitle", sectionViewRoot, 24, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.82f, 1f, 1f, 1f));
+        ApplyCyberText(sectionTitleText, new Color(0f, 0.16f, 0.24f, 1f), new Vector2(1.2f, -1.2f));
+        SetAnchors(sectionTitleText.rectTransform, new Vector2(0.185f, 0.80f), new Vector2(0.82f, 0.87f));
+
+        if (payloadPanel != null)
+        {
+            payloadPanel.SetParent(sectionViewRoot, false);
+            SetAnchors(payloadPanel, new Vector2(0.03f, 0.03f), new Vector2(0.97f, 0.84f));
+            Image panelBackground = payloadPanel.GetComponent<Image>();
+            if (panelBackground != null)
+                panelBackground.raycastTarget = true;
+        }
+
+        EnsurePayloadGrid(sectionViewRoot);
+        EnsureGeneLabPanel(sectionViewRoot);
+        EnsureExitPanel(sectionViewRoot);
+        ShowGeneLabPanel(false);
+        ShowExitPanelRoot(false);
+
+        sectionViewRoot.gameObject.SetActive(false);
+    }
+
+    private void EnsurePayloadGrid(Transform parent)
+    {
+        payloadGridRoot = CreateRect("PayloadGrid", parent);
+        SetAnchors(payloadGridRoot, new Vector2(0.02f, 0.0f), new Vector2(0.94f, 0.80f));
+
+        RectTransform gridArea = CreateRect("StorageGridArea", payloadGridRoot);
+        SetAnchors(gridArea, new Vector2(0f, 0.16f), new Vector2(0.60f, 1f));
+
+        GridLayoutGroup layout = gridArea.gameObject.AddComponent<GridLayoutGroup>();
+        layout.cellSize = new Vector2(140f, 140f);
+        layout.spacing = new Vector2(10f, 10f);
+        layout.padding = new RectOffset(6, 6, 6, 6);
+        layout.startCorner = GridLayoutGroup.Corner.UpperLeft;
+        layout.startAxis = GridLayoutGroup.Axis.Horizontal;
+        layout.childAlignment = TextAnchor.UpperCenter;
+        layout.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+        layout.constraintCount = PayloadGridColumns;
+
+        payloadCellFrames = new Image[PayloadGridCellCount];
+        payloadCellSprites = new Image[PayloadGridCellCount];
+        payloadCellLabels = new Text[PayloadGridCellCount];
+        payloadCellFavoriteMarkers = new Text[PayloadGridCellCount];
+        payloadCellButtons = new Button[PayloadGridCellCount];
+        payloadCellActions = new UnityEngine.Events.UnityAction[PayloadGridCellCount];
+        payloadCellPayloadIndices = new int[PayloadGridCellCount];
+
+        for (int i = 0; i < PayloadGridCellCount; i++)
+        {
+            RectTransform cell = CreateRect("PayloadCell_" + i, gridArea);
+
+            Image frame = cell.gameObject.AddComponent<Image>();
+            frame.sprite = slotNormalSprite;
+            frame.type = Image.Type.Simple;
+            frame.preserveAspect = true;
+            frame.raycastTarget = true;
+            payloadCellFrames[i] = frame;
+
+            Button button = cell.gameObject.AddComponent<Button>();
+            button.transition = Selectable.Transition.None;
+            button.targetGraphic = frame;
+            payloadCellButtons[i] = button;
+            int cellIndex = i;
+            button.onClick.AddListener(() => OnPayloadCellClicked(cellIndex));
+            payloadCellPayloadIndices[i] = -1;
+            ConfigurePayloadCellHover(button, cellIndex);
+
+            Image sprite = CreateImage("CellSprite", cell, Color.white);
+            sprite.preserveAspect = true;
+            sprite.raycastTarget = false;
+            SetAnchors(sprite.rectTransform, new Vector2(0.18f, 0.24f), new Vector2(0.82f, 0.84f));
+            payloadCellSprites[i] = sprite;
+
+            Text label = CreateText("CellLabel", cell, 16, FontStyle.Bold, TextAnchor.LowerCenter, new Color(0.86f, 1f, 0.96f, 1f));
+            ApplyCyberText(label, new Color(0f, 0.12f, 0.18f, 0.95f), new Vector2(1f, -1f));
+            SetAnchors(label.rectTransform, new Vector2(0.08f, 0.05f), new Vector2(0.92f, 0.24f));
+            payloadCellLabels[i] = label;
+            CreateBitmapTextMirror(label, 0.62f);
+
+            Text favoriteMarker = CreateText("CellFavoriteMarker", cell, 24, FontStyle.Bold, TextAnchor.UpperRight, new Color(1f, 0.86f, 0.28f, 1f));
+            ApplyCrispCyberText(favoriteMarker, new Color(0.18f, 0.08f, 0f, 1f));
+            SetAnchors(favoriteMarker.rectTransform, new Vector2(0.62f, 0.72f), new Vector2(0.92f, 0.94f));
+            favoriteMarker.text = "*";
+            favoriteMarker.gameObject.SetActive(false);
+            payloadCellFavoriteMarkers[i] = favoriteMarker;
+        }
+
+        EnsurePayloadPageNav(payloadGridRoot);
+        EnsurePayloadDetailStrips(payloadGridRoot);
+        EnsureSquadPanel(parent);
+    }
+
+    private void EnsureGeneLabPanel(Transform parent)
+    {
+        if (geneLabPanelRoot != null)
+        {
+            geneLabPanelRoot.SetParent(parent, false);
+            return;
+        }
+
+        geneLabPanelRoot = CreateRect("GeneLabPanel", parent);
+        SetAnchors(geneLabPanelRoot, new Vector2(0.02f, 0.0f), new Vector2(0.96f, 0.80f));
+
+        Image background = geneLabPanelRoot.gameObject.AddComponent<Image>();
+        ApplyPanelFrameBackground(
+            background,
+            ResolvePayloadInspectorPanelSprite(),
+            new Color(0.006f, 0.012f, 0.026f, 0.82f));
+        background.raycastTarget = true;
+
+        geneLabRouteSelectionRoot = CreateRect("GeneLabRouteSelection", geneLabPanelRoot);
+        SetAnchors(geneLabRouteSelectionRoot, Vector2.zero, Vector2.one);
+
+        geneLabRoutePromptText = CreateText("GeneLabRoutePrompt", geneLabRouteSelectionRoot, 16, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.84f, 1f, 1f, 1f));
+        geneLabRoutePromptText.lineSpacing = 0.92f;
+        ApplyCrispCyberText(geneLabRoutePromptText, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(geneLabRoutePromptText.rectTransform, new Vector2(0.055f, 0.895f), new Vector2(0.940f, 0.985f));
+        geneLabRoutePromptText.text = "SELECT BOSS GENE POOL";
+
+        if (!TryBuildGeneLabBossRouteClone(geneLabRouteSelectionRoot))
+            BuildGeneLabFallbackRouteSelection(geneLabRouteSelectionRoot);
+
+        geneLabBenchRoot = CreateRect("GeneLabBench", geneLabPanelRoot);
+        SetAnchors(geneLabBenchRoot, Vector2.zero, Vector2.one);
+
+        Image miniPayloadPanel = CreateImage("GeneLabMiniPayloadPanel", geneLabBenchRoot, new Color(0.012f, 0.026f, 0.046f, 0.82f));
+        ApplyPanelFrameBackground(miniPayloadPanel, ResolveMonsterDisplayPanelSprite(), new Color(0.012f, 0.026f, 0.046f, 0.82f));
+        SetAnchors(miniPayloadPanel.rectTransform, new Vector2(0.045f, 0.098f), new Vector2(0.340f, 0.950f));
+
+        Text miniTitle = CreateText("GeneLabMiniPayloadTitle", miniPayloadPanel.rectTransform, 18, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.64f, 0.98f, 1f, 1f));
+        ApplyCrispCyberText(miniTitle, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(miniTitle.rectTransform, new Vector2(0.070f, 0.865f), new Vector2(0.930f, 0.945f));
+        miniTitle.text = "PAYLOAD UNITS";
+        CreateBitmapTextMirror(miniTitle, 0.82f);
+
+        RectTransform miniGrid = CreateRect("GeneLabMiniPayloadGrid", miniPayloadPanel.rectTransform);
+        SetAnchors(miniGrid, new Vector2(0.055f, 0.150f), new Vector2(0.945f, 0.875f));
+
+        geneLabMiniPayloadButtons = new Button[GeneLabMiniPayloadCellCount];
+        geneLabMiniPayloadFrames = new Image[GeneLabMiniPayloadCellCount];
+        geneLabMiniPayloadSprites = new Image[GeneLabMiniPayloadCellCount];
+        geneLabMiniPayloadLabels = new Text[GeneLabMiniPayloadCellCount];
+        geneLabMiniPayloadBitmapLabels = new TextMeshProUGUI[GeneLabMiniPayloadCellCount];
+        geneLabMiniPayloadIndices = new int[GeneLabMiniPayloadCellCount];
+
+        for (int i = 0; i < GeneLabMiniPayloadCellCount; i++)
+        {
+            int column = i % 2;
+            int row = i / 2;
+            float xMin = column * 0.5f + 0.012f;
+            float xMax = xMin + 0.476f;
+            float rowHeight = 0.25f;
+            float yMax = 1f - row * rowHeight - 0.012f;
+            float yMin = yMax - rowHeight + 0.020f;
+            RectTransform cell = CreateRect("GeneLabMiniPayloadCell_" + i, miniGrid);
+            SetAnchors(cell, new Vector2(xMin, yMin), new Vector2(xMax, yMax));
+
+            Image frame = cell.gameObject.AddComponent<Image>();
+            frame.sprite = slotNormalSprite;
+            frame.preserveAspect = true;
+            frame.raycastTarget = true;
+            frame.color = Color.white;
+            geneLabMiniPayloadFrames[i] = frame;
+
+            Button button = cell.gameObject.AddComponent<Button>();
+            button.transition = Selectable.Transition.None;
+            button.targetGraphic = frame;
+            int cellIndex = i;
+            button.onClick.AddListener(() => OnGeneLabMiniPayloadClicked(cellIndex));
+            geneLabMiniPayloadButtons[i] = button;
+            geneLabMiniPayloadIndices[i] = -1;
+
+            Image portrait = CreateImage("Portrait", cell, Color.white);
+            portrait.preserveAspect = true;
+            SetAnchors(portrait.rectTransform, new Vector2(0.14f, 0.28f), new Vector2(0.86f, 0.88f));
+            geneLabMiniPayloadSprites[i] = portrait;
+
+            Text label = CreateText("Label", cell, 12, FontStyle.Bold, TextAnchor.LowerCenter, new Color(0.94f, 1f, 0.98f, 1f));
+            label.lineSpacing = 0.88f;
+            ApplyCrispCyberText(label, new Color(0f, 0.12f, 0.18f, 0.95f));
+            SetAnchors(label.rectTransform, new Vector2(0.03f, 0.018f), new Vector2(0.97f, 0.300f));
+            geneLabMiniPayloadLabels[i] = label;
+            geneLabMiniPayloadBitmapLabels[i] = CreateBitmapTextMirror(label, 0.48f);
+        }
+
+        geneLabMiniPayloadPrevButton = FindOrCreatePanelButton("GeneLabMiniPayloadPrev", miniPayloadPanel.rectTransform, "<", new Vector2(0.070f, 0.040f), new Vector2(0.280f, 0.125f));
+        SetPanelButtonLabelSize(geneLabMiniPayloadPrevButton, 16);
+        geneLabMiniPayloadPrevButton.onClick.AddListener(() => ChangeGeneLabMiniPayloadPage(-1));
+
+        geneLabMiniPayloadNextButton = FindOrCreatePanelButton("GeneLabMiniPayloadNext", miniPayloadPanel.rectTransform, ">", new Vector2(0.720f, 0.040f), new Vector2(0.930f, 0.125f));
+        SetPanelButtonLabelSize(geneLabMiniPayloadNextButton, 16);
+        geneLabMiniPayloadNextButton.onClick.AddListener(() => ChangeGeneLabMiniPayloadPage(1));
+
+        geneLabMiniPayloadPageLabel = CreateText("GeneLabMiniPayloadPage", miniPayloadPanel.rectTransform, 13, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.78f, 1f, 1f, 1f));
+        ApplyCrispCyberText(geneLabMiniPayloadPageLabel, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(geneLabMiniPayloadPageLabel.rectTransform, new Vector2(0.300f, 0.040f), new Vector2(0.700f, 0.125f));
+        CreateBitmapTextMirror(geneLabMiniPayloadPageLabel, 0.58f);
+
+        Image fusionPanel = CreateImage("GeneLabFusionPanel", geneLabBenchRoot, new Color(0.010f, 0.020f, 0.040f, 0.82f));
+        ApplyPanelFrameBackground(fusionPanel, ResolvePayloadInspectorPanelSprite(), new Color(0.010f, 0.020f, 0.040f, 0.82f));
+        SetAnchors(fusionPanel.rectTransform, new Vector2(0.382f, 0.175f), new Vector2(0.965f, 0.950f));
+
+        geneLabFusionPortraitImages = new Image[2];
+        geneLabFusionNameTexts = new Text[2];
+        geneLabFusionMetaTexts = new Text[2];
+        geneLabFusionIdleFrames = new Sprite[2][];
+        geneLabFusionIdleFps = new float[2];
+        geneLabFusionIdleTimers = new float[2];
+        geneLabFusionIdleFrameIndices = new int[2];
+        geneLabFusionIdleKeys = new string[2];
+        BuildGeneLabFusionDisplay(fusionPanel.rectTransform, 0, "UNIT 1", new Vector2(0.040f, 0.575f), new Vector2(0.485f, 0.940f));
+        BuildGeneLabFusionDisplay(fusionPanel.rectTransform, 1, "UNIT 2", new Vector2(0.515f, 0.575f), new Vector2(0.960f, 0.940f));
+
+        geneLabFusionText = CreateText("GeneLabFusionText", fusionPanel.rectTransform, 15, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.95f, 1f, 1f, 1f));
+        geneLabFusionText.lineSpacing = 0.90f;
+        geneLabFusionText.resizeTextForBestFit = false;
+        ApplyCrispCyberText(geneLabFusionText, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(geneLabFusionText.rectTransform, new Vector2(0.045f, 0.480f), new Vector2(0.955f, 0.565f));
+        geneLabFusionBitmapText = CreateBitmapTextMirror(geneLabFusionText, 0.58f);
+
+        BuildGeneLabFusionTalentBars(fusionPanel.rectTransform);
+
+        geneLabPreviousRecordButton = FindOrCreatePanelButton("GeneLabPrevTargetButton", geneLabBenchRoot, "< UNIT 1", new Vector2(0.385f, 0.095f), new Vector2(0.515f, 0.155f));
+        SetPanelButtonLabelSize(geneLabPreviousRecordButton, 13);
+        geneLabPreviousRecordButton.onClick.AddListener(() => MoveGeneLabTarget(-1));
+
+        geneLabNextRecordButton = FindOrCreatePanelButton("GeneLabNextTargetButton", geneLabBenchRoot, "UNIT 1 >", new Vector2(0.525f, 0.095f), new Vector2(0.655f, 0.155f));
+        SetPanelButtonLabelSize(geneLabNextRecordButton, 13);
+        geneLabNextRecordButton.onClick.AddListener(() => MoveGeneLabTarget(1));
+
+        geneLabFuseActionButton = FindOrCreatePanelButton("GeneLabFuseActionButton", geneLabBenchRoot, "FUSE", new Vector2(0.675f, 0.095f), new Vector2(0.805f, 0.155f));
+        SetPanelButtonLabelSize(geneLabFuseActionButton, 14);
+        geneLabFuseActionButton.onClick.AddListener(FuseSelectedPayload);
+
+        geneLabEvolveActionButton = FindOrCreatePanelButton("GeneLabEvolveActionButton", geneLabBenchRoot, "EVOLVE", new Vector2(0.835f, 0.095f), new Vector2(0.965f, 0.155f));
+        SetPanelButtonLabelSize(geneLabEvolveActionButton, 14);
+        geneLabEvolveActionButton.onClick.AddListener(EvolveSelectedPayload);
+    }
+
+    private void BuildGeneLabFusionTalentBars(Transform parent)
+    {
+        geneLabFusionTalentRoot = CreateRect("GeneLabFusionTalentBars", parent);
+        SetAnchors(geneLabFusionTalentRoot, new Vector2(0.045f, 0.075f), new Vector2(0.955f, 0.470f));
+
+        geneLabFusionTalentCaptionText = CreateText(
+            "GeneLabFusionTalentCaption",
+            geneLabFusionTalentRoot,
+            14,
+            FontStyle.Bold,
+            TextAnchor.UpperLeft,
+            new Color(0.66f, 0.96f, 1f, 0.96f));
+        ApplyCrispCyberText(geneLabFusionTalentCaptionText, new Color(0f, 0.10f, 0.16f, 0.9f));
+        SetAnchors(geneLabFusionTalentCaptionText.rectTransform, new Vector2(0f, 0.890f), new Vector2(1f, 1f));
+        geneLabFusionTalentCaptionText.text = "TALENT MERGE";
+        geneLabFusionTalentCaptionBitmapText = CreateBitmapTextMirror(geneLabFusionTalentCaptionText, 0.66f);
+
+        BuildGeneLabTalentHeader(geneLabFusionTalentRoot, "UNIT 1", new Vector2(0.095f, 0.810f), new Vector2(0.345f, 0.895f), GeneLabTargetTalentColor);
+        BuildGeneLabTalentHeader(geneLabFusionTalentRoot, "UNIT 2", new Vector2(0.375f, 0.810f), new Vector2(0.625f, 0.895f), GeneLabMaterialTalentColor);
+        BuildGeneLabTalentHeader(geneLabFusionTalentRoot, "RESULT", new Vector2(0.655f, 0.810f), new Vector2(0.905f, 0.895f), GeneLabProjectedTalentColor);
+
+        int rows = StatAxisLabels.Length;
+        geneLabFusionTargetTalentFills = new Image[rows];
+        geneLabFusionMaterialTalentFills = new Image[rows];
+        geneLabFusionProjectedTalentFills = new Image[rows];
+        geneLabFusionTargetTalentValues = new Text[rows];
+        geneLabFusionMaterialTalentValues = new Text[rows];
+        geneLabFusionProjectedTalentValues = new Text[rows];
+
+        float rowTop = 0.790f;
+        float rowSpan = rowTop / rows;
+        for (int i = 0; i < rows; i++)
+        {
+            float yMax = rowTop - i * rowSpan;
+            float yMin = rowTop - (i + 1) * rowSpan;
+            RectTransform row = CreateRect("GeneLabFusionTalentRow_" + i, geneLabFusionTalentRoot);
+            SetAnchors(row, new Vector2(0f, yMin + 0.006f), new Vector2(1f, yMax - 0.006f));
+
+            Text label = CreateText("Label", row, 14, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.86f, 1f, 0.96f, 1f));
+            ApplyCrispCyberText(label, new Color(0f, 0.10f, 0.16f, 0.9f));
+            SetAnchors(label.rectTransform, new Vector2(0f, 0f), new Vector2(0.080f, 1f));
+            label.text = StatAxisLabels[i];
+            CreateBitmapTextMirror(label, 0.62f);
+
+            geneLabFusionTargetTalentFills[i] = BuildGeneLabTalentBar(row, "Target", new Vector2(0.095f, 0.160f), new Vector2(0.345f, 0.840f), GeneLabTargetTalentColor);
+            geneLabFusionMaterialTalentFills[i] = BuildGeneLabTalentBar(row, "Material", new Vector2(0.375f, 0.160f), new Vector2(0.625f, 0.840f), GeneLabMaterialTalentColor);
+            geneLabFusionProjectedTalentFills[i] = BuildGeneLabTalentBar(row, "Result", new Vector2(0.655f, 0.160f), new Vector2(0.905f, 0.840f), GeneLabProjectedTalentColor);
+
+            geneLabFusionTargetTalentValues[i] = BuildGeneLabTalentValue(row, "Unit1Value", new Vector2(0.095f, 0f), new Vector2(0.345f, 1f));
+            geneLabFusionMaterialTalentValues[i] = BuildGeneLabTalentValue(row, "Unit2Value", new Vector2(0.375f, 0f), new Vector2(0.625f, 1f));
+            geneLabFusionProjectedTalentValues[i] = BuildGeneLabTalentValue(row, "ResultValue", new Vector2(0.655f, 0f), new Vector2(0.905f, 1f));
+        }
+    }
+
+    private void BuildGeneLabTalentHeader(Transform parent, string text, Vector2 anchorMin, Vector2 anchorMax, Color color)
+    {
+        Text header = CreateText("GeneLabTalentHeader_" + text, parent, 13, FontStyle.Bold, TextAnchor.MiddleCenter, color);
+        ApplyCrispCyberText(header, new Color(0f, 0.10f, 0.16f, 0.9f));
+        SetAnchors(header.rectTransform, anchorMin, anchorMax);
+        header.text = text;
+        CreateBitmapTextMirror(header, 0.56f);
+    }
+
+    private Image BuildGeneLabTalentBar(RectTransform row, string name, Vector2 anchorMin, Vector2 anchorMax, Color fillColor)
+    {
+        Image barBg = CreateImage(name + "TalentBarBg", row, new Color(0.025f, 0.080f, 0.120f, 0.88f));
+        SetAnchors(barBg.rectTransform, anchorMin, anchorMax);
+
+        Image fill = CreateImage(name + "TalentBarFill", barBg.rectTransform, fillColor);
+        fill.sprite = talentBarFillSprite;
+        fill.type = Image.Type.Filled;
+        fill.fillMethod = Image.FillMethod.Horizontal;
+        fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        fill.fillAmount = 0f;
+        fill.preserveAspect = false;
+        SetAnchors(fill.rectTransform, Vector2.zero, Vector2.one);
+        return fill;
+    }
+
+    private Text BuildGeneLabTalentValue(RectTransform row, string name, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        Vector2 plateMin = new Vector2(Mathf.Clamp01(anchorMin.x + 0.024f), 0.190f);
+        Vector2 plateMax = new Vector2(Mathf.Clamp01(anchorMax.x - 0.024f), 0.810f);
+        Image backplate = CreateImage(name + "Readback", row, new Color(0.001f, 0.014f, 0.024f, 0.68f));
+        backplate.raycastTarget = false;
+        SetAnchors(backplate.rectTransform, plateMin, plateMax);
+
+        Text value = CreateText(name, row, 15, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(1f, 0.98f, 0.82f, 1f));
+        ApplyCrispCyberText(value, new Color(0f, 0.03f, 0.05f, 1f));
+        value.resizeTextForBestFit = false;
+        SetAnchors(value.rectTransform, anchorMin, anchorMax);
+        value.text = "---";
+        CreateBitmapTextMirror(value, 0.68f);
+        return value;
+    }
+
+    private void BuildGeneLabFusionDisplay(Transform parent, int slot, string title, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        RectTransform panel = CreateRect("GeneLabFusionDisplay_" + slot, parent);
+        SetAnchors(panel, anchorMin, anchorMax);
+
+        Image panelImage = panel.gameObject.AddComponent<Image>();
+        ApplyPanelFrameBackground(
+            panelImage,
+            ResolveMonsterDisplayPanelSprite(),
+            new Color(0.018f, 0.040f, 0.065f, 0.88f),
+            false);
+        panelImage.raycastTarget = false;
+
+        Color slotAccent = slot == 0 ? GeneLabTargetTalentColor : GeneLabMaterialTalentColor;
+        Text titleText = CreateText("Title", panel, 15, FontStyle.Bold, TextAnchor.UpperLeft, slotAccent);
+        ApplyCrispCyberText(titleText, new Color(0f, 0.10f, 0.16f, 0.9f));
+        SetAnchors(titleText.rectTransform, new Vector2(0.150f, 0.690f), new Vector2(0.940f, 0.835f));
+        titleText.text = title;
+        CreateBitmapTextMirror(titleText, 0.64f);
+
+        Image ovalBase = CreateImage("OvalBase", panel, new Color(1f, 1f, 1f, 0.90f));
+        ovalBase.sprite = monsterBaseOvalSprite;
+        ovalBase.preserveAspect = false;
+        ovalBase.enabled = monsterBaseOvalSprite != null;
+        SetAnchors(ovalBase.rectTransform, new Vector2(0.220f, 0.230f), new Vector2(0.780f, 0.350f));
+
+        Image portrait = CreateImage("Portrait", panel, Color.white);
+        portrait.preserveAspect = true;
+        SetAnchors(portrait.rectTransform, new Vector2(0.170f, 0.300f), new Vector2(0.830f, 0.810f));
+        geneLabFusionPortraitImages[slot] = portrait;
+
+        Text nameText = CreateText("Name", panel, 15, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.86f, 1f, 0.96f, 1f));
+        nameText.lineSpacing = 0.84f;
+        ApplyCrispCyberText(nameText, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(nameText.rectTransform, new Vector2(0.040f, 0.070f), new Vector2(0.960f, 0.255f));
+        geneLabFusionNameTexts[slot] = nameText;
+        CreateBitmapTextMirror(nameText, 0.62f);
+
+        Text metaText = CreateText("Meta", panel, 14, FontStyle.Bold, TextAnchor.UpperRight, Color.Lerp(slotAccent, Color.white, 0.5f));
+        ApplyCrispCyberText(metaText, new Color(0f, 0.10f, 0.16f, 0.9f));
+        SetAnchors(metaText.rectTransform, new Vector2(0.400f, 0.690f), new Vector2(0.885f, 0.835f));
+        geneLabFusionMetaTexts[slot] = metaText;
+        CreateBitmapTextMirror(metaText, 0.52f);
+    }
+
+    private bool TryBuildGeneLabBossRouteClone(Transform parent)
+    {
+        Transform visual = FindSourceLayoutTrialVisual();
+        RectTransform source = visual != null ? visual.Find("Trial_BossRouteSelector") as RectTransform : null;
+        if (source == null)
+            return false;
+
+        RectTransform clone = Instantiate(source.gameObject, parent, false).GetComponent<RectTransform>();
+        clone.name = "GeneLabBossRouteSelector";
+        clone.gameObject.SetActive(true);
+        SetAnchors(clone, new Vector2(-0.018f, -0.010f), new Vector2(1.018f, 0.875f));
+        clone.anchoredPosition = Vector2.zero;
+        clone.sizeDelta = Vector2.zero;
+        clone.localScale = new Vector3(1.075f, 1.075f, 1f);
+        SetChildActive(clone, "BossRouteTopRail", false);
+
+        int count = BossRouteSpecies.Length;
+        geneLabSpeciesButtons = new Button[count];
+        geneLabSpeciesFrames = new Image[count];
+        geneLabSpeciesLabels = new Text[count];
+        geneLabSpeciesMetaLabels = new Text[count];
+        geneLabRoutePortraitImages = new Image[count];
+        geneLabRouteIdleFrames = new Sprite[count][];
+        geneLabRouteIdleFrameSeconds = new float[count];
+        geneLabRouteIdleTimers = new float[count];
+        geneLabRouteIdleFrameIndices = new int[count];
+
+        bool foundAny = false;
+        for (int i = 0; i < count; i++)
+        {
+            string speciesCode = BossRouteSpecies[i];
+            Button button = FindChildButton(clone, "BossRoute_" + speciesCode.ToUpperInvariant());
+            if (button == null)
+                continue;
+
+            foundAny = true;
+            button.onClick.RemoveAllListeners();
+            string capturedSpeciesCode = speciesCode;
+            button.onClick.AddListener(() => SelectGeneLabSpecies(capturedSpeciesCode));
+            button.interactable = true;
+            button.transform.localScale = Vector3.one;
+
+            SetChildrenActive(button.transform, "SelectedRail", false);
+            SetChildrenActive(button.transform, "CleanSelectionFrame", false);
+            SetChildrenActive(button.transform, "ActiveDigitalFrame", false);
+            SetChildrenActive(button.transform, "HoverGlow", false);
+
+            geneLabSpeciesButtons[i] = button;
+            geneLabSpeciesFrames[i] = button.targetGraphic as Image;
+            geneLabSpeciesLabels[i] = button.transform.Find("Label")?.GetComponent<Text>();
+            geneLabSpeciesMetaLabels[i] = button.transform.Find("RouteStatus")?.GetComponent<Text>();
+            RebindClonedBitmapMirror(geneLabSpeciesLabels[i]);
+            RebindClonedBitmapMirror(geneLabSpeciesMetaLabels[i]);
+            geneLabRoutePortraitImages[i] = button.transform.Find("BossPortraitMask/BossSprite")?.GetComponent<Image>();
+            CacheGeneLabRouteIdleFrames(i, geneLabRoutePortraitImages[i]);
+        }
+
+        clone.gameObject.SetActive(foundAny);
+        return foundAny;
+    }
+
+    private void BuildGeneLabFallbackRouteSelection(Transform parent)
+    {
+        RectTransform grid = CreateRect("GeneLabFallbackRouteGrid", parent);
+        SetAnchors(grid, new Vector2(0.060f, 0.080f), new Vector2(0.940f, 0.820f));
+
+        int count = BossRouteSpecies.Length;
+        geneLabSpeciesButtons = new Button[count];
+        geneLabSpeciesFrames = new Image[count];
+        geneLabSpeciesLabels = new Text[count];
+        geneLabSpeciesMetaLabels = new Text[count];
+        geneLabRoutePortraitImages = new Image[count];
+        geneLabRouteIdleFrames = new Sprite[count][];
+        geneLabRouteIdleFrameSeconds = new float[count];
+        geneLabRouteIdleTimers = new float[count];
+        geneLabRouteIdleFrameIndices = new int[count];
+
+        for (int i = 0; i < count; i++)
+        {
+            int column = i % 3;
+            int row = i / 3;
+            float xMin = column / 3f + 0.012f;
+            float xMax = xMin + 0.300f;
+            float yMax = 1f - row * 0.5f - 0.025f;
+            float yMin = yMax - 0.440f;
+            string speciesCode = BossRouteSpecies[i];
+            Button button = FindOrCreatePanelButton(
+                "GeneLabFallbackRoute_" + speciesCode.ToUpperInvariant(),
+                grid,
+                speciesCode.ToUpperInvariant(),
+                new Vector2(xMin, yMin),
+                new Vector2(xMax, yMax));
+            SetPanelButtonLabelSize(button, 16);
+            button.onClick.AddListener(() => SelectGeneLabSpecies(speciesCode));
+            Image portrait = CreateImage("BossPortrait", button.transform, Color.white);
+            portrait.preserveAspect = true;
+            SetAnchors(portrait.rectTransform, new Vector2(0.120f, 0.300f), new Vector2(0.880f, 0.780f));
+
+            geneLabSpeciesButtons[i] = button;
+            geneLabSpeciesFrames[i] = button.GetComponent<Image>();
+            geneLabSpeciesLabels[i] = button.transform.Find("Text")?.GetComponent<Text>();
+            geneLabRoutePortraitImages[i] = portrait;
+            CacheGeneLabRouteIdleFrames(i, portrait);
+
+            Text meta = CreateText("Meta", button.transform, 10, FontStyle.Bold, TextAnchor.LowerCenter, new Color(0.55f, 0.95f, 1f, 0.92f));
+            ApplyCrispCyberText(meta, new Color(0f, 0.10f, 0.16f, 0.9f));
+            SetAnchors(meta.rectTransform, new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.36f));
+            geneLabSpeciesMetaLabels[i] = meta;
+        }
+    }
+
+    private void CacheGeneLabRouteIdleFrames(int index, Image portraitImage)
+    {
+        if (index < 0 || geneLabRouteIdleFrames == null || index >= geneLabRouteIdleFrames.Length)
+            return;
+
+        float secondsPerFrame;
+        Sprite[] frames = LoadBossRouteIdleFrames(BossRouteSpecies[index], out secondsPerFrame);
+        if ((frames == null || frames.Length == 0) && portraitImage != null && portraitImage.sprite != null)
+            frames = new[] { portraitImage.sprite };
+        geneLabRouteIdleFrames[index] = frames ?? Array.Empty<Sprite>();
+        geneLabRouteIdleFrameSeconds[index] = secondsPerFrame;
+        geneLabRouteIdleTimers[index] = 0f;
+        geneLabRouteIdleFrameIndices[index] = 0;
+
+        if (portraitImage != null && geneLabRouteIdleFrames[index].Length > 0)
+        {
+            portraitImage.sprite = geneLabRouteIdleFrames[index][0];
+            portraitImage.enabled = true;
+            portraitImage.color = Color.white;
+        }
+    }
+
+    private void ApplyGeneLabRouteIdleFrame(int index, bool animate)
+    {
+        Image portraitImage = geneLabRoutePortraitImages != null && index >= 0 && index < geneLabRoutePortraitImages.Length
+            ? geneLabRoutePortraitImages[index]
+            : null;
+        Sprite[] frames = geneLabRouteIdleFrames != null && index >= 0 && index < geneLabRouteIdleFrames.Length
+            ? geneLabRouteIdleFrames[index]
+            : null;
+        if (portraitImage == null || frames == null || frames.Length == 0)
+            return;
+
+        if (!animate || frames.Length == 1)
+        {
+            geneLabRouteIdleTimers[index] = 0f;
+            geneLabRouteIdleFrameIndices[index] = 0;
+            portraitImage.sprite = frames[0];
+            portraitImage.enabled = true;
+            return;
+        }
+
+        float frameSeconds = geneLabRouteIdleFrameSeconds != null && index < geneLabRouteIdleFrameSeconds.Length
+            ? geneLabRouteIdleFrameSeconds[index]
+            : 1f / BossRouteFallbackIdleFps;
+        frameSeconds = Mathf.Max(0.04f, frameSeconds);
+
+        geneLabRouteIdleTimers[index] += Time.unscaledDeltaTime;
+        while (geneLabRouteIdleTimers[index] >= frameSeconds)
+        {
+            geneLabRouteIdleTimers[index] -= frameSeconds;
+            geneLabRouteIdleFrameIndices[index] = (geneLabRouteIdleFrameIndices[index] + 1) % frames.Length;
+        }
+
+        portraitImage.sprite = frames[geneLabRouteIdleFrameIndices[index]];
+        portraitImage.enabled = portraitImage.sprite != null;
+    }
+
+    private void EnsureExitPanel(Transform parent)
+    {
+        if (exitPanelRoot != null)
+        {
+            exitPanelRoot.SetParent(parent, false);
+            return;
+        }
+
+        exitPanelRoot = CreateRect("ExitPanel", parent);
+        SetAnchors(exitPanelRoot, new Vector2(0.200f, 0.180f), new Vector2(0.800f, 0.690f));
+
+        Image background = exitPanelRoot.gameObject.AddComponent<Image>();
+        ApplyPanelFrameBackground(
+            background,
+            ResolveSquadPanelBackgroundSprite(),
+            new Color(0.006f, 0.012f, 0.026f, 0.88f));
+        background.raycastTarget = true;
+
+        Text title = CreateText("ExitPanelTitle", exitPanelRoot, 24, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.82f, 1f, 1f, 1f));
+        ApplyCrispCyberText(title, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(title.rectTransform, new Vector2(0.070f, 0.720f), new Vector2(0.920f, 0.890f));
+        title.text = "EXIT TERMINAL";
+
+        exitPanelStatusText = CreateText("ExitPanelStatus", exitPanelRoot, 16, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.84f, 1f, 0.96f, 1f));
+        exitPanelStatusText.lineSpacing = 0.95f;
+        ApplyCrispCyberText(exitPanelStatusText, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(exitPanelStatusText.rectTransform, new Vector2(0.070f, 0.360f), new Vector2(0.920f, 0.690f));
+
+        exitReturnButton = FindOrCreatePanelButton("ExitReturnButton", exitPanelRoot, "RETURN", new Vector2(0.100f, 0.110f), new Vector2(0.425f, 0.255f));
+        SetPanelButtonLabelSize(exitReturnButton, 18);
+        exitReturnButton.onClick.AddListener(ReturnFromExitPanel);
+
+        exitConfirmButton = FindOrCreatePanelButton("ExitConfirmButton", exitPanelRoot, "QUIT", new Vector2(0.575f, 0.110f), new Vector2(0.900f, 0.255f));
+        SetPanelButtonLabelSize(exitConfirmButton, 18);
+        exitConfirmButton.onClick.AddListener(ConfirmExit);
+    }
+
+    private void EnsurePayloadPageNav(Transform parent)
+    {
+        RectTransform pageNav = CreateRect("PayloadPageNav", parent);
+        SetAnchors(pageNav, new Vector2(0f, 0.01f), new Vector2(0.60f, 0.10f));
+
+        payloadPrevPageButton = FindOrCreatePanelButton("PayloadPrevPageButton", pageNav, "< PREV", new Vector2(0.06f, 0.05f), new Vector2(0.34f, 0.95f));
+        SetPanelButtonLabelSize(payloadPrevPageButton, 20);
+        payloadPrevPageButton.onClick.AddListener(() => ChangePayloadPage(-1));
+
+        payloadNextPageButton = FindOrCreatePanelButton("PayloadNextPageButton", pageNav, "NEXT >", new Vector2(0.66f, 0.05f), new Vector2(0.94f, 0.95f));
+        SetPanelButtonLabelSize(payloadNextPageButton, 20);
+        payloadNextPageButton.onClick.AddListener(() => ChangePayloadPage(1));
+
+        payloadPageLabel = CreateText("PayloadPageLabel", pageNav, 20, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.78f, 1f, 1f, 1f));
+        ApplyCyberText(payloadPageLabel, new Color(0f, 0.16f, 0.24f, 1f), new Vector2(1f, -1f));
+        SetAnchors(payloadPageLabel.rectTransform, new Vector2(0.35f, 0f), new Vector2(0.65f, 1f));
+        payloadPageLabel.text = "PAGE 1/1";
+    }
+
+    private void ChangePayloadPage(int delta)
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        payloadPage += delta;
+        RenderPayloadGrid(manager);
+    }
+
+    private void EnsurePayloadDetailStrips(Transform parent)
+    {
+        RectTransform detailArea = CreateRect("UnitDetailArea", parent);
+        SetAnchors(detailArea, new Vector2(0.595f, 0f), new Vector2(1f, 1.070f));
+
+        Image backing = detailArea.gameObject.AddComponent<Image>();
+        ApplyPanelFrameBackground(
+            backing,
+            ResolvePayloadInspectorPanelSprite(),
+            new Color(0.006f, 0.012f, 0.026f, 0.72f));
+        backing.raycastTarget = false;
+
+        Text header = CreateText("DetailHeader", detailArea, 20, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.62f, 0.95f, 1f, 1f));
+        ApplyCrispCyberText(header, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(header.rectTransform, new Vector2(0.070f, 0.885f), new Vector2(0.305f, 0.945f));
+        header.text = "INSPECTOR";
+
+        inspectorFavoriteButton = FindOrCreatePanelButton("InspectorFavoriteButton", detailArea, "FAV", new Vector2(0.325f, 0.875f), new Vector2(0.395f, 0.945f));
+        SetPanelButtonLabelSize(inspectorFavoriteButton, 13);
+        inspectorFavoriteButton.onClick.AddListener(ToggleSelectedFavorite);
+        Transform favoriteLabel = inspectorFavoriteButton.transform.Find("Text");
+        inspectorFavoriteButtonLabel = favoriteLabel != null ? favoriteLabel.GetComponent<Text>() : null;
+
+        inspectorSkillsButton = FindOrCreatePanelButton("InspectorSkillsButton", detailArea, "SKILLS", new Vector2(0.405f, 0.875f), new Vector2(0.545f, 0.945f));
+        SetPanelButtonLabelSize(inspectorSkillsButton, 13);
+        inspectorSkillsButton.onClick.AddListener(ToggleInspectorSkillPanel);
+        Transform skillsLabel = inspectorSkillsButton.transform.Find("Text");
+        inspectorSkillsButtonLabel = skillsLabel != null ? skillsLabel.GetComponent<Text>() : null;
+
+        // SQUAD (view squad/formation) button lives next to the top PAYLOAD title instead
+        // of the inspector row; toggled with the payload grid so it is payload-only.
+        inspectorViewSquadButton = FindOrCreatePanelButton("InspectorViewSquadButton", sectionViewRoot, "SQUAD", new Vector2(0.345f, 0.795f), new Vector2(0.470f, 0.872f));
+        SetPanelButtonLabelSize(inspectorViewSquadButton, 14);
+        inspectorViewSquadButton.onClick.AddListener(() => OpenSquadPanel(false, null));
+        inspectorViewSquadButton.gameObject.SetActive(false);
+
+        inspectorSquadButton = FindOrCreatePanelButton("InspectorSquadButton", detailArea, "ADD TO SQUAD", new Vector2(0.555f, 0.875f), new Vector2(0.970f, 0.945f));
+        SetPanelButtonLabelSize(inspectorSquadButton, 15);
+        inspectorSquadButton.onClick.AddListener(ToggleSelectedSquad);
+        Transform squadLabel = inspectorSquadButton.transform.Find("Text");
+        inspectorSquadButtonLabel = squadLabel != null ? squadLabel.GetComponent<Text>() : null;
+
+        BuildInspectorPortrait(detailArea);
+        BuildInspectorName(detailArea);
+        BuildInspectorRadar(detailArea);
+        BuildInspectorTalentBars(detailArea);
+        BuildInspectorSkillPanel(detailArea);
+    }
+
+    private void BuildInspectorPortrait(Transform detailArea)
+    {
+        RectTransform band = CreateRect("InspectorPortraitBand", detailArea);
+        SetAnchors(band, new Vector2(0f, 0.675f), new Vector2(1f, 0.875f));
+        band.SetAsFirstSibling();
+
+        Image ovalBase = CreateImage("InspectorOvalBase", band, new Color(1f, 1f, 1f, 0.95f));
+        ovalBase.sprite = monsterBaseOvalSprite;
+        ovalBase.preserveAspect = false;
+        ovalBase.enabled = monsterBaseOvalSprite != null;
+        SetAnchors(ovalBase.rectTransform, new Vector2(0.24f, 0f), new Vector2(0.76f, 0.22f));
+
+        inspectorPortraitImage = CreateImage("InspectorPortrait", band, Color.white);
+        inspectorPortraitImage.preserveAspect = true;
+        SetAnchors(inspectorPortraitImage.rectTransform, new Vector2(0.22f, 0.10f), new Vector2(0.78f, 1f));
+    }
+
+    private void BuildInspectorName(Transform detailArea)
+    {
+        inspectorNameText = CreateText("InspectorName", detailArea, 19, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.84f, 1f, 1f, 1f));
+        inspectorNameText.lineSpacing = 0.86f;
+        ApplyCrispCyberText(inspectorNameText, new Color(0f, 0.14f, 0.22f, 1f));
+        SetAnchors(inspectorNameText.rectTransform, new Vector2(0.04f, 0.600f), new Vector2(0.96f, 0.668f));
+        inspectorNameText.text = "SELECT A UNIT";
+    }
+
+    private void BuildInspectorRadar(Transform detailArea)
+    {
+        inspectorRadarRoot = CreateRect("InspectorRadar", detailArea);
+        SetAnchors(inspectorRadarRoot, new Vector2(0.16f, 0.330f), new Vector2(0.84f, 0.572f));
+
+        inspectorRadar = inspectorRadarRoot.gameObject.AddComponent<RadarChartGraphic>();
+        inspectorRadar.color = Color.white;
+        inspectorRadar.raycastTarget = false;
+
+        inspectorRadarLabels = new Text[StatAxisLabels.Length];
+        for (int i = 0; i < StatAxisLabels.Length; i++)
+        {
+            Text label = CreateText("RadarLabel_" + i, inspectorRadarRoot, 17, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.74f, 0.98f, 1f, 1f));
+            ApplyCrispCyberText(label, new Color(0f, 0.1f, 0.16f, 0.95f));
+            RectTransform lr = label.rectTransform;
+            lr.anchorMin = new Vector2(0.5f, 0.5f);
+            lr.anchorMax = new Vector2(0.5f, 0.5f);
+            lr.pivot = new Vector2(0.5f, 0.5f);
+            lr.sizeDelta = new Vector2(84f, 30f);
+            inspectorRadarLabels[i] = label;
+        }
+    }
+
+    private void BuildInspectorTalentBars(Transform detailArea)
+    {
+        RectTransform talentRoot = CreateRect("InspectorTalentBars", detailArea);
+        inspectorTalentRoot = talentRoot;
+        SetAnchors(talentRoot, new Vector2(0.06f, 0.02f), new Vector2(0.94f, 0.295f));
+
+        Text caption = CreateText("TalentCaption", talentRoot, 15, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.6f, 0.92f, 1f, 0.9f));
+        ApplyCrispCyberText(caption, new Color(0f, 0.1f, 0.16f, 0.9f));
+        SetAnchors(caption.rectTransform, new Vector2(0f, 0.9f), new Vector2(1f, 1f));
+        caption.text = "TALENT HARDWARE CEILING";
+
+        int rows = StatAxisLabels.Length;
+        inspectorTalentFills = new Image[rows];
+        inspectorTalentValues = new Text[rows];
+
+        float rowTop = 0.88f;
+        float rowSpan = rowTop / rows;
+        for (int i = 0; i < rows; i++)
+        {
+            float yMax = rowTop - i * rowSpan;
+            float yMin = rowTop - (i + 1) * rowSpan;
+            float pad = rowSpan * 0.16f;
+
+            RectTransform row = CreateRect("TalentRow_" + i, talentRoot);
+            SetAnchors(row, new Vector2(0f, yMin + pad), new Vector2(1f, yMax - pad));
+
+            Text name = CreateText("TalentName", row, 16, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.8f, 1f, 1f, 1f));
+            ApplyCrispCyberText(name, new Color(0f, 0.1f, 0.16f, 0.9f));
+            SetAnchors(name.rectTransform, new Vector2(0f, 0f), new Vector2(0.18f, 1f));
+            name.text = StatAxisLabels[i];
+
+            Image barBg = CreateImage("TalentBarBg", row, new Color(0.03f, 0.10f, 0.16f, 0.9f));
+            SetAnchors(barBg.rectTransform, new Vector2(0.20f, 0.12f), new Vector2(0.82f, 0.88f));
+
+            Image fill = CreateImage("TalentBarFill", barBg.rectTransform, Color.white);
+            fill.sprite = talentBarFillSprite;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            fill.fillAmount = 0f;
+            fill.preserveAspect = false;
+            SetAnchors(fill.rectTransform, Vector2.zero, Vector2.one);
+            inspectorTalentFills[i] = fill;
+
+            Text value = CreateText("TalentValue", row, 16, FontStyle.Bold, TextAnchor.MiddleRight, new Color(0.86f, 1f, 0.96f, 1f));
+            ApplyCrispCyberText(value, new Color(0f, 0.1f, 0.16f, 0.9f));
+            SetAnchors(value.rectTransform, new Vector2(0.84f, 0f), new Vector2(1f, 1f));
+            value.text = "0";
+            inspectorTalentValues[i] = value;
+        }
+    }
+
+    private void BuildInspectorSkillPanel(Transform detailArea)
+    {
+        inspectorSkillRoot = CreateRect("InspectorSkillPanel", detailArea);
+        SetAnchors(inspectorSkillRoot, new Vector2(0.06f, 0.02f), new Vector2(0.94f, 0.295f));
+
+        Text caption = CreateText("SkillCaption", inspectorSkillRoot, 15, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.6f, 0.92f, 1f, 0.9f));
+        ApplyCrispCyberText(caption, new Color(0f, 0.1f, 0.16f, 0.9f));
+        SetAnchors(caption.rectTransform, new Vector2(0f, 0.900f), new Vector2(0.420f, 1f));
+        caption.text = "SKILL LOADOUT";
+
+        inspectorSkillMessageText = CreateText("SkillMessage", inspectorSkillRoot, 12, FontStyle.Bold, TextAnchor.UpperRight, new Color(0.84f, 1f, 0.96f, 1f));
+        inspectorSkillMessageText.lineSpacing = 0.86f;
+        ApplyCrispCyberText(inspectorSkillMessageText, new Color(0f, 0.1f, 0.16f, 0.9f));
+        SetAnchors(inspectorSkillMessageText.rectTransform, new Vector2(0.430f, 0.900f), new Vector2(1f, 1f));
+
+        inspectorSkillButtons = new Button[InspectorSkillRowCount];
+        inspectorSkillLabels = new Text[InspectorSkillRowCount];
+        inspectorSkillEntries = new LearnsetEntry[InspectorSkillRowCount];
+
+        float rowTop = 0.875f;
+        float rowSpan = rowTop / InspectorSkillRowCount;
+        for (int i = 0; i < InspectorSkillRowCount; i++)
+        {
+            float yMax = rowTop - i * rowSpan;
+            float yMin = rowTop - (i + 1) * rowSpan;
+            RectTransform row = CreateRect("SkillRow_" + i, inspectorSkillRoot);
+            SetAnchors(row, new Vector2(0f, yMin + 0.006f), new Vector2(1f, yMax - 0.006f));
+
+            Image rowImage = row.gameObject.AddComponent<Image>();
+            rowImage.color = new Color(0.012f, 0.040f, 0.060f, 0.70f);
+            rowImage.raycastTarget = true;
+
+            Button button = row.gameObject.AddComponent<Button>();
+            button.targetGraphic = rowImage;
+            button.transition = Selectable.Transition.ColorTint;
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(0.72f, 1f, 0.98f, 1f);
+            colors.pressedColor = new Color(1f, 0.70f, 0.86f, 1f);
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = new Color(1f, 1f, 1f, 0.35f);
+            button.colors = colors;
+            int rowIndex = i;
+            button.onClick.AddListener(() => OnInspectorSkillClicked(rowIndex));
+            inspectorSkillButtons[i] = button;
+
+            Text label = CreateText("Label", row, 12, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.84f, 1f, 0.96f, 1f));
+            label.lineSpacing = 0.82f;
+            ApplyCrispCyberText(label, new Color(0f, 0.1f, 0.16f, 0.9f));
+            SetAnchors(label.rectTransform, new Vector2(0.035f, 0f), new Vector2(0.965f, 1f));
+            inspectorSkillLabels[i] = label;
+        }
+
+        inspectorSkillRoot.gameObject.SetActive(false);
+    }
+
+    private Button CreateSectionBackButton(Transform parent)
+    {
+        RectTransform buttonRect = CreateRect("SectionBackButton", parent);
+        SetAnchors(buttonRect, new Vector2(0.03f, 0.80f), new Vector2(0.16f, 0.87f));
+
+        Image hitArea = buttonRect.gameObject.AddComponent<Image>();
+        hitArea.color = new Color(0f, 0f, 0f, 0f);
+        hitArea.raycastTarget = true;
+
+        Button button = buttonRect.gameObject.AddComponent<Button>();
+        button.targetGraphic = hitArea;
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(0.70f, 1f, 0.95f, 1f);
+        colors.pressedColor = new Color(1f, 0.58f, 0.78f, 1f);
+        colors.selectedColor = colors.highlightedColor;
+        button.colors = colors;
+
+        Image arrow = CreateImage("BackArrow", buttonRect, new Color(0.82f, 1f, 1f, 1f));
+        arrow.sprite = backArrowSprite;
+        arrow.enabled = backArrowSprite != null;
+        arrow.preserveAspect = true;
+        arrow.raycastTarget = false;
+        SetAnchors(arrow.rectTransform, new Vector2(0.06f, 0.18f), new Vector2(0.34f, 0.82f));
+        arrow.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
+
+        Text label = CreateText("BackLabel", buttonRect, 14, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.86f, 1f, 0.96f, 1f));
+        label.text = backArrowSprite != null ? "BACK" : "< BACK";
+        SetAnchors(label.rectTransform, new Vector2(0.38f, 0f), new Vector2(0.97f, 1f));
+
+        return button;
     }
 
     private bool HasSourceLayoutTrialVisual()
@@ -998,10 +4260,10 @@ public class MainTerminalController : MonoBehaviour
         sourceLayoutBossRouteCodes = new Text[count];
         sourceLayoutBossRouteElementTags = new Text[count];
         sourceLayoutBossRouteStatuses = new Text[count];
-        sourceLayoutBossRouteBitmapLabels = new CyberBitmapTextGraphic[count];
-        sourceLayoutBossRouteBitmapCodes = new CyberBitmapTextGraphic[count];
-        sourceLayoutBossRouteBitmapElementTags = new CyberBitmapTextGraphic[count];
-        sourceLayoutBossRouteBitmapStatuses = new CyberBitmapTextGraphic[count];
+        sourceLayoutBossRouteBitmapLabels = new TextMeshProUGUI[count];
+        sourceLayoutBossRouteBitmapCodes = new TextMeshProUGUI[count];
+        sourceLayoutBossRouteBitmapElementTags = new TextMeshProUGUI[count];
+        sourceLayoutBossRouteBitmapStatuses = new TextMeshProUGUI[count];
         sourceLayoutBossRouteSelectedRails = new Transform[count];
 
         for (int i = 0; i < count; i++)
@@ -1060,10 +4322,14 @@ public class MainTerminalController : MonoBehaviour
             sourceLayoutBossRouteElementTags[index] = button.transform.Find("ElementTag")?.GetComponent<Text>();
         if (sourceLayoutBossRouteStatuses != null && index < sourceLayoutBossRouteStatuses.Length)
             sourceLayoutBossRouteStatuses[index] = button.transform.Find("RouteStatus")?.GetComponent<Text>();
-        DisableBossRouteBitmapText(button.transform, "Label");
-        DisableBossRouteBitmapText(button.transform, "RouteCode");
-        DisableBossRouteBitmapText(button.transform, "ElementTag");
-        DisableBossRouteBitmapText(button.transform, "RouteStatus");
+        if (sourceLayoutBossRouteBitmapLabels != null && index < sourceLayoutBossRouteBitmapLabels.Length)
+            sourceLayoutBossRouteBitmapLabels[index] = EnsureBossRouteBitmapText(button.transform, "Label", BossRouteLabelBitmapScale);
+        if (sourceLayoutBossRouteBitmapCodes != null && index < sourceLayoutBossRouteBitmapCodes.Length)
+            sourceLayoutBossRouteBitmapCodes[index] = EnsureBossRouteBitmapText(button.transform, "RouteCode", BossRouteCodeBitmapScale);
+        if (sourceLayoutBossRouteBitmapElementTags != null && index < sourceLayoutBossRouteBitmapElementTags.Length)
+            sourceLayoutBossRouteBitmapElementTags[index] = EnsureBossRouteBitmapText(button.transform, "ElementTag", BossRouteElementBitmapScale);
+        if (sourceLayoutBossRouteBitmapStatuses != null && index < sourceLayoutBossRouteBitmapStatuses.Length)
+            sourceLayoutBossRouteBitmapStatuses[index] = EnsureBossRouteBitmapText(button.transform, "RouteStatus", BossRouteStatusBitmapScale);
         if (sourceLayoutBossRouteSelectedRails != null && index < sourceLayoutBossRouteSelectedRails.Length)
             sourceLayoutBossRouteSelectedRails[index] = button.transform.Find("SelectedRail");
     }
@@ -1340,12 +4606,33 @@ public class MainTerminalController : MonoBehaviour
     private static Font ResolveBossRouteDefaultFont()
     {
         if (bossRouteDefaultFont == null)
-            bossRouteDefaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            bossRouteDefaultFont = ResolveTerminalDefaultFont();
 
         return bossRouteDefaultFont;
     }
 
-    private CyberBitmapTextGraphic EnsureBossRouteBitmapText(Transform buttonRoot, string legacyTextPath, float fontScale)
+    private TextMeshProUGUI CreateBitmapTextMirror(Text sourceText, float fontScale)
+    {
+        if (sourceText == null)
+            return null;
+
+        return EnableBitmapMirror(sourceText, fontScale, sourceText.alignment);
+    }
+
+    private void RebindClonedBitmapMirror(Text legacyText)
+    {
+        if (legacyText == null)
+            return;
+
+        TmpLegacyTextMirror mirror = legacyText.GetComponentInChildren<TmpLegacyTextMirror>(true);
+        if (mirror == null)
+            return;
+
+        mirror.SourceText = legacyText;
+        mirror.HideSourceText = true;
+    }
+
+    private TextMeshProUGUI EnsureBossRouteBitmapText(Transform buttonRoot, string legacyTextPath, float fontScale)
     {
         Transform legacyTextTransform = buttonRoot != null ? buttonRoot.Find(legacyTextPath) : null;
         if (legacyTextTransform == null)
@@ -1354,9 +4641,11 @@ public class MainTerminalController : MonoBehaviour
         Text legacyText = legacyTextTransform.GetComponent<Text>();
         if (legacyText != null)
         {
-            legacyText.enabled = true;
+            legacyText.enabled = false;
             legacyText.raycastTarget = false;
         }
+
+        ConfigureBossRouteLabelBackplate(legacyTextTransform, string.Equals(legacyTextPath, "Label", StringComparison.Ordinal));
 
         RectTransform bitmapRect = GetOrCreateChildRect(legacyTextTransform, legacyTextPath + "Bitmap");
         bitmapRect.anchorMin = Vector2.zero;
@@ -1364,126 +4653,142 @@ public class MainTerminalController : MonoBehaviour
         bitmapRect.pivot = new Vector2(0.5f, 0.5f);
         bitmapRect.anchoredPosition = Vector2.zero;
         bitmapRect.sizeDelta = Vector2.zero;
-        bitmapRect.gameObject.SetActive(false);
+        bitmapRect.gameObject.SetActive(true);
 
-        CyberBitmapTextGraphic bitmapText = bitmapRect.GetComponent<CyberBitmapTextGraphic>();
-        bool createdBitmapText = bitmapText == null;
-        if (bitmapText == null)
-            bitmapText = bitmapRect.gameObject.AddComponent<CyberBitmapTextGraphic>();
-
-        bitmapText.Atlas = ResolveBossRouteBitmapFontAtlas();
-        bitmapText.Metrics = ResolveBossRouteBitmapFontMetrics();
-        if (createdBitmapText || bitmapText.FontScale <= 0.05f)
-            bitmapText.FontScale = fontScale;
-        bitmapText.LetterSpacing = 0f;
-        bitmapText.Alignment = TextAnchor.MiddleCenter;
-        bitmapText.raycastTarget = false;
-        bitmapText.Text = legacyText != null ? legacyText.text : legacyTextPath;
-        bitmapText.color = legacyText != null ? legacyText.color : CyberUiTheme.TextPrimary;
-        return bitmapText;
+        return ConfigureTmpMirror(bitmapRect, legacyText, TextAnchor.MiddleCenter, fontScale);
     }
 
-    private static void DisableBossRouteBitmapText(Transform buttonRoot, string legacyTextPath)
+    private void ConfigureBossRouteLabelBackplate(Transform legacyTextTransform, bool visible)
     {
-        Transform legacyTextTransform = buttonRoot != null ? buttonRoot.Find(legacyTextPath) : null;
         if (legacyTextTransform == null)
             return;
 
-        Transform bitmapTransform = legacyTextTransform.Find(legacyTextPath + "Bitmap");
-        if (bitmapTransform != null)
-            bitmapTransform.gameObject.SetActive(false);
+        Transform existing = legacyTextTransform.Find("ReadableBackplate");
+        if (!visible)
+        {
+            if (existing != null)
+                existing.gameObject.SetActive(false);
+            return;
+        }
+
+        Image backplate = FindOrCreateImage(
+            "ReadableBackplate",
+            legacyTextTransform,
+            new Color(0.001f, 0.012f, 0.022f, 0.64f));
+        backplate.gameObject.SetActive(true);
+        backplate.raycastTarget = false;
+        SetAnchors(backplate.rectTransform, new Vector2(0.030f, 0.050f), new Vector2(0.970f, 0.950f));
+        backplate.transform.SetAsFirstSibling();
     }
 
-    private static Texture2D ResolveBossRouteBitmapFontAtlas()
+    private void ApplySourceLayoutStaticLabelBitmaps()
     {
-        if (bossRouteBitmapFontAtlas != null)
-            return bossRouteBitmapFontAtlas;
-
-#if UNITY_EDITOR
-        EnsurePointTextureImport(BossRouteBitmapFontAtlasPath);
-        bossRouteBitmapFontAtlas = AssetDatabase.LoadAssetAtPath<Texture2D>(BossRouteBitmapFontAtlasPath);
-#endif
-        return bossRouteBitmapFontAtlas;
-    }
-
-    private static TextAsset ResolveBossRouteBitmapFontMetrics()
-    {
-        if (bossRouteBitmapFontMetrics != null)
-            return bossRouteBitmapFontMetrics;
-
-#if UNITY_EDITOR
-        bossRouteBitmapFontMetrics = AssetDatabase.LoadAssetAtPath<TextAsset>(BossRouteBitmapFontMetricsPath);
-#endif
-        return bossRouteBitmapFontMetrics;
-    }
-
-#if UNITY_EDITOR
-    private static void EnsurePointTextureImport(string atlasPath)
-    {
-        TextureImporter importer = AssetImporter.GetAtPath(atlasPath) as TextureImporter;
-        if (importer == null)
+        if (sourceLayoutStaticLabelBitmapsReady)
             return;
 
-        bool dirty = false;
-        if (importer.filterMode != FilterMode.Point)
-        {
-            importer.filterMode = FilterMode.Point;
-            dirty = true;
-        }
+        Transform visual = FindSourceLayoutTrialVisual();
+        if (visual == null)
+            return;
 
-        if (importer.mipmapEnabled)
-        {
-            importer.mipmapEnabled = false;
-            dirty = true;
-        }
+        TextMeshProUGUI status = EnableBitmapMirror(
+            visual.Find("Trial_SystemTitle/Status")?.GetComponent<Text>(),
+            SystemStatusBitmapScale,
+            TextAnchor.MiddleCenter);
+        TextMeshProUGUI meta = EnableBitmapMirror(
+            visual.Find("Trial_BossRouteSelector/BossRouteMeta")?.GetComponent<Text>(),
+            BossRouteMetaBitmapScale,
+            TextAnchor.MiddleCenter);
 
-        if (importer.textureCompression != TextureImporterCompression.Uncompressed)
-        {
-            importer.textureCompression = TextureImporterCompression.Uncompressed;
-            dirty = true;
-        }
-
-        if (!importer.alphaIsTransparency)
-        {
-            importer.alphaIsTransparency = true;
-            dirty = true;
-        }
-
-        dirty |= EnsureUncompressedPlatformTexture(importer, "Standalone");
-        dirty |= EnsureUncompressedPlatformTexture(importer, "WebGL");
-
-        if (dirty)
-            importer.SaveAndReimport();
+        sourceLayoutStaticLabelBitmapsReady = status != null && meta != null;
     }
 
-    private static bool EnsureUncompressedPlatformTexture(TextureImporter importer, string platformName)
+    private TextMeshProUGUI EnableBitmapMirror(Text legacyText, float fontScale, TextAnchor alignment)
     {
-        TextureImporterPlatformSettings settings = importer.GetPlatformTextureSettings(platformName);
-        bool dirty = false;
-        if (!settings.overridden)
-        {
-            settings.overridden = true;
-            dirty = true;
-        }
+        if (legacyText == null)
+            return null;
 
-        if (settings.textureCompression != TextureImporterCompression.Uncompressed)
-        {
-            settings.textureCompression = TextureImporterCompression.Uncompressed;
-            dirty = true;
-        }
+        RectTransform bitmapRect = GetOrCreateChildRect(legacyText.transform, "Bitmap");
+        bitmapRect.anchorMin = Vector2.zero;
+        bitmapRect.anchorMax = Vector2.one;
+        bitmapRect.pivot = new Vector2(0.5f, 0.5f);
+        bitmapRect.offsetMin = Vector2.zero;
+        bitmapRect.offsetMax = Vector2.zero;
+        bitmapRect.localScale = Vector3.one;
+        bitmapRect.gameObject.SetActive(true);
 
-        if (settings.format != TextureImporterFormat.RGBA32)
-        {
-            settings.format = TextureImporterFormat.RGBA32;
-            dirty = true;
-        }
-
-        if (dirty)
-            importer.SetPlatformTextureSettings(settings);
-
-        return dirty;
+        return ConfigureTmpMirror(bitmapRect, legacyText, alignment, fontScale);
     }
-#endif
+
+    // Builds (or updates) a crisp TextMeshPro (SDF) graphic on `mirrorRect` that mirrors
+    // the legacy Text. The legacy Text stays the data source but is hidden; TMP renders.
+    private TextMeshProUGUI ConfigureTmpMirror(RectTransform mirrorRect, Text legacyText, TextAnchor alignment, float fontScale)
+    {
+        if (mirrorRect == null)
+            return null;
+
+        TextMeshProUGUI tmp = mirrorRect.GetComponent<TextMeshProUGUI>();
+        if (tmp == null)
+            tmp = mirrorRect.gameObject.AddComponent<TextMeshProUGUI>();
+
+        TMP_FontAsset font = ResolveTmpFontAsset();
+        if (font != null)
+            tmp.font = font;
+
+        float scale = Mathf.Clamp(fontScale, 0.98f, 1.08f);
+        float maxSize = legacyText != null ? Mathf.Max(12f, legacyText.fontSize * scale) : 14f;
+        tmp.enableAutoSizing = true;
+        tmp.fontSizeMax = maxSize;
+        tmp.fontSizeMin = Mathf.Max(11f, maxSize - 4f);
+        tmp.alignment = ToTmpAlignment(alignment);
+        tmp.enableWordWrapping = legacyText == null || legacyText.horizontalOverflow == HorizontalWrapMode.Wrap;
+        tmp.overflowMode = TextOverflowModes.Overflow;
+        tmp.richText = false;
+        tmp.raycastTarget = false;
+        tmp.margin = Vector4.zero;
+        tmp.color = legacyText != null ? legacyText.color : CyberUiTheme.TextPrimary;
+        tmp.fontStyle = FontStyles.Normal;
+        tmp.fontWeight = FontWeight.SemiBold;
+        tmp.outlineColor = TmpReadableOutlineColor;
+        tmp.outlineWidth = TmpReadableOutlineWidth;
+        tmp.extraPadding = true;
+        if (legacyText != null)
+            tmp.text = legacyText.text;
+
+        TmpLegacyTextMirror mirror = mirrorRect.GetComponent<TmpLegacyTextMirror>();
+        if (mirror == null)
+            mirror = mirrorRect.gameObject.AddComponent<TmpLegacyTextMirror>();
+        mirror.SourceText = legacyText;
+        mirror.HideSourceText = true;
+        return tmp;
+    }
+
+    private static TextAlignmentOptions ToTmpAlignment(TextAnchor anchor)
+    {
+        switch (anchor)
+        {
+            case TextAnchor.UpperLeft: return TextAlignmentOptions.TopLeft;
+            case TextAnchor.UpperCenter: return TextAlignmentOptions.Top;
+            case TextAnchor.UpperRight: return TextAlignmentOptions.TopRight;
+            case TextAnchor.MiddleLeft: return TextAlignmentOptions.Left;
+            case TextAnchor.MiddleRight: return TextAlignmentOptions.Right;
+            case TextAnchor.LowerLeft: return TextAlignmentOptions.BottomLeft;
+            case TextAnchor.LowerCenter: return TextAlignmentOptions.Bottom;
+            case TextAnchor.LowerRight: return TextAlignmentOptions.BottomRight;
+            case TextAnchor.MiddleCenter:
+            default: return TextAlignmentOptions.Center;
+        }
+    }
+
+    private static TMP_FontAsset ResolveTmpFontAsset()
+    {
+        if (tmpMirrorFontAsset != null)
+            return tmpMirrorFontAsset;
+
+        tmpMirrorFontAsset =
+            Resources.Load<TMP_FontAsset>("Fonts/NicoBold SDF") ??
+            Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+        return tmpMirrorFontAsset;
+    }
 
     private static Vector2 RoundVector(Vector2 value)
     {
@@ -1644,7 +4949,7 @@ public class MainTerminalController : MonoBehaviour
 
     private void NormalizeMainTerminalFonts()
     {
-        Font font = defaultFont != null ? defaultFont : ResolveBossRouteDefaultFont();
+        Font font = defaultFont != null ? defaultFont : ResolveTerminalDefaultFont();
         if (font == null)
             return;
 
@@ -1656,6 +4961,50 @@ public class MainTerminalController : MonoBehaviour
 
             texts[i].font = font;
         }
+    }
+
+    private void ConfigureCrispCanvas()
+    {
+        ConfigureCrispCanvases(GetComponentsInParent<Canvas>(true));
+        ConfigureCrispCanvases(GetComponentsInChildren<Canvas>(true));
+        ConfigureCrispCanvasScalers(GetComponentsInParent<CanvasScaler>(true));
+        ConfigureCrispCanvasScalers(GetComponentsInChildren<CanvasScaler>(true));
+    }
+
+    private static void ConfigureCrispCanvases(Canvas[] canvases)
+    {
+        if (canvases == null)
+            return;
+
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            if (canvases[i] != null)
+                canvases[i].pixelPerfect = true;
+        }
+    }
+
+    private static void ConfigureCrispCanvasScalers(CanvasScaler[] scalers)
+    {
+        if (scalers == null)
+            return;
+
+        for (int i = 0; i < scalers.Length; i++)
+        {
+            CanvasScaler scaler = scalers[i];
+            if (scaler == null)
+                continue;
+
+            scaler.referencePixelsPerUnit = 100f;
+            scaler.dynamicPixelsPerUnit = 100f;
+        }
+    }
+
+    private static Font ResolveTerminalDefaultFont()
+    {
+        Font font = Resources.Load<Font>("Fonts/NicoBold-Regular");
+        return font != null
+            ? font
+            : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
     }
 
     private Image FindOrCreateImage(string objectName, Transform parent, Color color)
@@ -1702,6 +5051,7 @@ public class MainTerminalController : MonoBehaviour
         text.alignment = alignment;
         text.color = color;
         text.raycastTarget = false;
+        text.alignByGeometry = true;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Truncate;
         return text;
@@ -2061,6 +5411,8 @@ public class MainTerminalController : MonoBehaviour
         shadow.effectDistance = new Vector2(1f, -1f);
         shadow.useGraphicAlpha = true;
 
+        EnableBitmapMirror(recommendation, DepthRecommendationBitmapScale, TextAnchor.UpperCenter);
+
         return recommendation;
     }
 
@@ -2232,17 +5584,21 @@ public class MainTerminalController : MonoBehaviour
         if (background == null)
             background = payloadPanel.gameObject.AddComponent<Image>();
         background.raycastTarget = false;
-        background.color = new Color(0.006f, 0.012f, 0.026f, 0.86f);
+        ApplyPanelFrameBackground(
+            background,
+            ResolvePayloadInspectorPanelSprite(),
+            new Color(0.006f, 0.012f, 0.026f, 0.86f));
         SetAnchors(payloadPanel, new Vector2(0.515f, 0.465f), new Vector2(0.888f, 0.785f));
-
-        Image topLine = CreateImage("PayloadTopLine", payloadPanel, new Color(0.08f, 0.92f, 1f, 0.82f));
-        SetAnchors(topLine.rectTransform, new Vector2(0f, 0.985f), new Vector2(1f, 1f));
 
         Image sideLine = CreateImage("PayloadSideLine", payloadPanel, new Color(1f, 0.25f, 0.86f, 0.58f));
         SetAnchors(sideLine.rectTransform, new Vector2(0f, 0f), new Vector2(0.012f, 1f));
 
         Image portraitFrame = CreateImage("PayloadPortraitFrame", payloadPanel, new Color(0.02f, 0.036f, 0.064f, 0.92f));
-        SetAnchors(portraitFrame.rectTransform, new Vector2(0.045f, 0.23f), new Vector2(0.38f, 0.88f));
+        ApplyPanelFrameBackground(
+            portraitFrame,
+            ResolveMonsterDisplayPanelSprite(),
+            new Color(0.02f, 0.036f, 0.064f, 0.92f));
+        SetAnchors(portraitFrame.rectTransform, new Vector2(0.045f, 0.360f), new Vector2(0.38f, 0.88f));
 
         payloadPortraitImage = payloadPortraitImage != null
             ? payloadPortraitImage
@@ -2269,7 +5625,20 @@ public class MainTerminalController : MonoBehaviour
         payloadListText.lineSpacing = 0.9f;
         payloadListText.color = new Color(0.54f, 1f, 0.72f, 1f);
         ApplyCyberText(payloadListText, new Color(0f, 0.2f, 0.12f, 1f), new Vector2(1f, -1f));
-        SetAnchors(payloadListText.rectTransform, new Vector2(0.045f, 0.035f), new Vector2(0.38f, 0.205f));
+        SetAnchors(payloadListText.rectTransform, new Vector2(0.045f, 0.035f), new Vector2(0.38f, 0.190f));
+
+        payloadPreviousButton = payloadPreviousButton != null
+            ? payloadPreviousButton
+            : FindOrCreatePanelButton("PayloadPreviousButton", payloadPanel, "PREV", new Vector2(0.045f, 0.205f), new Vector2(0.205f, 0.280f));
+        payloadNextButton = payloadNextButton != null
+            ? payloadNextButton
+            : FindOrCreatePanelButton("PayloadNextButton", payloadPanel, "NEXT", new Vector2(0.220f, 0.205f), new Vector2(0.380f, 0.280f));
+        geneLabFuseButton = geneLabFuseButton != null
+            ? geneLabFuseButton
+            : FindOrCreatePanelButton("GeneLabFuseButton", payloadPanel, "FUSE", new Vector2(0.045f, 0.295f), new Vector2(0.205f, 0.345f));
+        geneLabEvolveButton = geneLabEvolveButton != null
+            ? geneLabEvolveButton
+            : FindOrCreatePanelButton("GeneLabEvolveButton", payloadPanel, "EVOLVE", new Vector2(0.220f, 0.295f), new Vector2(0.380f, 0.345f));
 
         payloadDetailPanelText = payloadDetailPanelText != null
             ? payloadDetailPanelText
@@ -2282,24 +5651,299 @@ public class MainTerminalController : MonoBehaviour
         SetAnchors(payloadDetailPanelText.rectTransform, new Vector2(0.43f, 0.06f), new Vector2(0.965f, 0.92f));
     }
 
+    private Button FindOrCreatePanelButton(
+        string objectName,
+        Transform parent,
+        string label,
+        Vector2 anchorMin,
+        Vector2 anchorMax)
+    {
+        Transform existing = parent != null ? parent.Find(objectName) : null;
+        GameObject buttonObject = existing != null
+            ? existing.gameObject
+            : new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer));
+        buttonObject.transform.SetParent(parent, false);
+
+        Image image = buttonObject.GetComponent<Image>();
+        if (image == null)
+            image = buttonObject.AddComponent<Image>();
+        image.raycastTarget = true;
+
+        Button button = buttonObject.GetComponent<Button>();
+        if (button == null)
+            button = buttonObject.AddComponent<Button>();
+        button.targetGraphic = image;
+
+        ApplyPanelButtonSpriteStyle(button, image);
+
+        Text text = FindOrCreateText(buttonObject.transform, "Text", 12, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.86f, 1f, 0.96f, 1f));
+        text.text = label;
+        ConfigurePanelButtonText(text, 12);
+        SetAnchors(text.rectTransform, new Vector2(0.06f, 0.08f), new Vector2(0.94f, 0.92f));
+        SetAnchors(button.GetComponent<RectTransform>(), anchorMin, anchorMax);
+        EnsurePanelButtonFeedbackLayers(button, text);
+        return button;
+    }
+
+    private void EnsurePanelButtonFeedbackLayers(Button button, Text label)
+    {
+        if (button == null)
+            return;
+
+        Transform parent = button.transform;
+
+        Image hoverGlow = FindOrCreateImage("ButtonStoneHighlight", parent, Color.clear);
+        hoverGlow.sprite = ResolvePanelButtonHoverGlowSprite();
+        hoverGlow.type = Image.Type.Simple;
+        hoverGlow.preserveAspect = false;
+        hoverGlow.raycastTarget = false;
+        SetAnchors(hoverGlow.rectTransform, Vector2.zero, Vector2.one);
+
+        Transform legacyHoverGlow = parent.Find("HoverGlow");
+        if (legacyHoverGlow != null)
+            legacyHoverGlow.gameObject.SetActive(false);
+
+        Image pressFeedback = FindOrCreateImage("PressFeedback", parent, Color.white);
+        pressFeedback.sprite = ResolvePanelButtonPressedSprite();
+        pressFeedback.type = Image.Type.Simple;
+        pressFeedback.preserveAspect = false;
+        pressFeedback.raycastTarget = false;
+        pressFeedback.enabled = false;
+        SetAnchors(pressFeedback.rectTransform, Vector2.zero, Vector2.one);
+
+        if (label != null)
+            label.transform.SetAsLastSibling();
+
+        CyberImageButtonFeedback imageFeedback = button.GetComponent<CyberImageButtonFeedback>();
+        if (imageFeedback != null)
+            imageFeedback.enabled = false;
+
+        PixelHudButtonFeedback pixelFeedback = button.GetComponent<PixelHudButtonFeedback>();
+        if (pixelFeedback == null)
+            pixelFeedback = button.gameObject.AddComponent<PixelHudButtonFeedback>();
+        pixelFeedback.Configure(button, hoverGlow, pressFeedback);
+    }
+
+    private void ApplyPanelFrameBackground(Image image, Sprite sprite, Color fallbackColor, bool sliced = true)
+    {
+        if (image == null)
+            return;
+
+        if (sprite != null)
+        {
+            image.sprite = sprite;
+            image.type = sliced && sprite.border.sqrMagnitude > 0f
+                ? Image.Type.Sliced
+                : Image.Type.Simple;
+            image.preserveAspect = false;
+            image.color = Color.white;
+            image.pixelsPerUnitMultiplier = 1f;
+            return;
+        }
+
+        image.sprite = null;
+        image.type = Image.Type.Simple;
+        image.preserveAspect = false;
+        image.color = fallbackColor;
+    }
+
+    private Sprite ResolvePayloadInspectorPanelSprite()
+    {
+        return payloadInspectorPanelSprite != null
+            ? payloadInspectorPanelSprite
+            : LoadEditorUiSprite(PayloadInspectorPanelSpritePath, ref cachedPayloadInspectorPanelSprite);
+    }
+
+    private Sprite ResolveSquadPanelBackgroundSprite()
+    {
+        return squadPanelBackgroundSprite != null
+            ? squadPanelBackgroundSprite
+            : LoadEditorUiSprite(SquadPanelFrameSpritePath, ref cachedSquadPanelBackgroundSprite);
+    }
+
+    private Sprite ResolveMonsterDisplayPanelSprite()
+    {
+        return monsterDisplayPanelSprite != null
+            ? monsterDisplayPanelSprite
+            : LoadEditorUiSprite(MonsterDisplayPanelSpritePath, ref cachedMonsterDisplayPanelSprite);
+    }
+
+    private static Sprite LoadEditorUiSprite(string assetPath, ref Sprite cache)
+    {
+        if (cache != null)
+            return cache;
+
+#if UNITY_EDITOR
+        cache = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+#endif
+        return cache;
+    }
+
+    private void ApplyPanelButtonSpriteStyle(Button button, Image image)
+    {
+        if (button == null || image == null)
+            return;
+
+        Sprite normal = ResolvePanelButtonNormalSprite();
+        Sprite highlighted = ResolvePanelButtonHighlightedSprite();
+        Sprite pressed = ResolvePanelButtonPressedSprite();
+
+        if (normal != null)
+        {
+            image.sprite = normal;
+            image.type = Image.Type.Simple;
+            image.preserveAspect = false;
+            image.pixelsPerUnitMultiplier = 1f;
+            image.color = Color.white;
+
+            SpriteState state = button.spriteState;
+            state.highlightedSprite = highlighted != null ? highlighted : normal;
+            state.pressedSprite = pressed != null ? pressed : normal;
+            state.selectedSprite = state.highlightedSprite;
+            state.disabledSprite = normal;
+            button.spriteState = state;
+            button.transition = Selectable.Transition.SpriteSwap;
+
+            ColorBlock colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = Color.white;
+            colors.pressedColor = Color.white;
+            colors.selectedColor = Color.white;
+            colors.disabledColor = new Color(1f, 1f, 1f, 0.48f);
+            button.colors = colors;
+            return;
+        }
+
+        image.sprite = null;
+        image.type = Image.Type.Simple;
+        image.color = new Color(0.025f, 0.115f, 0.145f, 0.92f);
+        button.transition = Selectable.Transition.ColorTint;
+
+        ColorBlock fallbackColors = button.colors;
+        fallbackColors.normalColor = Color.white;
+        fallbackColors.highlightedColor = new Color(0.70f, 1f, 0.95f, 1f);
+        fallbackColors.pressedColor = new Color(1f, 0.58f, 0.78f, 1f);
+        fallbackColors.selectedColor = fallbackColors.highlightedColor;
+        fallbackColors.disabledColor = new Color(0.34f, 0.42f, 0.45f, 0.42f);
+        button.colors = fallbackColors;
+    }
+
+    private Sprite ResolvePanelButtonNormalSprite()
+    {
+        return panelButtonNormalSprite != null
+            ? panelButtonNormalSprite
+            : LoadEditorPanelButtonSprite(PanelButtonNormalSpritePath, ref cachedPanelButtonNormalSprite);
+    }
+
+    private Sprite ResolvePanelButtonHighlightedSprite()
+    {
+        return panelButtonHighlightedSprite != null
+            ? panelButtonHighlightedSprite
+            : LoadEditorPanelButtonSprite(PanelButtonHighlightedSpritePath, ref cachedPanelButtonHighlightedSprite);
+    }
+
+    private Sprite ResolvePanelButtonPressedSprite()
+    {
+        return panelButtonPressedSprite != null
+            ? panelButtonPressedSprite
+            : LoadEditorPanelButtonSprite(PanelButtonPressedSpritePath, ref cachedPanelButtonPressedSprite);
+    }
+
+    private static Sprite ResolvePanelButtonHoverGlowSprite()
+    {
+        return LoadEditorPanelButtonSprite(PanelButtonHoverGlowSpritePath, ref cachedPanelButtonHoverGlowSprite);
+    }
+
+    private static Sprite LoadEditorPanelButtonSprite(string assetPath, ref Sprite cache)
+    {
+        if (cache != null)
+            return cache;
+
+#if UNITY_EDITOR
+        Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+        if (texture != null)
+        {
+            cache = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f),
+                PanelButtonPixelsPerUnit,
+                0,
+                SpriteMeshType.FullRect);
+            cache.name = texture.name;
+        }
+#endif
+        return cache;
+    }
+
+    private static void SetPanelButtonLabelSize(Button button, int size)
+    {
+        if (button == null)
+            return;
+        Transform labelTransform = button.transform.Find("Text");
+        Text label = labelTransform != null ? labelTransform.GetComponent<Text>() : null;
+        if (label != null)
+            ConfigurePanelButtonText(label, size);
+    }
+
+    private static void ConfigurePanelButtonText(Text label, int size)
+    {
+        if (label == null)
+            return;
+
+        label.fontSize = size;
+        label.fontStyle = FontStyle.Bold;
+        label.alignment = TextAnchor.MiddleCenter;
+        label.alignByGeometry = true;
+        label.horizontalOverflow = HorizontalWrapMode.Wrap;
+        label.verticalOverflow = VerticalWrapMode.Truncate;
+        label.resizeTextForBestFit = false;
+        label.lineSpacing = 0.88f;
+        ApplyCrispCyberText(label, new Color(0f, 0.11f, 0.17f, 0.95f));
+    }
+
     private static void ApplyCyberText(Text text, Color effectColor, Vector2 distance)
     {
         if (text == null)
             return;
 
-        Outline outline = text.GetComponent<Outline>();
-        if (outline == null)
-            outline = text.gameObject.AddComponent<Outline>();
-        outline.effectColor = effectColor;
-        outline.effectDistance = distance;
-        outline.useGraphicAlpha = true;
+        DisableOutline(text);
 
         Shadow shadow = FindExactShadow(text);
         if (shadow == null)
             shadow = text.gameObject.AddComponent<Shadow>();
-        shadow.effectColor = new Color(0f, 0f, 0f, 0.92f);
-        shadow.effectDistance = new Vector2(2f, -2f);
+        shadow.effectColor = effectColor.a > 0f
+            ? new Color(effectColor.r, effectColor.g, effectColor.b, Mathf.Min(effectColor.a, 0.78f))
+            : new Color(0f, 0f, 0f, 0.78f);
+        shadow.effectDistance = RoundTextEffectDistance(distance);
         shadow.useGraphicAlpha = true;
+    }
+
+    private static void ApplyCrispCyberText(Text text, Color effectColor)
+    {
+        if (text == null)
+            return;
+
+        DisableOutline(text);
+
+        Shadow shadow = FindExactShadow(text);
+        if (shadow == null)
+            shadow = text.gameObject.AddComponent<Shadow>();
+        shadow.enabled = false;
+    }
+
+    private static void DisableOutline(Text text)
+    {
+        Outline outline = text != null ? text.GetComponent<Outline>() : null;
+        if (outline != null)
+            outline.enabled = false;
+    }
+
+    private static Vector2 RoundTextEffectDistance(Vector2 distance)
+    {
+        float x = distance.x == 0f ? 0f : Mathf.Sign(distance.x);
+        float y = distance.y == 0f ? 0f : Mathf.Sign(distance.y);
+        return new Vector2(x, y);
     }
 
     private static Shadow FindExactShadow(Text text)
@@ -2544,6 +6188,8 @@ public class MainTerminalController : MonoBehaviour
         if (sourceLayoutBossRouteButtons == null || manager == null)
             return;
 
+        ApplySourceLayoutStaticLabelBitmaps();
+
         string selectedCode = NormalizeBossRouteCode(manager.SelectedBossSpeciesCodeName);
         if (!string.Equals(sourceLayoutBossRouteLastSelectedCode, selectedCode, StringComparison.OrdinalIgnoreCase))
         {
@@ -2781,17 +6427,17 @@ public class MainTerminalController : MonoBehaviour
         return texts != null && index >= 0 && index < texts.Length ? texts[index] : null;
     }
 
-    private static CyberBitmapTextGraphic CachedBitmapText(CyberBitmapTextGraphic[] texts, int index)
+    private static TextMeshProUGUI CachedBitmapText(TextMeshProUGUI[] texts, int index)
     {
         return texts != null && index >= 0 && index < texts.Length ? texts[index] : null;
     }
 
-    private static void SetBossRouteBitmapText(CyberBitmapTextGraphic bitmapText, string value, Color color)
+    private static void SetBossRouteBitmapText(TextMeshProUGUI bitmapText, string value, Color color)
     {
         if (bitmapText == null)
             return;
 
-        bitmapText.Text = value;
+        bitmapText.text = value;
         bitmapText.color = color;
     }
 
@@ -2916,6 +6562,12 @@ public class MainTerminalController : MonoBehaviour
         if (targetManager == null || targetManager.party == null)
             return;
 
+        targetManager.EnsureRosterState();
+        int partyCount = targetManager.party != null ? targetManager.party.Count : 0;
+        int payloadCount = targetManager.payload != null ? targetManager.payload.Count : 0;
+        if (partyCount > 0 || payloadCount > 0)
+            return;
+
         if (targetManager.party.Count == 0)
         {
             AlgoMonData starterSpecies = starterData != null
@@ -2931,6 +6583,8 @@ public class MainTerminalController : MonoBehaviour
             if (!TryAddPartyMember(targetManager, reserveSpecies, targetManager.party.Count))
                 break;
         }
+
+        EnsureInitialPayloadPage(targetManager);
     }
 
     private static bool TryAddPartyMember(GameManager targetManager, AlgoMonData species, int slotIndex)
@@ -2956,6 +6610,84 @@ public class MainTerminalController : MonoBehaviour
         };
         member.EnsureKnownSkillsFromLearnset();
         return targetManager.AddToParty(member);
+    }
+
+    private static void EnsureInitialPayloadPage(GameManager targetManager)
+    {
+        if (targetManager == null || targetManager.payload == null)
+            return;
+        if (targetManager.payload.Count >= InitialPayloadFillCount)
+            return;
+
+        List<AlgoMonData> candidates = LoadPartyCandidateSpecies();
+        if (candidates.Count == 0)
+            return;
+
+        int guard = InitialPayloadFillCount * 2;
+        while (targetManager.payload.Count < InitialPayloadFillCount && guard-- > 0)
+        {
+            int payloadSlot = targetManager.payload.Count;
+            AlgoMonData species = FindInitialPayloadSpecies(candidates, payloadSlot);
+            if (species == null)
+                break;
+
+            AlgoMonInstance mon = CreateInitialPayloadMon(species, payloadSlot);
+            if (mon == null)
+                break;
+
+            targetManager.AddToPayload(mon);
+        }
+    }
+
+    private static AlgoMonData FindInitialPayloadSpecies(List<AlgoMonData> candidates, int payloadSlot)
+    {
+        if (candidates == null || candidates.Count == 0)
+            return null;
+
+        if (PreferredReserveSpecies.Length > 0)
+        {
+            string preferred = PreferredReserveSpecies[Mathf.Abs(payloadSlot) % PreferredReserveSpecies.Length];
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                AlgoMonData candidate = candidates[i];
+                if (candidate != null &&
+                    string.Equals(NormalizedCodeName(candidate), preferred, StringComparison.OrdinalIgnoreCase))
+                {
+                    return candidate;
+                }
+            }
+        }
+
+        return candidates[Mathf.Abs(payloadSlot) % candidates.Count];
+    }
+
+    private static AlgoMonInstance CreateInitialPayloadMon(AlgoMonData species, int payloadSlot)
+    {
+        int seed = InitialPayloadSeed(payloadSlot, species);
+        AlgoMonInstance mon = AlgoMonInstance.CreateRewardBase(species, RewardDataQuality.Base, seed);
+        if (mon == null)
+            return null;
+
+        mon.level = StarterLevel;
+        mon.exp = 0;
+        mon.battleFormName = "Base";
+        mon.fusedBaseCopies = 0;
+        mon.EnsurePersistentRuntimeState();
+        mon.EnsureKnownSkillsFromLearnset();
+        return mon;
+    }
+
+    private static int InitialPayloadSeed(int payloadSlot, AlgoMonData species)
+    {
+        unchecked
+        {
+            int hash = 0x4A11C0DE;
+            hash = hash * 397 ^ payloadSlot;
+            string codeName = NormalizedCodeName(species);
+            for (int i = 0; i < codeName.Length; i++)
+                hash = hash * 397 ^ codeName[i];
+            return hash;
+        }
     }
 
     private static AlgoMonData FindReserveCandidate(GameManager targetManager)

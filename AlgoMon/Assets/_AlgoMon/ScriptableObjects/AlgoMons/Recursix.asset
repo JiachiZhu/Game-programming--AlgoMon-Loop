@@ -17,6 +17,13 @@ MonoBehaviour:
     and drain loops.
   portrait: {fileID: 0}
   elementType: 3
+  baseBattery: 120
+  baseClockSpeed: 90
+  baseComputingPower: 70
+  baseThroughput: 120
+  baseFirewall: 100
+  baseEncryption: 100
+  battleAnimationProfile: {fileID: 0}
   subroutine: {fileID: 11400000, guid: 3706d1f1ffe54481be52239b40fd5d49, type: 2}
   learnset:
   - skill: {fileID: 11400000, guid: 4b2a0fee22b1d47479531a48147b3caa, type: 2}

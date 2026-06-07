@@ -17,6 +17,13 @@ MonoBehaviour:
     execution.
   portrait: {fileID: 0}
   elementType: 5
+  baseBattery: 90
+  baseClockSpeed: 130
+  baseComputingPower: 130
+  baseThroughput: 70
+  baseFirewall: 95
+  baseEncryption: 85
+  battleAnimationProfile: {fileID: 0}
   subroutine: {fileID: 11400000, guid: 64a8f151104d48bfbd0bebfb613a5ee8, type: 2}
   learnset:
   - skill: {fileID: 11400000, guid: 3ebae1e5616cd334698ffac208b9a25c, type: 2}
