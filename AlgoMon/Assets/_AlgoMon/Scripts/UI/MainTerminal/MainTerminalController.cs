@@ -44,7 +44,13 @@ public class MainTerminalController : MonoBehaviour
     private const string SquadPanelFrameSpritePath = PanelFrameSpriteRoot + "/PanelFrame01.png";
     private const string PayloadInspectorPanelSpritePath = PanelFrameSpriteRoot + "/PanelFrame03.png";
     private const string MonsterDisplayPanelSpritePath = PanelFrameSpriteRoot + "/PanelFrame03.png";
+    private const string InspectorExpBarFillSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/Components/CyberpunkHUD/progress_fill_striped_texture_tint.png";
+    private const string InspectorExpBarUnderSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/health_bar_under.png";
+    private const string TerminalToggleOnSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/toggle_on.png";
+    private const string TerminalToggleOffSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/toggle_off.png";
     private const float PanelButtonPixelsPerUnit = 100f;
+    private const float TerminalZoomFitPadding = 0.985f;
+    private const string TerminalZoomPlayerPrefsKey = "AlgoMon.MainTerminal.TerminalZoomMode";
     private const float BossRouteSelectionFlashSeconds = 0.34f;
     private const float BossRouteSelectionFlashStepSeconds = 0.055f;
     private const float BossRouteSelectionLineThickness = 5f;
@@ -59,6 +65,7 @@ public class MainTerminalController : MonoBehaviour
     private const float BossRouteElementBitmapScale = 0.96f;
     private const float BossRouteStatusBitmapScale = 0.96f;
     private const float DepthRecommendationBitmapScale = 0.62f;
+    private const int DepthRouteLayerFontSize = 12;
     private const float SystemStatusBitmapScale = 0.82f;
     private const float BossRouteMetaBitmapScale = 0.58f;
     private const float TmpReadableOutlineWidth = 0.085f;
@@ -232,6 +239,25 @@ public class MainTerminalController : MonoBehaviour
     private Text exitPanelStatusText;
     private Button exitReturnButton;
     private Button exitConfirmButton;
+    private RectTransform settingsPanelRoot;
+    private Button terminalZoomToggleButton;
+    private Image terminalZoomToggleImage;
+    private Text terminalZoomStatusText;
+    private RectTransform terminalZoomBlackoutRoot;
+    private Image terminalZoomBlackoutImage;
+    private bool terminalZoomModeEnabled;
+    private bool terminalBaseRectCaptured;
+    private int terminalBaseSiblingIndex = -1;
+    private Vector2 terminalBaseAnchorMin;
+    private Vector2 terminalBaseAnchorMax;
+    private Vector2 terminalBaseAnchoredPosition;
+    private Vector2 terminalBaseSizeDelta;
+    private Vector2 terminalBaseOffsetMin;
+    private Vector2 terminalBaseOffsetMax;
+    private Vector2 terminalBasePivot;
+    private Vector2 terminalBaseRectSize;
+    private Vector3 terminalBaseLocalScale = Vector3.one;
+    private float terminalZoomAppliedScale = 1f;
 
     private static readonly string[] StatAxisLabels = { "BAT", "CLK", "CPU", "THR", "FWL", "ENC" };
     private static readonly Color GeneLabTargetTalentColor = new Color(0.20f, 1f, 0.95f, 0.96f);
@@ -259,6 +285,8 @@ public class MainTerminalController : MonoBehaviour
     private AlgoMonInstance squadReplaceIncoming;
     private Image inspectorPortraitImage;
     private Text inspectorNameText;
+    private Image inspectorExpFill;
+    private Text inspectorExpText;
     private RadarChartGraphic inspectorRadar;
     private RectTransform inspectorRadarRoot;
     private Text[] inspectorRadarLabels;
@@ -282,6 +310,10 @@ public class MainTerminalController : MonoBehaviour
     private static Sprite cachedPayloadInspectorPanelSprite;
     private static Sprite cachedSquadPanelBackgroundSprite;
     private static Sprite cachedMonsterDisplayPanelSprite;
+    private static Sprite cachedInspectorExpBarFillSprite;
+    private static Sprite cachedInspectorExpBarUnderSprite;
+    private static Sprite cachedTerminalToggleOnSprite;
+    private static Sprite cachedTerminalToggleOffSprite;
     private UnityEngine.Events.UnityAction[] depthTierButtonActions;
     private Image depthTierAvatarImage;
     private Text depthTierSelectedSummaryText;
@@ -345,10 +377,12 @@ public class MainTerminalController : MonoBehaviour
     {
         defaultFont = ResolveTerminalDefaultFont();
         manager = GameManager.EnsureInstance();
+        terminalZoomModeEnabled = PlayerPrefs.GetInt(TerminalZoomPlayerPrefsKey, 0) == 1;
         EnsureThreatTierAccess(manager);
         EnsureStarterParty(manager, fallbackStarter);
         ConfigureCrispCanvas();
         EnsureHudWidgets();
+        ApplyTerminalZoomMode();
         HideLegacySceneButtonVisuals();
         NormalizeMainTerminalFonts();
         RefreshRunOverview();
@@ -360,12 +394,12 @@ public class MainTerminalController : MonoBehaviour
         WireButton(geneLabButton, ShowGeneLab);
         WireButton(payloadButton, ShowPayloadBox);
         WireButton(systemLogButton, ShowSystemLogPlaceholder);
-        WireButton(settingsButton, ShowSettingsPlaceholder);
+        WireButton(settingsButton, ShowSettingsPanel);
         WireButton(exitButton, ShowExitPanel);
         WireButton(sourceLayoutEnterGridButton, StartRun);
         WireButton(sourceLayoutGeneLabButton, ShowGeneLab);
         WireButton(sourceLayoutPayloadButton, ShowPayloadBox);
-        WireButton(sourceLayoutSettingsButton, ShowSettingsPlaceholder);
+        WireButton(sourceLayoutSettingsButton, ShowSettingsPanel);
         WireButton(sourceLayoutExitButton, ShowExitPanel);
         WireButton(launchProtocolButton, StartRun);
         WireButton(payloadPreviousButton, SelectPreviousPayload);
@@ -383,12 +417,12 @@ public class MainTerminalController : MonoBehaviour
         UnwireButton(geneLabButton, ShowGeneLab);
         UnwireButton(payloadButton, ShowPayloadBox);
         UnwireButton(systemLogButton, ShowSystemLogPlaceholder);
-        UnwireButton(settingsButton, ShowSettingsPlaceholder);
+        UnwireButton(settingsButton, ShowSettingsPanel);
         UnwireButton(exitButton, ShowExitPanel);
         UnwireButton(sourceLayoutEnterGridButton, StartRun);
         UnwireButton(sourceLayoutGeneLabButton, ShowGeneLab);
         UnwireButton(sourceLayoutPayloadButton, ShowPayloadBox);
-        UnwireButton(sourceLayoutSettingsButton, ShowSettingsPlaceholder);
+        UnwireButton(sourceLayoutSettingsButton, ShowSettingsPanel);
         UnwireButton(sourceLayoutExitButton, ShowExitPanel);
         UnwireButton(launchProtocolButton, StartRun);
         UnwireButton(payloadPreviousButton, SelectPreviousPayload);
@@ -454,6 +488,9 @@ public class MainTerminalController : MonoBehaviour
 
     private void StartRun()
     {
+        if (GridLinkTransition.IsActive)
+            return;
+
         manager = manager != null ? manager : GameManager.EnsureInstance();
         if (manager == null)
             return;
@@ -461,8 +498,19 @@ public class MainTerminalController : MonoBehaviour
         EnsureThreatTierAccess(manager);
         EnsureStarterParty(manager, fallbackStarter);
         RefreshRunOverview();
-        manager.BeginRun();
-        GameManager.GoTo(GameScene.TheGrid);
+        SetModule("ENTER_GRID", "LINK STATE:", "DIGITAL HANDSHAKE", "Route graph handshake active. Loading grid node map...");
+        GridLinkTransition.Play(
+            () =>
+            {
+                manager = manager != null ? manager : GameManager.EnsureInstance();
+                if (manager == null)
+                    return;
+
+                EnsureThreatTierAccess(manager);
+                EnsureStarterParty(manager, fallbackStarter);
+                manager.BeginRun();
+            },
+            () => GameManager.GoTo(GameScene.TheGrid));
     }
 
     private void SelectDepthTier(int tier)
@@ -522,6 +570,7 @@ public class MainTerminalController : MonoBehaviour
         ShowPayloadGrid(false);
         ShowGeneLabPanel(true);
         ShowExitPanelRoot(false);
+        ShowSettingsPanelRoot(false);
         RefreshGeneLabModule();
     }
 
@@ -547,6 +596,7 @@ public class MainTerminalController : MonoBehaviour
         HidePayloadPanel();
         ShowGeneLabPanel(false);
         ShowExitPanelRoot(false);
+        ShowSettingsPanelRoot(false);
         CloseSquadPanel();
         ShowPayloadGrid(true);
         RenderPayloadGrid(manager);
@@ -594,6 +644,7 @@ public class MainTerminalController : MonoBehaviour
         ShowPayloadGrid(false);
         ShowGeneLabPanel(false);
         ShowExitPanelRoot(false);
+        ShowSettingsPanelRoot(false);
         CloseSquadPanel();
 
         if (sectionViewRoot != null)
@@ -760,9 +811,27 @@ public class MainTerminalController : MonoBehaviour
         SetModule("SYSTEM_LOG", "LOG:", "GRID MODULE READY.", "Start Run will initialize a fresh route graph.");
     }
 
-    private void ShowSettingsPlaceholder()
+    private void ShowSettingsPanel()
     {
-        SetModule("SETTINGS", "LOCKED:", "CONFIG PANEL NOT DEPLOYED.", "Settings are outside the Sprint 3 playable loop.");
+        showingGeneLabPanel = false;
+        geneLabActionMessage = string.Empty;
+        geneLabSkillMessage = string.Empty;
+        geneLabFusionSecondIndex = -1;
+        payloadSkillMessage = string.Empty;
+        pendingPayloadSkillReplacement = null;
+        EnterSectionView("SETTINGS");
+        HidePayloadPanel();
+        ShowPayloadGrid(false);
+        ShowGeneLabPanel(false);
+        ShowExitPanelRoot(false);
+        ShowSettingsPanelRoot(true);
+        CloseSquadPanel();
+        SetModule(
+            "SETTINGS",
+            "DISPLAY:",
+            terminalZoomModeEnabled ? "TERMINAL ZOOM ENABLED." : "TERMINAL ZOOM DISABLED.",
+            "Toggle terminal zoom when you want a closer UI pass.");
+        RenderSettingsPanel();
     }
 
     private void ShowExitPanel()
@@ -775,6 +844,7 @@ public class MainTerminalController : MonoBehaviour
         HidePayloadPanel();
         ShowPayloadGrid(false);
         ShowGeneLabPanel(false);
+        ShowSettingsPanelRoot(false);
         ShowExitPanelRoot(true);
         SetModule("EXIT_SYSTEM", "SESSION:", "EXIT PROTOCOL READY.", "Return to the terminal or close the current build session.");
         RenderExitPanel();
@@ -832,15 +902,12 @@ public class MainTerminalController : MonoBehaviour
             int payloadCount = manager.payload != null ? manager.payload.Count : 0;
             int evolvableCount = manager.EvolvablePayloadCount();
             string runStatus = manager.IsRunActive ? "ACTV" : "STBY";
-            int rewardPercent = manager.IsRunActive
-                ? Mathf.RoundToInt(manager.currentRewardMultiplier * 100f)
-                : ThreatTierRules.RewardMultiplierPercent(manager.SelectedThreatTier, manager.HighestUnlockedThreatTier);
             statsText.text =
-                $"USER// XP {manager.playerExp:0000} CMP {manager.computeBalance:0000}\n" +
+                $"RUN// {runStatus} DEPTH {manager.SelectedThreatTierNumber:00}F\n" +
+                $"COMPUTE// {manager.computeBalance:0000}\n" +
                 $"PAYLOAD// {payloadCount:00}\n" +
                 $"GENE// {evolvableCount:00}\n" +
                 $"BOSS// {manager.SelectedBossSpeciesCodeName.ToUpperInvariant()}\n" +
-                $"RUN// {runStatus} T{manager.SelectedThreatTierNumber:00}/{manager.HighestUnlockedThreatTierNumber:00} x{rewardPercent:000}%\n" +
                 $"SQUAD// {PartyCount(manager):00}/{GameManager.MaxPartySize:00}";
         }
 
@@ -883,13 +950,9 @@ public class MainTerminalController : MonoBehaviour
             return "Depth tier data unavailable.";
 
         int selected = targetManager.SelectedThreatTierNumber;
-        int highest = targetManager.HighestUnlockedThreatTierNumber;
         ThreatTier tier = targetManager.SelectedThreatTier;
-        int rewardPercent = targetManager.IsRunActive
-            ? Mathf.RoundToInt(targetManager.currentRewardMultiplier * 100f)
-            : ThreatTierRules.RewardMultiplierPercent(tier, targetManager.HighestUnlockedThreatTier);
 
-        return $"DEPTH {selected}F / TIER T{selected:00}/{highest:00}\nENEMY BAND LV {ThreatTierRules.MinLevel(tier):00}-{ThreatTierRules.MaxLevel(tier):00}\nREWARD MULTIPLIER x{rewardPercent:000}%";
+        return $"DEPTH {selected}F\nROUTE {GridGenerationSettings.TotalLayerRangeLabel(selected)} LAYERS\nENEMY LV {ThreatTierRules.MinLevel(tier):00}-{ThreatTierRules.MaxLevel(tier):00}";
     }
 
     private string BuildBossTargetDetail(GameManager targetManager)
@@ -1281,6 +1344,17 @@ public class MainTerminalController : MonoBehaviour
         RenderPayloadDetailStub(selectedMon, targetManager);
     }
 
+    private static float ExpProgressFor(AlgoMonInstance mon)
+    {
+        if (mon == null)
+            return 0f;
+        if (mon.level >= AlgoMonInstance.MAX_LEVEL)
+            return 1f;
+
+        int required = Mathf.Max(1, mon.expToNextLevel);
+        return Mathf.Clamp01(mon.exp / (float)required);
+    }
+
     private void RenderPayloadDetailStub(AlgoMonInstance mon, GameManager targetManager)
     {
         SetInspectorIdle(mon);
@@ -1289,6 +1363,7 @@ public class MainTerminalController : MonoBehaviour
         {
             if (inspectorNameText != null)
                 inspectorNameText.text = "SELECT A UNIT";
+            UpdateInspectorExp(null);
             if (inspectorRadar != null)
                 inspectorRadar.SetValues(new float[StatAxisLabels.Length]);
             if (inspectorTalentFills != null)
@@ -1313,6 +1388,7 @@ public class MainTerminalController : MonoBehaviour
         string party = targetManager != null && targetManager.IsInParty(mon) ? "IN SQUAD" : "STORED";
         if (inspectorNameText != null)
             inspectorNameText.text = $"{DisplayNameFor(mon).ToUpperInvariant()}  L{mon.level:00}\n{form} / {party}";
+        UpdateInspectorExp(mon);
 
         int[] stats = { mon.Battery, mon.ClockSpeed, mon.ComputingPower, mon.Throughput, mon.Firewall, mon.Encryption };
         int[] ivs = { mon.iv_Battery, mon.iv_ClockSpeed, mon.iv_ComputingPower, mon.iv_Throughput, mon.iv_Firewall, mon.iv_Encryption };
@@ -1341,6 +1417,32 @@ public class MainTerminalController : MonoBehaviour
         UpdateSquadButton(mon, targetManager);
         UpdateFavoriteButton(mon);
         UpdateInspectorSkillPanel(mon);
+    }
+
+    private void UpdateInspectorExp(AlgoMonInstance mon)
+    {
+        if (inspectorExpFill != null)
+            inspectorExpFill.fillAmount = ExpProgressFor(mon);
+
+        if (inspectorExpText == null)
+            return;
+
+        if (mon == null)
+        {
+            inspectorExpText.text = "EXP --/--";
+            inspectorExpText.color = new Color(0.50f, 0.74f, 0.76f, 0.72f);
+            return;
+        }
+
+        if (mon.level >= AlgoMonInstance.MAX_LEVEL)
+        {
+            inspectorExpText.text = "EXP MAX";
+            inspectorExpText.color = new Color(0.84f, 1f, 0.76f, 1f);
+            return;
+        }
+
+        inspectorExpText.text = $"EXP {mon.exp}/{Mathf.Max(1, mon.expToNextLevel)}";
+        inspectorExpText.color = new Color(0.72f, 1f, 0.92f, 1f);
     }
 
     private void ToggleInspectorSkillPanel()
@@ -1546,7 +1648,7 @@ public class MainTerminalController : MonoBehaviour
         backdropButton.onClick.AddListener(CloseSquadPanel);
 
         RectTransform box = CreateRect("SquadPanelBox", squadPanelRoot);
-        SetAnchors(box, new Vector2(0.12f, 0.26f), new Vector2(0.88f, 0.78f));
+        SetAnchors(box, new Vector2(0.07f, 0.18f), new Vector2(0.93f, 0.84f));
         Image boxBg = box.gameObject.AddComponent<Image>();
         ApplyPanelFrameBackground(
             boxBg,
@@ -1555,13 +1657,13 @@ public class MainTerminalController : MonoBehaviour
             false);
         boxBg.raycastTarget = true;
 
-        squadPanelTitle = CreateText("SquadTitle", box, 21, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.7f, 0.98f, 1f, 1f));
+        squadPanelTitle = CreateText("SquadTitle", box, 24, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.7f, 0.98f, 1f, 1f));
         ApplyCrispCyberText(squadPanelTitle, new Color(0f, 0.14f, 0.2f, 1f));
         SetAnchors(squadPanelTitle.rectTransform, new Vector2(0.05f, 0.765f), new Vector2(0.78f, 0.875f));
         squadPanelTitle.text = "ACTIVE SQUAD";
 
-        Button closeButton = FindOrCreatePanelButton("SquadCloseButton", box, "CLOSE", new Vector2(0.82f, 0.770f), new Vector2(0.97f, 0.875f));
-        SetPanelButtonLabelSize(closeButton, 13);
+        Button closeButton = FindOrCreatePanelButton("SquadCloseButton", box, "CLOSE", new Vector2(0.800f, 0.755f), new Vector2(0.965f, 0.885f));
+        SetPanelButtonLabelSize(closeButton, 15);
         closeButton.onClick.AddListener(CloseSquadPanel);
 
         int max = GameManager.MaxPartySize;
@@ -1572,14 +1674,14 @@ public class MainTerminalController : MonoBehaviour
         squadSlotActionButtons = new Button[max];
         squadSlotActionLabels = new Text[max];
 
-        float slotW = 0.9f / max;
-        const float gap = 0.02f;
+        float slotW = 0.92f / max;
+        const float gap = 0.018f;
         for (int i = 0; i < max; i++)
         {
-            float x0 = 0.05f + i * slotW + gap * 0.5f;
-            float x1 = 0.05f + (i + 1) * slotW - gap * 0.5f;
+            float x0 = 0.04f + i * slotW + gap * 0.5f;
+            float x1 = 0.04f + (i + 1) * slotW - gap * 0.5f;
             RectTransform slot = CreateRect("SquadSlot_" + i, box);
-            SetAnchors(slot, new Vector2(x0, 0.055f), new Vector2(x1, 0.740f));
+            SetAnchors(slot, new Vector2(x0, 0.060f), new Vector2(x1, 0.735f));
             Image slotBg = slot.gameObject.AddComponent<Image>();
             ApplyPanelFrameBackground(
                 slotBg,
@@ -1594,25 +1696,25 @@ public class MainTerminalController : MonoBehaviour
             SetAnchors(portrait.rectTransform, new Vector2(0.1f, 0.45f), new Vector2(0.9f, 0.84f));
             squadSlotPortraits[i] = portrait;
 
-            Text badge = CreateText("SquadSlotLead_" + i, slot, 14, FontStyle.Bold, TextAnchor.UpperLeft, new Color(1f, 0.78f, 0.3f, 1f));
+            Text badge = CreateText("SquadSlotLead_" + i, slot, 16, FontStyle.Bold, TextAnchor.UpperLeft, new Color(1f, 0.78f, 0.3f, 1f));
             ApplyCyberText(badge, new Color(0.1f, 0.05f, 0f, 1f), new Vector2(1f, -1f));
             SetAnchors(badge.rectTransform, new Vector2(0.08f, 0.760f), new Vector2(0.76f, 0.860f));
             badge.text = "#1 LEAD";
             squadSlotLeadBadges[i] = badge;
 
-            Text label = CreateText("SquadSlotLabel_" + i, slot, 15, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.86f, 1f, 0.96f, 1f));
+            Text label = CreateText("SquadSlotLabel_" + i, slot, 17, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.86f, 1f, 0.96f, 1f));
             ApplyCrispCyberText(label, new Color(0f, 0.12f, 0.18f, 0.95f));
             SetAnchors(label.rectTransform, new Vector2(0.02f, 0.325f), new Vector2(0.98f, 0.440f));
             squadSlotLabels[i] = label;
 
             int captured = i;
-            Button leadButton = FindOrCreatePanelButton("SquadSlotLeadBtn_" + i, slot, "SET #1", new Vector2(0.08f, 0.18f), new Vector2(0.92f, 0.31f));
-            SetPanelButtonLabelSize(leadButton, 12);
+            Button leadButton = FindOrCreatePanelButton("SquadSlotLeadBtn_" + i, slot, "SET #1", new Vector2(0.08f, 0.175f), new Vector2(0.92f, 0.325f));
+            SetPanelButtonLabelSize(leadButton, 14);
             leadButton.onClick.AddListener(() => SquadSetLead(captured));
             squadSlotLeadButtons[i] = leadButton;
 
-            Button actionButton = FindOrCreatePanelButton("SquadSlotActionBtn_" + i, slot, "REMOVE", new Vector2(0.08f, 0.03f), new Vector2(0.92f, 0.16f));
-            SetPanelButtonLabelSize(actionButton, 13);
+            Button actionButton = FindOrCreatePanelButton("SquadSlotActionBtn_" + i, slot, "REMOVE", new Vector2(0.08f, 0.030f), new Vector2(0.92f, 0.175f));
+            SetPanelButtonLabelSize(actionButton, 15);
             actionButton.onClick.AddListener(() => SquadSlotAction(captured));
             squadSlotActionButtons[i] = actionButton;
             Transform al = actionButton.transform.Find("Text");
@@ -2023,6 +2125,232 @@ public class MainTerminalController : MonoBehaviour
     {
         if (exitPanelRoot != null)
             exitPanelRoot.gameObject.SetActive(show);
+    }
+
+    private void ShowSettingsPanelRoot(bool show)
+    {
+        if (settingsPanelRoot != null)
+            settingsPanelRoot.gameObject.SetActive(show);
+    }
+
+    private void ToggleTerminalZoomMode()
+    {
+        terminalZoomModeEnabled = !terminalZoomModeEnabled;
+        PlayerPrefs.SetInt(TerminalZoomPlayerPrefsKey, terminalZoomModeEnabled ? 1 : 0);
+        PlayerPrefs.Save();
+        ApplyTerminalZoomMode();
+        RenderSettingsPanel();
+        SetModule(
+            "SETTINGS",
+            "DISPLAY:",
+            terminalZoomModeEnabled ? "TERMINAL ZOOM ENABLED." : "TERMINAL ZOOM DISABLED.",
+            "Toggle terminal zoom when you want a closer UI pass.");
+    }
+
+    private void ApplyTerminalZoomMode()
+    {
+        Transform zoomTarget = sourceLayoutVisual != null
+            ? sourceLayoutVisual
+            : FindSourceLayoutTrialVisual();
+        if (zoomTarget == null)
+            return;
+
+        sourceLayoutVisual = zoomTarget;
+        RectTransform zoomRect = zoomTarget as RectTransform;
+        if (zoomRect == null)
+        {
+            zoomTarget.localScale = terminalBaseLocalScale;
+            return;
+        }
+
+        CaptureTerminalBaseRect(zoomRect);
+        EnsureTerminalZoomBlackout(zoomRect);
+
+        if (!terminalZoomModeEnabled)
+        {
+            SetTerminalZoomBlackoutVisible(false, zoomRect);
+            RestoreTerminalBaseRect(zoomRect);
+            terminalZoomAppliedScale = 1f;
+            return;
+        }
+
+        SetTerminalZoomBlackoutVisible(true, zoomRect);
+        RectTransform parentRect = zoomRect.parent as RectTransform;
+        Vector2 parentSize = parentRect != null
+            ? parentRect.rect.size
+            : new Vector2(Screen.width, Screen.height);
+        Bounds contentBounds = CalculateTerminalZoomContentBounds(zoomRect);
+        Vector2 contentSize = new Vector2(
+            Mathf.Max(1f, contentBounds.size.x),
+            Mathf.Max(1f, contentBounds.size.y));
+
+        float fitScale = Mathf.Min(parentSize.x / contentSize.x, parentSize.y / contentSize.y) * TerminalZoomFitPadding;
+        if (float.IsNaN(fitScale) || float.IsInfinity(fitScale) || fitScale <= 0f)
+            fitScale = 1f;
+
+        terminalZoomAppliedScale = fitScale;
+        float xSign = terminalBaseLocalScale.x < 0f ? -1f : 1f;
+        float ySign = terminalBaseLocalScale.y < 0f ? -1f : 1f;
+        zoomRect.anchorMin = new Vector2(0.5f, 0.5f);
+        zoomRect.anchorMax = new Vector2(0.5f, 0.5f);
+        zoomRect.pivot = new Vector2(0.5f, 0.5f);
+        zoomRect.sizeDelta = terminalBaseRectSize;
+        Vector2 boundsCenter = contentBounds.center;
+        zoomRect.anchoredPosition = -boundsCenter * fitScale;
+        zoomRect.localScale = new Vector3(
+            xSign * fitScale,
+            ySign * fitScale,
+            terminalBaseLocalScale.z);
+    }
+
+    private void CaptureTerminalBaseRect(RectTransform zoomRect)
+    {
+        if (terminalBaseRectCaptured || zoomRect == null)
+            return;
+
+        terminalBaseAnchorMin = zoomRect.anchorMin;
+        terminalBaseAnchorMax = zoomRect.anchorMax;
+        terminalBaseAnchoredPosition = zoomRect.anchoredPosition;
+        terminalBaseSizeDelta = zoomRect.sizeDelta;
+        terminalBaseOffsetMin = zoomRect.offsetMin;
+        terminalBaseOffsetMax = zoomRect.offsetMax;
+        terminalBasePivot = zoomRect.pivot;
+        terminalBaseRectSize = zoomRect.rect.size;
+        terminalBaseLocalScale = zoomRect.localScale;
+        terminalBaseSiblingIndex = zoomRect.GetSiblingIndex();
+        terminalBaseRectCaptured = true;
+    }
+
+    private void RestoreTerminalBaseRect(RectTransform zoomRect)
+    {
+        if (!terminalBaseRectCaptured || zoomRect == null)
+            return;
+
+        zoomRect.anchorMin = terminalBaseAnchorMin;
+        zoomRect.anchorMax = terminalBaseAnchorMax;
+        zoomRect.pivot = terminalBasePivot;
+        zoomRect.anchoredPosition = terminalBaseAnchoredPosition;
+        zoomRect.sizeDelta = terminalBaseSizeDelta;
+        zoomRect.offsetMin = terminalBaseOffsetMin;
+        zoomRect.offsetMax = terminalBaseOffsetMax;
+        zoomRect.localScale = terminalBaseLocalScale;
+        if (terminalBaseSiblingIndex >= 0)
+            zoomRect.SetSiblingIndex(Mathf.Clamp(terminalBaseSiblingIndex, 0, zoomRect.parent.childCount - 1));
+    }
+
+    private Bounds CalculateTerminalZoomContentBounds(RectTransform zoomRect)
+    {
+        RectTransform shell = zoomRect != null
+            ? zoomRect.Find("Trial_MainMenuOuterShell") as RectTransform
+            : null;
+        if (shell != null)
+            return CalculateRectBoundsInRoot(zoomRect, shell);
+
+        Bounds combined = new Bounds(Vector3.zero, new Vector3(
+            Mathf.Max(1f, terminalBaseRectSize.x),
+            Mathf.Max(1f, terminalBaseRectSize.y),
+            0f));
+        bool hasBounds = false;
+        if (zoomRect == null)
+            return combined;
+
+        RectTransform[] rects = zoomRect.GetComponentsInChildren<RectTransform>(true);
+        for (int i = 0; i < rects.Length; i++)
+        {
+            RectTransform rect = rects[i];
+            if (rect == null || rect == zoomRect || !rect.gameObject.activeInHierarchy)
+                continue;
+
+            Bounds bounds = CalculateRectBoundsInRoot(zoomRect, rect);
+            if (!hasBounds)
+            {
+                combined = bounds;
+                hasBounds = true;
+            }
+            else
+            {
+                combined.Encapsulate(bounds.min);
+                combined.Encapsulate(bounds.max);
+            }
+        }
+
+        return hasBounds ? combined : combined;
+    }
+
+    private static Bounds CalculateRectBoundsInRoot(RectTransform root, RectTransform target)
+    {
+        Vector3[] corners = new Vector3[4];
+        target.GetWorldCorners(corners);
+        Matrix4x4 toRoot = root.worldToLocalMatrix;
+        Vector3 min = new Vector3(float.MaxValue, float.MaxValue, 0f);
+        Vector3 max = new Vector3(float.MinValue, float.MinValue, 0f);
+        for (int i = 0; i < corners.Length; i++)
+        {
+            Vector3 point = toRoot.MultiplyPoint3x4(corners[i]);
+            min = Vector3.Min(min, point);
+            max = Vector3.Max(max, point);
+        }
+
+        Bounds bounds = new Bounds((min + max) * 0.5f, max - min);
+        return bounds;
+    }
+
+    private void EnsureTerminalZoomBlackout(RectTransform zoomRect)
+    {
+        RectTransform parentRect = zoomRect != null ? zoomRect.parent as RectTransform : null;
+        if (parentRect == null)
+            return;
+
+        if (terminalZoomBlackoutRoot != null && terminalZoomBlackoutRoot.parent != parentRect)
+            terminalZoomBlackoutRoot.SetParent(parentRect, false);
+
+        if (terminalZoomBlackoutRoot == null)
+        {
+            terminalZoomBlackoutRoot = CreateRect("TerminalZoomBlackout", parentRect);
+            terminalZoomBlackoutImage = terminalZoomBlackoutRoot.gameObject.AddComponent<Image>();
+            terminalZoomBlackoutImage.raycastTarget = false;
+        }
+
+        terminalZoomBlackoutRoot.anchorMin = Vector2.zero;
+        terminalZoomBlackoutRoot.anchorMax = Vector2.one;
+        terminalZoomBlackoutRoot.offsetMin = Vector2.zero;
+        terminalZoomBlackoutRoot.offsetMax = Vector2.zero;
+        if (terminalZoomBlackoutImage != null)
+            terminalZoomBlackoutImage.color = Color.black;
+    }
+
+    private void SetTerminalZoomBlackoutVisible(bool visible, RectTransform zoomRect)
+    {
+        if (terminalZoomBlackoutRoot == null)
+            return;
+
+        terminalZoomBlackoutRoot.gameObject.SetActive(visible);
+        if (!visible || zoomRect == null)
+            return;
+
+        terminalZoomBlackoutRoot.SetAsLastSibling();
+        zoomRect.SetAsLastSibling();
+    }
+
+    private void RenderSettingsPanel()
+    {
+        if (terminalZoomToggleImage != null)
+        {
+            terminalZoomToggleImage.sprite = ResolveTerminalToggleSprite(terminalZoomModeEnabled);
+            terminalZoomToggleImage.color = terminalZoomModeEnabled
+                ? new Color(0.66f, 1f, 0.88f, 1f)
+                : new Color(0.58f, 0.76f, 0.80f, 0.94f);
+        }
+
+        if (terminalZoomStatusText != null)
+        {
+            terminalZoomStatusText.text = terminalZoomModeEnabled
+                ? $"ON  // FIT {Mathf.RoundToInt(terminalZoomAppliedScale * 100f)}%"
+                : "OFF // SCALE 100%";
+            terminalZoomStatusText.color = terminalZoomModeEnabled
+                ? new Color(0.70f, 1f, 0.90f, 1f)
+                : new Color(0.64f, 0.82f, 0.86f, 0.92f);
+        }
     }
 
     private void RenderExitPanel()
@@ -3294,8 +3622,11 @@ public class MainTerminalController : MonoBehaviour
         EnsurePayloadGrid(sectionViewRoot);
         EnsureGeneLabPanel(sectionViewRoot);
         EnsureExitPanel(sectionViewRoot);
+        EnsureSettingsPanel(sectionViewRoot);
         ShowGeneLabPanel(false);
         ShowExitPanelRoot(false);
+        ShowSettingsPanelRoot(false);
+        ApplyTerminalZoomMode();
 
         sectionViewRoot.gameObject.SetActive(false);
     }
@@ -3395,7 +3726,7 @@ public class MainTerminalController : MonoBehaviour
         geneLabRoutePromptText = CreateText("GeneLabRoutePrompt", geneLabRouteSelectionRoot, 16, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.84f, 1f, 1f, 1f));
         geneLabRoutePromptText.lineSpacing = 0.92f;
         ApplyCrispCyberText(geneLabRoutePromptText, new Color(0f, 0.12f, 0.18f, 0.95f));
-        SetAnchors(geneLabRoutePromptText.rectTransform, new Vector2(0.055f, 0.895f), new Vector2(0.940f, 0.985f));
+        SetAnchors(geneLabRoutePromptText.rectTransform, new Vector2(0.055f, 0.850f), new Vector2(0.940f, 0.940f));
         geneLabRoutePromptText.text = "SELECT BOSS GENE POOL";
 
         if (!TryBuildGeneLabBossRouteClone(geneLabRouteSelectionRoot))
@@ -3851,10 +4182,10 @@ public class MainTerminalController : MonoBehaviour
         SetAnchors(title.rectTransform, new Vector2(0.070f, 0.720f), new Vector2(0.920f, 0.890f));
         title.text = "EXIT TERMINAL";
 
-        exitPanelStatusText = CreateText("ExitPanelStatus", exitPanelRoot, 16, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.84f, 1f, 0.96f, 1f));
-        exitPanelStatusText.lineSpacing = 0.95f;
+        exitPanelStatusText = CreateText("ExitPanelStatus", exitPanelRoot, 20, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.84f, 1f, 0.96f, 1f));
+        exitPanelStatusText.lineSpacing = 0.90f;
         ApplyCrispCyberText(exitPanelStatusText, new Color(0f, 0.12f, 0.18f, 0.95f));
-        SetAnchors(exitPanelStatusText.rectTransform, new Vector2(0.070f, 0.360f), new Vector2(0.920f, 0.690f));
+        SetAnchors(exitPanelStatusText.rectTransform, new Vector2(0.070f, 0.300f), new Vector2(0.920f, 0.710f));
 
         exitReturnButton = FindOrCreatePanelButton("ExitReturnButton", exitPanelRoot, "RETURN", new Vector2(0.100f, 0.110f), new Vector2(0.425f, 0.255f));
         SetPanelButtonLabelSize(exitReturnButton, 18);
@@ -3863,6 +4194,83 @@ public class MainTerminalController : MonoBehaviour
         exitConfirmButton = FindOrCreatePanelButton("ExitConfirmButton", exitPanelRoot, "QUIT", new Vector2(0.575f, 0.110f), new Vector2(0.900f, 0.255f));
         SetPanelButtonLabelSize(exitConfirmButton, 18);
         exitConfirmButton.onClick.AddListener(ConfirmExit);
+    }
+
+    private void EnsureSettingsPanel(Transform parent)
+    {
+        if (settingsPanelRoot != null)
+        {
+            settingsPanelRoot.SetParent(parent, false);
+            return;
+        }
+
+        settingsPanelRoot = CreateRect("SettingsPanel", parent);
+        SetAnchors(settingsPanelRoot, new Vector2(0.180f, 0.180f), new Vector2(0.820f, 0.700f));
+
+        Image background = settingsPanelRoot.gameObject.AddComponent<Image>();
+        ApplyPanelFrameBackground(
+            background,
+            ResolveSquadPanelBackgroundSprite(),
+            new Color(0.006f, 0.012f, 0.026f, 0.88f));
+        background.raycastTarget = true;
+
+        Text title = CreateText("SettingsPanelTitle", settingsPanelRoot, 25, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.82f, 1f, 1f, 1f));
+        ApplyCrispCyberText(title, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(title.rectTransform, new Vector2(0.070f, 0.740f), new Vector2(0.920f, 0.900f));
+        title.text = "DISPLAY SETTINGS";
+
+        RectTransform zoomRow = CreateCyberPanel(
+            "TerminalZoomRow",
+            settingsPanelRoot,
+            new Color(0.010f, 0.038f, 0.052f, 0.76f),
+            new Color(0.18f, 0.90f, 0.88f, 0.78f),
+            new Color(0.88f, 0.34f, 0.76f, 0.58f),
+            12f,
+            true);
+        SetAnchors(zoomRow, new Vector2(0.070f, 0.405f), new Vector2(0.930f, 0.675f));
+
+        Text zoomLabel = CreateText("TerminalZoomLabel", zoomRow, 19, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.84f, 1f, 0.98f, 1f));
+        ApplyCrispCyberText(zoomLabel, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(zoomLabel.rectTransform, new Vector2(0.045f, 0.420f), new Vector2(0.560f, 0.830f));
+        zoomLabel.text = "TERMINAL ZOOM";
+
+        Text zoomHint = CreateText("TerminalZoomHint", zoomRow, 13, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.58f, 0.90f, 0.94f, 0.90f));
+        zoomHint.lineSpacing = 0.92f;
+        ApplyCrispCyberText(zoomHint, new Color(0f, 0.10f, 0.14f, 0.92f));
+        SetAnchors(zoomHint.rectTransform, new Vector2(0.045f, 0.105f), new Vector2(0.560f, 0.420f));
+        zoomHint.text = "Center and fit the terminal for UI tuning.";
+
+        RectTransform toggleRect = CreateRect("TerminalZoomToggle", zoomRow);
+        SetAnchors(toggleRect, new Vector2(0.635f, 0.235f), new Vector2(0.915f, 0.780f));
+
+        terminalZoomToggleImage = toggleRect.gameObject.AddComponent<Image>();
+        terminalZoomToggleImage.sprite = ResolveTerminalToggleSprite(terminalZoomModeEnabled);
+        terminalZoomToggleImage.type = Image.Type.Simple;
+        terminalZoomToggleImage.preserveAspect = true;
+        terminalZoomToggleImage.raycastTarget = true;
+
+        terminalZoomToggleButton = toggleRect.gameObject.AddComponent<Button>();
+        terminalZoomToggleButton.targetGraphic = terminalZoomToggleImage;
+        terminalZoomToggleButton.transition = Selectable.Transition.ColorTint;
+        ColorBlock toggleColors = terminalZoomToggleButton.colors;
+        toggleColors.normalColor = Color.white;
+        toggleColors.highlightedColor = new Color(0.78f, 1f, 0.96f, 1f);
+        toggleColors.pressedColor = new Color(1f, 0.62f, 0.88f, 1f);
+        toggleColors.selectedColor = toggleColors.highlightedColor;
+        terminalZoomToggleButton.colors = toggleColors;
+        terminalZoomToggleButton.onClick.AddListener(ToggleTerminalZoomMode);
+
+        terminalZoomStatusText = CreateText("TerminalZoomStatus", zoomRow, 15, FontStyle.Bold, TextAnchor.MiddleRight, new Color(0.70f, 1f, 0.90f, 1f));
+        ApplyCrispCyberText(terminalZoomStatusText, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(terminalZoomStatusText.rectTransform, new Vector2(0.575f, 0.040f), new Vector2(0.930f, 0.220f));
+
+        Text note = CreateText("SettingsPanelNote", settingsPanelRoot, 14, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.70f, 0.92f, 0.96f, 0.88f));
+        note.lineSpacing = 0.95f;
+        ApplyCrispCyberText(note, new Color(0f, 0.10f, 0.14f, 0.92f));
+        SetAnchors(note.rectTransform, new Vector2(0.075f, 0.170f), new Vector2(0.920f, 0.335f));
+        note.text = "Zoom is a display-only editor aid. It blacks out the surroundings and fits the terminal to the screen.";
+
+        RenderSettingsPanel();
     }
 
     private void EnsurePayloadPageNav(Transform parent)
@@ -3950,26 +4358,64 @@ public class MainTerminalController : MonoBehaviour
         ovalBase.sprite = monsterBaseOvalSprite;
         ovalBase.preserveAspect = false;
         ovalBase.enabled = monsterBaseOvalSprite != null;
-        SetAnchors(ovalBase.rectTransform, new Vector2(0.24f, 0f), new Vector2(0.76f, 0.22f));
+        SetAnchors(ovalBase.rectTransform, new Vector2(0.055f, 0.02f), new Vector2(0.350f, 0.240f));
 
         inspectorPortraitImage = CreateImage("InspectorPortrait", band, Color.white);
         inspectorPortraitImage.preserveAspect = true;
-        SetAnchors(inspectorPortraitImage.rectTransform, new Vector2(0.22f, 0.10f), new Vector2(0.78f, 1f));
+        SetAnchors(inspectorPortraitImage.rectTransform, new Vector2(0.040f, 0.080f), new Vector2(0.365f, 1f));
     }
 
     private void BuildInspectorName(Transform detailArea)
     {
-        inspectorNameText = CreateText("InspectorName", detailArea, 19, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.84f, 1f, 1f, 1f));
+        inspectorNameText = CreateText("InspectorName", detailArea, 18, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.84f, 1f, 1f, 1f));
         inspectorNameText.lineSpacing = 0.86f;
         ApplyCrispCyberText(inspectorNameText, new Color(0f, 0.14f, 0.22f, 1f));
-        SetAnchors(inspectorNameText.rectTransform, new Vector2(0.04f, 0.600f), new Vector2(0.96f, 0.668f));
+        SetAnchors(inspectorNameText.rectTransform, new Vector2(0.390f, 0.785f), new Vector2(0.955f, 0.865f));
         inspectorNameText.text = "SELECT A UNIT";
+
+        RectTransform expClip = CreateRect("InspectorExpClip", detailArea);
+        SetAnchors(expClip, new Vector2(0.390f, 0.715f), new Vector2(0.950f, 0.790f));
+        RectMask2D expMask = expClip.gameObject.AddComponent<RectMask2D>();
+        expMask.padding = Vector4.zero;
+
+        Sprite expFillSprite = ResolveInspectorExpBarFillSprite();
+        Image expTrack = CreateImage("InspectorExpTrack", expClip, new Color(0.08f, 0.42f, 0.48f, 0.48f));
+        expTrack.sprite = expFillSprite;
+        expTrack.type = Image.Type.Simple;
+        expTrack.preserveAspect = false;
+        expTrack.raycastTarget = false;
+        SetAnchors(expTrack.rectTransform, new Vector2(0.035f, 0.350f), new Vector2(0.965f, 0.650f));
+
+        inspectorExpFill = CreateImage("InspectorExpFill", expClip, new Color(0.46f, 1f, 0.76f, 1f));
+        inspectorExpFill.sprite = expFillSprite;
+        inspectorExpFill.type = Image.Type.Filled;
+        inspectorExpFill.fillMethod = Image.FillMethod.Horizontal;
+        inspectorExpFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        inspectorExpFill.fillAmount = 0f;
+        inspectorExpFill.preserveAspect = false;
+        inspectorExpFill.raycastTarget = false;
+        SetAnchors(inspectorExpFill.rectTransform, new Vector2(0.035f, 0.350f), new Vector2(0.965f, 0.650f));
+
+        Sprite expUnder = ResolveInspectorExpBarUnderSprite();
+        Image expUnderlay = CreateImage("InspectorExpUnder", expClip, new Color(0.70f, 1f, 0.96f, 0.96f));
+        expUnderlay.sprite = expUnder;
+        expUnderlay.type = Image.Type.Simple;
+        expUnderlay.preserveAspect = false;
+        expUnderlay.raycastTarget = false;
+        expUnderlay.enabled = expUnder != null;
+        SetAnchors(expUnderlay.rectTransform, new Vector2(-0.220f, -0.035f), new Vector2(1.000f, 1.035f));
+        expUnderlay.transform.SetAsLastSibling();
+
+        inspectorExpText = CreateText("InspectorExpText", detailArea, 15, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.72f, 1f, 0.92f, 1f));
+        ApplyCrispCyberText(inspectorExpText, new Color(0f, 0.12f, 0.14f, 1f));
+        SetAnchors(inspectorExpText.rectTransform, new Vector2(0.430f, 0.665f), new Vector2(0.950f, 0.710f));
+        inspectorExpText.text = "EXP --/--";
     }
 
     private void BuildInspectorRadar(Transform detailArea)
     {
         inspectorRadarRoot = CreateRect("InspectorRadar", detailArea);
-        SetAnchors(inspectorRadarRoot, new Vector2(0.16f, 0.330f), new Vector2(0.84f, 0.572f));
+        SetAnchors(inspectorRadarRoot, new Vector2(0.16f, 0.360f), new Vector2(0.84f, 0.615f));
 
         inspectorRadar = inspectorRadarRoot.gameObject.AddComponent<RadarChartGraphic>();
         inspectorRadar.color = Color.white;
@@ -5366,7 +5812,9 @@ public class MainTerminalController : MonoBehaviour
                 codeLabel.gameObject.SetActive(false);
 
             SetChildrenActive(button.transform, "SelectedRail", false);
-            depthTierRecommendationLabels[i] = EnsureDepthTierRecommendationLabel(button.transform, i + ThreatTierRules.MinTier);
+            int buttonTier = i + ThreatTierRules.MinTier;
+            EnsureDepthTierRouteLayersLabel(button.transform, buttonTier);
+            depthTierRecommendationLabels[i] = EnsureDepthTierRecommendationLabel(button.transform, buttonTier);
         }
     }
 
@@ -5393,9 +5841,9 @@ public class MainTerminalController : MonoBehaviour
         recommendation.raycastTarget = false;
         recommendation.text = BuildDepthTierRecommendationText(tier);
 
-        if (created)
+        RectTransform rect = recommendation.rectTransform;
+        if (created || HasApproxAnchors(rect, new Vector2(-0.220f, -0.760f), new Vector2(1.220f, -0.470f)))
         {
-            RectTransform rect = recommendation.rectTransform;
             rect.anchorMin = new Vector2(-0.220f, -0.600f);
             rect.anchorMax = new Vector2(1.220f, -0.040f);
             rect.offsetMin = Vector2.zero;
@@ -5416,10 +5864,77 @@ public class MainTerminalController : MonoBehaviour
         return recommendation;
     }
 
+    private Text EnsureDepthTierRouteLayersLabel(Transform buttonTransform, int tier)
+    {
+        if (buttonTransform == null)
+            return null;
+
+        Text routeLayers = buttonTransform.Find("RouteLayers")?.GetComponent<Text>();
+        bool created = routeLayers == null;
+        if (routeLayers == null)
+            routeLayers = CreateText("RouteLayers", buttonTransform, DepthRouteLayerFontSize, FontStyle.Bold, TextAnchor.UpperCenter, CyberUiTheme.TextSecondary);
+
+        routeLayers.font = defaultFont;
+        routeLayers.fontSize = DepthRouteLayerFontSize;
+        routeLayers.fontStyle = FontStyle.Bold;
+        routeLayers.alignment = TextAnchor.UpperCenter;
+        routeLayers.horizontalOverflow = HorizontalWrapMode.Overflow;
+        routeLayers.verticalOverflow = VerticalWrapMode.Overflow;
+        routeLayers.resizeTextForBestFit = false;
+        routeLayers.raycastTarget = false;
+        routeLayers.text = BuildDepthTierRouteLayersText(tier);
+
+        RectTransform rect = routeLayers.rectTransform;
+        if (created
+            || HasApproxAnchors(rect, new Vector2(-0.220f, -0.460f), new Vector2(1.220f, -0.070f))
+            || HasApproxAnchors(rect, new Vector2(-0.220f, 1.050f), new Vector2(1.220f, 1.330f))
+            || HasApproxAnchors(rect, new Vector2(-0.220f, 0.980f), new Vector2(1.220f, 1.260f)))
+        {
+            rect.anchorMin = new Vector2(-0.220f, 0.920f);
+            rect.anchorMax = new Vector2(1.220f, 1.200f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.localScale = Vector3.one;
+        }
+
+        Shadow shadow = FindExactShadow(routeLayers);
+        if (shadow == null)
+            shadow = routeLayers.gameObject.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.84f);
+        shadow.effectDistance = new Vector2(1f, -1f);
+        shadow.useGraphicAlpha = true;
+
+        TextMeshProUGUI bitmap = EnableBitmapMirror(routeLayers, DepthRecommendationBitmapScale, TextAnchor.UpperCenter);
+        if (bitmap != null)
+        {
+            bitmap.enableAutoSizing = false;
+            bitmap.fontSize = DepthRouteLayerFontSize;
+            bitmap.fontSizeMin = DepthRouteLayerFontSize;
+            bitmap.fontSizeMax = DepthRouteLayerFontSize;
+            bitmap.ForceMeshUpdate();
+        }
+
+        return routeLayers;
+    }
+
     private static string BuildDepthTierRecommendationText(int tier)
     {
         ThreatTier clamped = ThreatTierRules.ClampTier(tier);
         return $"REC LV {ThreatTierRules.MinLevel(clamped)}-{ThreatTierRules.MaxLevel(clamped)}";
+    }
+
+    private static string BuildDepthTierRouteLayersText(int tier)
+    {
+        return $"DEPTH {GridGenerationSettings.TotalLayerRangeLabel(tier)}";
+    }
+
+    private static bool HasApproxAnchors(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        const float epsilon = 0.001f;
+        return rect != null
+            && Vector2.SqrMagnitude(rect.anchorMin - anchorMin) <= epsilon
+            && Vector2.SqrMagnitude(rect.anchorMax - anchorMax) <= epsilon;
     }
 
     private static void CopyImageStyle(Image source, Image target, bool sameObject)
@@ -5768,6 +6283,23 @@ public class MainTerminalController : MonoBehaviour
             : LoadEditorUiSprite(MonsterDisplayPanelSpritePath, ref cachedMonsterDisplayPanelSprite);
     }
 
+    private static Sprite ResolveInspectorExpBarFillSprite()
+    {
+        return LoadEditorUiSprite(InspectorExpBarFillSpritePath, ref cachedInspectorExpBarFillSprite);
+    }
+
+    private static Sprite ResolveInspectorExpBarUnderSprite()
+    {
+        return LoadEditorUiSprite(InspectorExpBarUnderSpritePath, ref cachedInspectorExpBarUnderSprite);
+    }
+
+    private static Sprite ResolveTerminalToggleSprite(bool enabled)
+    {
+        return enabled
+            ? LoadEditorUiSprite(TerminalToggleOnSpritePath, ref cachedTerminalToggleOnSprite)
+            : LoadEditorUiSprite(TerminalToggleOffSpritePath, ref cachedTerminalToggleOffSprite);
+    }
+
     private static Sprite LoadEditorUiSprite(string assetPath, ref Sprite cache)
     {
         if (cache != null)
@@ -5983,7 +6515,7 @@ public class MainTerminalController : MonoBehaviour
 
         EnsureThreatTierAccess(manager);
         int selected = manager.SelectedThreatTierNumber;
-        int highest = manager.HighestUnlockedThreatTierNumber;
+        int highest = ThreatTierRules.MaxTier;
         ThreatTier tier = manager.SelectedThreatTier;
 
         if (usingSourceLayoutTrialDepthButtons)
@@ -5995,7 +6527,7 @@ public class MainTerminalController : MonoBehaviour
         if (depthTierTitleText != null)
             depthTierTitleText.text = "DEPTH_SELECT.exe";
         if (depthTierDetailText != null)
-            depthTierDetailText.text = "SELECT THREAT AVATAR / ROUTE DEPTH / REWARD MODEL";
+            depthTierDetailText.text = "SELECT ROUTE DEPTH / ENEMY BAND / BOSS TARGET";
         if (depthTierAvatarImage != null)
         {
             depthTierAvatarImage.sprite = ResolveDepthTierSprite(selected);
@@ -6003,13 +6535,10 @@ public class MainTerminalController : MonoBehaviour
             depthTierAvatarImage.color = Color.white;
         }
         if (depthTierSelectedSummaryText != null)
-            depthTierSelectedSummaryText.text = $"SELECTED: {selected}F / THREAT T{selected:00}\nENEMY BAND LV {ThreatTierRules.MinLevel(tier):00}-{ThreatTierRules.MaxLevel(tier):00}";
+            depthTierSelectedSummaryText.text = $"SELECTED DEPTH: {selected}F\nROUTE {GridGenerationSettings.TotalLayerRangeLabel(selected)} LAYERS / ENEMY LV {ThreatTierRules.MinLevel(tier):00}-{ThreatTierRules.MaxLevel(tier):00}";
         if (depthTierRewardSummaryText != null)
         {
-            int rewardPercent = manager.IsRunActive
-                ? Mathf.RoundToInt(manager.currentRewardMultiplier * 100f)
-                : ThreatTierRules.RewardMultiplierPercent(tier, manager.HighestUnlockedThreatTier);
-            depthTierRewardSummaryText.text = $"REWARD MULTIPLIER\nx{rewardPercent:000}% COMPUTE BOOST";
+            depthTierRewardSummaryText.text = "REWARDS\nALGOMON EXP / COMPUTE / DATA";
         }
 
         if (depthTierButtons == null)
@@ -6174,6 +6703,18 @@ public class MainTerminalController : MonoBehaviour
                 recommendationLabel.color = isSelected
                     ? CyberUiTheme.WithAlpha(CyberUiTheme.Primary, 1f)
                     : (unlocked ? CyberUiTheme.WithAlpha(CyberUiTheme.TextPrimary, 0.94f) : CyberUiTheme.WithAlpha(CyberUiTheme.Disabled, 0.58f));
+            }
+
+            Text routeLayersLabel = button.transform.Find("RouteLayers")?.GetComponent<Text>();
+            if (routeLayersLabel == null)
+                routeLayersLabel = EnsureDepthTierRouteLayersLabel(button.transform, buttonTier);
+            if (routeLayersLabel != null)
+            {
+                routeLayersLabel.gameObject.SetActive(true);
+                routeLayersLabel.text = BuildDepthTierRouteLayersText(buttonTier);
+                routeLayersLabel.color = isSelected
+                    ? CyberUiTheme.WithAlpha(CyberUiTheme.Selected, 0.98f)
+                    : (unlocked ? CyberUiTheme.WithAlpha(CyberUiTheme.TextSecondary, 0.90f) : CyberUiTheme.WithAlpha(CyberUiTheme.Disabled, 0.52f));
             }
 
             Transform rail = button.transform.Find("SelectedRail");

@@ -33,6 +33,79 @@ public class GridGenerationSettings
     [Min(0)] public int shopWeight = 10;
     [Min(0)] public int rebootWeight = 5;
 
+    [Header("Temporary Visual Audit")]
+    public bool forceAllNodeTypesForVisualAudit = true;
+
+    public static GridGenerationSettings CloneForThreatTier(GridGenerationSettings source, int threatTier, int seed)
+    {
+        GridGenerationSettings clone = source != null
+            ? source.CloneNormalized()
+            : new GridGenerationSettings().CloneNormalized();
+
+        clone.totalLayers = TotalLayersForThreatTier(threatTier, seed);
+        if (clone.forceAllNodeTypesForVisualAudit)
+        {
+            clone.maxIntermediateNodes = Mathf.Max(clone.maxIntermediateNodes, 5);
+            clone.maxOutgoingEdges = Mathf.Max(clone.maxOutgoingEdges, 5);
+        }
+        return clone;
+    }
+
+    public static int TotalLayersForThreatTier(int threatTier, int seed)
+    {
+        int min = MinTotalLayersForThreatTier(threatTier);
+        int max = MaxTotalLayersForThreatTier(threatTier);
+        if (max <= min)
+            return min;
+
+        int span = max - min + 1;
+        int hash = seed ^ (threatTier * 73856093);
+        return min + ((hash & int.MaxValue) % span);
+    }
+
+    public static int MinTotalLayersForThreatTier(int threatTier)
+    {
+        int tier = Mathf.Clamp(threatTier, ThreatTierRules.MinTier, ThreatTierRules.MaxTier);
+        switch (tier)
+        {
+            case 1:
+                return 3;
+            case 2:
+                return 4;
+            case 3:
+                return 5;
+            case 4:
+                return 5;
+            default:
+                return 7;
+        }
+    }
+
+    public static int MaxTotalLayersForThreatTier(int threatTier)
+    {
+        int tier = Mathf.Clamp(threatTier, ThreatTierRules.MinTier, ThreatTierRules.MaxTier);
+        switch (tier)
+        {
+            case 1:
+                return 4;
+            case 2:
+                return 5;
+            case 3:
+                return 6;
+            case 4:
+                return 7;
+            default:
+                return 7;
+        }
+    }
+
+    public static string TotalLayerRangeLabel(int threatTier)
+    {
+        int min = MinTotalLayersForThreatTier(threatTier);
+        int max = MaxTotalLayersForThreatTier(threatTier);
+        return min == max ? $"{min}" : $"{min}-{max}";
+    }
+
     public GridGenerationSettings CloneNormalized()
     {
         return new GridGenerationSettings
@@ -47,7 +120,8 @@ public class GridGenerationSettings
             hackerWeight = Mathf.Max(0, hackerWeight),
             eliteWeight = Mathf.Max(0, eliteWeight),
             shopWeight = Mathf.Max(0, shopWeight),
-            rebootWeight = Mathf.Max(0, rebootWeight)
+            rebootWeight = Mathf.Max(0, rebootWeight),
+            forceAllNodeTypesForVisualAudit = forceAllNodeTypesForVisualAudit
         };
     }
 }

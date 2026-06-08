@@ -84,7 +84,7 @@ public class RunResultController : MonoBehaviour
                 detailText.text =
                     $"RUN SEED: {manager.completedRunSeed}\n" +
                     $"FINAL NODE: {nodeId} [{manager.completedRunNodeType}]\n" +
-                    $"THREAT TIER: T{manager.completedRunThreatTier} ({Mathf.RoundToInt(manager.completedRunRewardMultiplier * 100f)}% REWARD)\n" +
+                    $"DEPTH: {manager.completedRunThreatTier}F\n" +
                     $"NODES VISITED: {manager.completedRunVisitedCount}\n" +
                     $"PAYLOAD SIZE: {PayloadCount()}\n\n" +
                     $"RUN REWARDS\n{CompletedRewardSummary()}";
@@ -120,7 +120,7 @@ public class RunResultController : MonoBehaviour
     private string CompletedRewardSummary()
     {
         if (manager == null || manager.completedRunRewards == null)
-            return "USER EXP +0 | ALGOMON EXP +0\nCOMPUTE +0 | BASE FORM +0";
+            return "ALGOMON EXP +0\nCOMPUTE +0 | BASE FORM +0";
 
         return manager.completedRunRewards.ToCompactDisplay();
     }

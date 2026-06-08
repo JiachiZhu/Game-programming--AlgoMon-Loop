@@ -25,8 +25,6 @@ public static class ThreatTierRules
     public const int LevelsPerTier = 10;
     public const int SprintLevelCap = 50;
 
-    private const float RewardPenaltyPerTierBelowMax = 0.15f;
-    private const float MinimumLowerTierRewardMultiplier = 0.40f;
     private const int MaxPlayerLevelCorrection = 1;
     private const int PlayerCorrectionStep = 8;
 
@@ -42,15 +40,13 @@ public static class ThreatTierRules
 
     public static ThreatTier ClampSelectableTier(int requestedTier, int highestUnlockedTier)
     {
-        int highest = ToInt(ClampTier(highestUnlockedTier));
-        return ClampTier(Mathf.Min(requestedTier, highest));
+        return ClampTier(requestedTier);
     }
 
     public static bool CanEnterTier(int requestedTier, int highestUnlockedTier)
     {
         int requested = ToInt(ClampTier(requestedTier));
-        int highest = ToInt(ClampTier(highestUnlockedTier));
-        return requested <= highest;
+        return requested >= MinTier && requested <= MaxTier;
     }
 
     public static int MinLevel(ThreatTier tier)
@@ -66,9 +62,7 @@ public static class ThreatTierRules
 
     public static float RewardMultiplier(ThreatTier selectedTier, ThreatTier highestUnlockedTier)
     {
-        int gap = Mathf.Max(0, ToInt(highestUnlockedTier) - ToInt(selectedTier));
-        float multiplier = 1f - gap * RewardPenaltyPerTierBelowMax;
-        return Mathf.Clamp(multiplier, MinimumLowerTierRewardMultiplier, 1f);
+        return 1f;
     }
 
     public static int RewardMultiplierPercent(ThreatTier selectedTier, ThreatTier highestUnlockedTier)

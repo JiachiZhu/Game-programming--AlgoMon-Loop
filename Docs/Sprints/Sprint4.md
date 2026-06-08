@@ -69,7 +69,7 @@ progression without making enemies mirror the player's level exactly.
   - Tier 3: Lv21-Lv30
   - Tier 4: Lv31-Lv40
   - Tier 5: Lv41-Lv50
-- [x] The player can only enter the highest unlocked Threat Tier or a lower one.
+- [x] The player can select any Depth Tier from 1F-5F in the vertical slice.
 - [x] Lower-tier runs remain playable for farming, but use lower reward
   multipliers than the current highest tier.
 
@@ -81,8 +81,9 @@ progression without making enemies mirror the player's level exactly.
 
 **Implementation Notes**
 
-- Added `ThreatTierRules` as the single source for Tier 1-5, Lv1-Lv50 bands,
-  selectable-tier clamping, and lower-tier reward multipliers.
+- Added `ThreatTierRules` as the single source for Depth Tier 1F-5F and
+  Lv1-Lv50 encounter bands. Depth tiers are currently all selectable, with no
+  lower-tier reward penalty.
 - `GameManager` now stores selected, highest-unlocked, active, and completed
   run Threat Tier state.
 - `EncounterFactory` now creates enemies inside the active tier's level band.
@@ -131,13 +132,12 @@ while later nodes and bosses continue to create pressure.
 
 **Acceptance Criteria**
 
-- [x] Wild AlgoMon nodes grant small player EXP, small AlgoMon EXP, and base
-  AlgoMon data.
-- [x] Hacker nodes grant higher player EXP, higher AlgoMon EXP, and more compute,
+- [x] Wild AlgoMon nodes grant small AlgoMon EXP and compute.
+- [x] Hacker nodes grant higher AlgoMon EXP and more compute,
   but do not grant captured AlgoMon data.
-- [x] Elite nodes grant above-average EXP and compute, and may use harder
+- [x] Elite nodes grant above-average AlgoMon EXP and compute, and may use harder
   encounter rules.
-- [x] Boss nodes grant high EXP, high-quality base data, and evolution data for
+- [x] Boss nodes grant high AlgoMon EXP, high-quality base data, and evolution data for
   the defeated evolved species.
 - [x] Shop nodes spend compute on buffs instead of starting a battle.
 
@@ -154,17 +154,20 @@ while later nodes and bosses continue to create pressure.
 
 - Added `EncounterReward`, `RunRewardSummary`, and `EncounterRewardCalculator`
   as the reward contract for combat node wins.
-- Victory rewards now grant player EXP, party AlgoMon EXP, compute, optional
-  base data, and optional evolution data through `GameManager`.
-- Combat nodes grant base data; Hacker and Elite reward EXP/compute without
-  capture data; Boss rewards high-quality base data plus evolution data.
+- Victory rewards now grant party AlgoMon EXP, compute, optional base data, and
+  optional evolution data through `GameManager`; User EXP has been removed from
+  the active reward model.
+- Combat nodes reward AlgoMon EXP/compute without capture data; Hacker and
+  Elite reward higher AlgoMon EXP/compute without capture data; Boss rewards
+  high-quality base data plus evolution data.
 - Compute is run-scoped shop currency in Sprint 4. It resets at run start/end,
   while RunResult keeps the earned-compute summary for player feedback.
 - Party EXP grants now refresh unlocked learnset skills into empty slots after
-  level-up. EXP bar animation, learn prompts, and replace-skill UI are later UI
-  work.
-- MainTerminal now surfaces player EXP, compute, evolution-data count, and
-  Payload data quality. RunResult shows the accumulated run reward summary.
+  level-up. Payload storage shows selected-unit EXP progress in the inspector,
+  using the CyberpunkHUD striped progress bar assets rather than per-slot bars;
+  learn prompts and replace-skill UI are later UI work.
+- MainTerminal now surfaces compute, evolution-data count, Payload data quality,
+  and per-unit EXP progress. RunResult shows the accumulated run reward summary.
 
 ### #32 - [Battle] Add party switch action with absolute-first priority
 

@@ -85,7 +85,32 @@ public sealed class GridGenerator
             sizes[layer] = NextInclusive(minForLayer, maxForLayer);
         }
 
+        if (settings.forceAllNodeTypesForVisualAudit)
+            EnsureVisualAuditLayerCapacity(sizes);
+
         return sizes;
+    }
+
+    private void EnsureVisualAuditLayerCapacity(int[] sizes)
+    {
+        if (sizes == null || sizes.Length < 3)
+            return;
+
+        const int requiredIntermediateNodes = 5;
+        int totalIntermediateNodes = 0;
+        for (int layer = 1; layer < sizes.Length - 1; layer++)
+            totalIntermediateNodes += sizes[layer];
+
+        int cursorLayer = 1;
+        while (totalIntermediateNodes < requiredIntermediateNodes)
+        {
+            sizes[cursorLayer]++;
+            totalIntermediateNodes++;
+
+            cursorLayer++;
+            if (cursorLayer >= sizes.Length - 1)
+                cursorLayer = 1;
+        }
     }
 
     private void CreateNodes(GridGraph graph, int[] layerSizes)
@@ -103,6 +128,34 @@ public sealed class GridGenerator
 
         int bossLayer = layerSizes.Length - 1;
         graph.nodes.Add(new GridNode(BossNodeId, bossLayer, 0, NodeType.Boss));
+
+        if (settings.forceAllNodeTypesForVisualAudit)
+            ApplyVisualAuditNodeTypes(graph);
+    }
+
+    private static void ApplyVisualAuditNodeTypes(GridGraph graph)
+    {
+        if (graph == null || graph.nodes == null)
+            return;
+
+        NodeType[] requiredTypes =
+        {
+            NodeType.Combat,
+            NodeType.Hacker,
+            NodeType.Elite,
+            NodeType.Shop,
+            NodeType.Reboot
+        };
+
+        List<GridNode> candidates = graph.nodes
+            .Where(node => node != null && node.nodeType != NodeType.Start && node.nodeType != NodeType.Boss)
+            .OrderBy(node => node.layer)
+            .ThenBy(node => node.indexInLayer)
+            .ToList();
+
+        int count = Math.Min(requiredTypes.Length, candidates.Count);
+        for (int i = 0; i < count; i++)
+            candidates[i].nodeType = requiredTypes[i];
     }
 
     public static bool EnsureHackerNode(GridGraph graph, bool preferFirstSelectableLayer = false)

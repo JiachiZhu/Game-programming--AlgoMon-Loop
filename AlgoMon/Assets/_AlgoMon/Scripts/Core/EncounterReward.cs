@@ -16,6 +16,7 @@ public class EncounterReward
     public int encounterLevel;
     public int rewardMultiplierPercent = 100;
     public bool calculated;
+    // Legacy save field retained for older serialized data; player-facing rewards use AlgoMon EXP only.
     public int playerExp;
     public int algoMonExp;
     public int compute;
@@ -31,7 +32,6 @@ public class EncounterReward
         get
         {
             return calculated ||
-                   playerExp > 0 ||
                    algoMonExp > 0 ||
                    compute > 0 ||
                    baseDataGranted ||
@@ -50,7 +50,7 @@ public class EncounterReward
         if (!HasAnyGrant)
             return "REWARD: none.";
 
-        string line = $"REWARD: USER +{playerExp} EXP | ALGOMON +{algoMonExp} EXP | COMPUTE +{compute}";
+        string line = $"REWARD: ALGOMON +{algoMonExp} EXP | COMPUTE +{compute}";
         if (baseDataGranted)
             line += $" | BASE FORM {FormatQuality(baseDataQuality)}";
         else if (shouldGrantBaseData)
@@ -79,6 +79,7 @@ public class EncounterReward
 [Serializable]
 public class RunRewardSummary
 {
+    // Legacy save field retained for older serialized data; no longer displayed or accumulated.
     public int playerExp;
     public int algoMonExp;
     public int compute;
@@ -88,7 +89,6 @@ public class RunRewardSummary
 
     public void Reset()
     {
-        playerExp = 0;
         algoMonExp = 0;
         compute = 0;
         baseDataCount = 0;
@@ -101,7 +101,6 @@ public class RunRewardSummary
         if (reward == null)
             return;
 
-        playerExp += reward.playerExp;
         algoMonExp += reward.algoMonExp;
         compute += reward.compute;
         if (reward.baseDataGranted)
@@ -118,7 +117,6 @@ public class RunRewardSummary
     {
         return new RunRewardSummary
         {
-            playerExp = playerExp,
             algoMonExp = algoMonExp,
             compute = compute,
             baseDataCount = baseDataCount,
@@ -133,7 +131,7 @@ public class RunRewardSummary
             ? $"BASE FORM +{baseDataCount} (HQ {highQualityBaseDataCount})"
             : $"BASE FORM +{baseDataCount}";
 
-        return $"USER EXP +{playerExp} | ALGOMON EXP +{algoMonExp}\n" +
+        return $"ALGOMON EXP +{algoMonExp}\n" +
                $"COMPUTE +{compute} | {baseLine}";
     }
 }
@@ -174,21 +172,18 @@ public static class EncounterRewardCalculator
             case NodeType.Hacker:
                 return new EncounterReward
                 {
-                    playerExp = 25 + level * 2,
                     algoMonExp = 45 + level * 3,
                     compute = 18 + danger * 4
                 };
             case NodeType.Elite:
                 return new EncounterReward
                 {
-                    playerExp = 20 + level * 2,
                     algoMonExp = 35 + level * 3,
                     compute = 12 + danger * 3
                 };
             case NodeType.Boss:
                 return new EncounterReward
                 {
-                    playerExp = 50 + level * 3,
                     algoMonExp = 75 + level * 4,
                     compute = 30 + danger * 5,
                     shouldGrantBaseData = true,
@@ -198,7 +193,6 @@ public static class EncounterRewardCalculator
             default:
                 return new EncounterReward
                 {
-                    playerExp = 10 + level,
                     algoMonExp = 20 + level * 2,
                     compute = 4 + danger
                 };
@@ -208,7 +202,6 @@ public static class EncounterRewardCalculator
     private static void ApplyMultiplier(EncounterReward reward, float rewardMultiplier)
     {
         float multiplier = Mathf.Max(0f, rewardMultiplier);
-        reward.playerExp = Mathf.Max(0, Mathf.RoundToInt(reward.playerExp * multiplier));
         reward.algoMonExp = Mathf.Max(0, Mathf.RoundToInt(reward.algoMonExp * multiplier));
         reward.compute = Mathf.Max(0, Mathf.RoundToInt(reward.compute * multiplier));
     }

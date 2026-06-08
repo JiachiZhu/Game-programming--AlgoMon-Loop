@@ -50,8 +50,9 @@ public class GameManager : MonoBehaviour
     public List<AlgoMonInstance> party = new List<AlgoMonInstance>();
     public const int MaxPartySize = 4;
 
-    // Player EXP and evolution data persist; compute is run-scoped shop currency.
+    // Evolution data persists; compute is run-scoped shop currency.
     [Header("Player Progress")]
+    // Legacy save field retained for older serialized data. User EXP is no longer awarded or displayed.
     public int playerExp;
     public int computeBalance;
     public List<string> evolutionDataSpeciesCodes = new List<string>();
@@ -72,7 +73,7 @@ public class GameManager : MonoBehaviour
     [Header("Threat Tier")]
     // Serialized ints are Inspector/debug-facing; enum properties below are the clamped logic API.
     [Range(ThreatTierRules.MinTier, ThreatTierRules.MaxTier)]
-    public int highestUnlockedThreatTier = ThreatTierRules.MinTier;
+    public int highestUnlockedThreatTier = ThreatTierRules.MaxTier;
     [Range(ThreatTierRules.MinTier, ThreatTierRules.MaxTier)]
     public int selectedThreatTier = ThreatTierRules.MinTier;
     public int currentThreatTier = ThreatTierRules.MinTier;
@@ -239,7 +240,11 @@ public class GameManager : MonoBehaviour
         selectedBossSpeciesCodeName = SelectedBossSpeciesCodeName;
         currentBossSpeciesCodeName = selectedBossSpeciesCodeName;
 
-        GridGraph graph = new GridGenerator(gridSettings).Generate(seed);
+        GridGenerationSettings runGridSettings = GridGenerationSettings.CloneForThreatTier(
+            gridSettings,
+            selectedThreatTier,
+            seed);
+        GridGraph graph = new GridGenerator(runGridSettings).Generate(seed);
         graph.threatTier = currentThreatTier;
         graph.rewardMultiplierPercent = ThreatTierRules.RewardMultiplierPercent(runTier, HighestUnlockedThreatTier);
         // Party level is sampled once so later growth does not turn this into full level matching.
@@ -847,7 +852,6 @@ public class GameManager : MonoBehaviour
         if (Mathf.Approximately(expMultiplier, 1f))
             return;
 
-        reward.playerExp = Mathf.Max(0, Mathf.RoundToInt(reward.playerExp * expMultiplier));
         reward.algoMonExp = Mathf.Max(0, Mathf.RoundToInt(reward.algoMonExp * expMultiplier));
     }
 
@@ -856,7 +860,6 @@ public class GameManager : MonoBehaviour
         if (reward == null)
             return;
 
-        playerExp += reward.playerExp;
         computeBalance += reward.compute;
         GrantPartyExp(reward.algoMonExp);
 
@@ -900,16 +903,64 @@ public class GameManager : MonoBehaviour
             return;
         }
 
+        if (BattleLinkTransition.IsActive)
+            return;
+
         ThreatTier threatTier = currentRunGraph != null
             ? ThreatTierRules.ClampTier(currentRunGraph.threatTier)
             : ThreatTierRules.ClampTier(currentThreatTier);
-        currentOpponentParty.Clear();
-        string bossSpeciesCodeName = e.Node.nodeType == NodeType.Boss ? CurrentBossSpeciesCodeName : null;
-        currentOpponentParty.AddRange(EncounterFactory.CreateParty(currentRunSeed, e.Node, threatTier, bossSpeciesCodeName));
-        currentOpponent = currentOpponentParty.Count > 0
-            ? currentOpponentParty[0]
-            : EncounterFactory.Create(currentRunSeed, e.Node, threatTier, bossSpeciesCodeName);
-        GoTo(GameScene.TheArena);
+        GridNode encounterNode = e.Node;
+        string bossSpeciesCodeName = encounterNode.nodeType == NodeType.Boss ? CurrentBossSpeciesCodeName : null;
+        string encounterLabel = BuildBattleTransitionEncounterLabel(encounterNode);
+        string riskLabel = BuildBattleTransitionRiskLabel(encounterNode);
+
+        BattleLinkTransition.Play(
+            encounterLabel,
+            riskLabel,
+            () =>
+            {
+                currentOpponentParty.Clear();
+                currentOpponentParty.AddRange(EncounterFactory.CreateParty(currentRunSeed, encounterNode, threatTier, bossSpeciesCodeName));
+                currentOpponent = currentOpponentParty.Count > 0
+                    ? currentOpponentParty[0]
+                    : EncounterFactory.Create(currentRunSeed, encounterNode, threatTier, bossSpeciesCodeName);
+            },
+            () => GoTo(GameScene.TheArena));
+    }
+
+    private static string BuildBattleTransitionEncounterLabel(GridNode node)
+    {
+        if (node == null)
+            return "ENCOUNTER";
+
+        return $"{BattleTransitionNodeTypeLabel(node.nodeType)} // {node.id.ToUpperInvariant()}";
+    }
+
+    private static string BuildBattleTransitionRiskLabel(GridNode node)
+    {
+        if (node == null)
+            return "RISK UNKNOWN";
+
+        int danger = Mathf.Clamp(node.dangerRating, 1, ThreatTierRules.MaxTier);
+        int level = Mathf.Max(1, node.encounterLevel);
+        return $"D{danger} // LV {level:00} // {BattleTransitionNodeTypeLabel(node.nodeType)}";
+    }
+
+    private static string BattleTransitionNodeTypeLabel(NodeType nodeType)
+    {
+        switch (nodeType)
+        {
+            case NodeType.Combat:
+                return "WILD";
+            case NodeType.Hacker:
+                return "BREACH";
+            case NodeType.Elite:
+                return "ELITE";
+            case NodeType.Boss:
+                return "BOSS";
+            default:
+                return nodeType.ToString().ToUpperInvariant();
+        }
     }
 
     public bool EnsureCurrentRunHasEarlyHacker()

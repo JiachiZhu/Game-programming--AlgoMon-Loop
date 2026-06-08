@@ -2398,7 +2398,6 @@ public class BattleManager : MonoBehaviour
         else
         {
             builder.AppendLine($"NODE: {reward.sourceNodeType.ToString().ToUpperInvariant()} | T{reward.threatTier} | LV {reward.encounterLevel}");
-            builder.AppendLine($"USER EXP +{reward.playerExp}");
             builder.AppendLine($"ALGOMON EXP +{reward.algoMonExp}");
             builder.AppendLine($"COMPUTE +{reward.compute}");
 
@@ -2415,8 +2414,6 @@ public class BattleManager : MonoBehaviour
             else if (reward.shouldGrantEvolutionData)
                 builder.AppendLine("LEGACY EVOLUTION DATA SKIPPED");
 
-            if (reward.rewardMultiplierPercent != 100)
-                builder.AppendLine($"REWARD MULTIPLIER: {reward.rewardMultiplierPercent}%");
         }
 
         builder.AppendLine();

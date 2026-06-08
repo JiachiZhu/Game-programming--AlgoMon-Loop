@@ -4196,7 +4196,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2365485371853573033, guid: 6d2d4eab16bdd7a4d9b38b9cd5ae23ee, type: 3}
       propertyPath: m_FontData.m_FontSize
-      value: 18
+      value: 16
       objectReference: {fileID: 0}
     - target: {fileID: 2385915936341037459, guid: 6d2d4eab16bdd7a4d9b38b9cd5ae23ee, type: 3}
       propertyPath: m_Color.a
@@ -4392,7 +4392,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3290209825021265719, guid: 6d2d4eab16bdd7a4d9b38b9cd5ae23ee, type: 3}
       propertyPath: m_FontData.m_FontSize
-      value: 18
+      value: 16
       objectReference: {fileID: 0}
     - target: {fileID: 3329169017033832801, guid: 6d2d4eab16bdd7a4d9b38b9cd5ae23ee, type: 3}
       propertyPath: m_FontData.m_Font
@@ -5104,7 +5104,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6670329417492183103, guid: 6d2d4eab16bdd7a4d9b38b9cd5ae23ee, type: 3}
       propertyPath: m_FontData.m_FontSize
-      value: 18
+      value: 16
       objectReference: {fileID: 0}
     - target: {fileID: 6796483046207678124, guid: 6d2d4eab16bdd7a4d9b38b9cd5ae23ee, type: 3}
       propertyPath: m_FontData.m_MinSize
@@ -5112,7 +5112,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6796483046207678124, guid: 6d2d4eab16bdd7a4d9b38b9cd5ae23ee, type: 3}
       propertyPath: m_FontData.m_FontSize
-      value: 18
+      value: 16
       objectReference: {fileID: 0}
     - target: {fileID: 6887211495510118292, guid: 6d2d4eab16bdd7a4d9b38b9cd5ae23ee, type: 3}
       propertyPath: m_FontData.m_Font
@@ -5464,7 +5464,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8304571045896200615, guid: 6d2d4eab16bdd7a4d9b38b9cd5ae23ee, type: 3}
       propertyPath: m_FontData.m_FontSize
-      value: 18
+      value: 16
       objectReference: {fileID: 0}
     - target: {fileID: 8330126001584600690, guid: 6d2d4eab16bdd7a4d9b38b9cd5ae23ee, type: 3}
       propertyPath: m_SizeDelta.x
@@ -6065,6 +6065,9 @@ MonoBehaviour:
   unlockAllThreatTiersForVerticalSlice: 1
   depthTierPseudoSprites: []
   backArrowSprite: {fileID: 21300000, guid: 407110e6e9c244d49af82f29d6f5ff27, type: 3}
+  panelButtonNormalSprite: {fileID: 0}
+  panelButtonHighlightedSprite: {fileID: 0}
+  panelButtonPressedSprite: {fileID: 0}
   slotNormalSprite: {fileID: 21300000, guid: 6a025e5a34b302a43a543b541b6b1756, type: 3}
   slotSelectedSprite: {fileID: 21300000, guid: 41733fca2df5c3b429adacb3a2e6eaaf, type: 3}
   slotEpicSprite: {fileID: 21300000, guid: e00b12b3230beff468f0872b10ec8965, type: 3}

@@ -331,6 +331,9 @@ Recommended priority path:
 
 ### DAG Generation Defaults
 
+Historical Sprint 3 prototype defaults are kept here for audit context. Current
+runtime route length is Depth Tier-based; see `Docs/GridDesign.md`.
+
 | Parameter | Proposed | Rationale |
 |---|---|---|
 | Layers (depth) | 6-7 | Long enough to feel like a run, short enough to playtest end-to-end in under 10 minutes. |

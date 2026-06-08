@@ -43,7 +43,7 @@ public class AlgoMonInstance
     [Header("Software Progress")]
     [Range(1, MAX_LEVEL)] public int level = 1;
     public int exp = 0;
-    public int expToNextLevel => level * level * 4;
+    public int expToNextLevel => ExpRequiredForNextLevel(level);
 
     [Header("Known Skills")]
     [Tooltip("Skills currently loaded into this AlgoMon's active slots. " +
@@ -84,6 +84,23 @@ public class AlgoMonInstance
     public bool IsBaseForm
     {
         get { return !IsEvolvedForm; }
+    }
+
+    public static int ExpRequiredForNextLevel(int currentLevel)
+    {
+        int clampedLevel = Mathf.Clamp(currentLevel, 1, MAX_LEVEL - 1);
+
+        if (clampedLevel <= 10)
+            return 60 + clampedLevel * 14;
+
+        if (clampedLevel <= 30)
+        {
+            int midLevel = clampedLevel - 10;
+            return 200 + midLevel * 35 + midLevel * midLevel * 4;
+        }
+
+        int lateLevel = clampedLevel - 30;
+        return 2500 + lateLevel * 120 + lateLevel * lateLevel * 18;
     }
 
     public int FusionProgress
