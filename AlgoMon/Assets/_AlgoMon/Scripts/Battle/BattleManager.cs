@@ -1260,6 +1260,8 @@ public class BattleManager : MonoBehaviour
             EmitLog($"{previous.Name}'s temporary effects clear on switch.");
         Announce("Switch", $"{previous.Name} -> {next.Name}");
         RefreshHud();
+        if (presentation != null)
+            yield return presentation.PlaySwitchReveal(playerSide ? PlayerPresentationId : EnemyPresentationId);
         if (logLineDelay > 0f)
             yield return new WaitForSeconds(logLineDelay);
     }
@@ -2452,7 +2454,7 @@ public class BattleManager : MonoBehaviour
             : HasSwitchTarget(playerParty, player));
         hud.SetActionButtonAvailable(BattleHudController.ActionButton.Recharge, canAct && !switchRequired);
         hud.SetActionButtonAvailable(BattleHudController.ActionButton.Bag, canAct && !switchRequired);
-        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Switch, canAct && !switchRequired);
+        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Switch, canSwitch && !switchRequired);
         hud.SetActionButtonAvailable(BattleHudController.ActionButton.Flee, canAct && !switchRequired);
 
         hud.SetActionHover(BattleHudController.ActionButton.Recharge, "Recharge", "+5 CP\nSpend the turn to restore CP.");

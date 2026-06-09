@@ -69,7 +69,7 @@ MonoBehaviour:
   normalizeProfileVisualHeight: 1
   targetProfileVisualHeight: 2.25
   minimumProfileScaleMultiplier: 0.45
-  maximumProfileScaleMultiplier: 2.2
+  maximumProfileScaleMultiplier: 2.8
   faceReturnDirectionForSmoothMovement: 1
 --- !u!114 &100003
 MonoBehaviour:

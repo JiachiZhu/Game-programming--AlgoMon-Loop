@@ -196,6 +196,8 @@ AlgoMon-Loop/
 | Main menu cover and battle background | ChatGPT Image 2 | Project-specific generated UI/background art |
 | Element icons | Gemini 3.1 Pro / Nano Banana | Project-specific generated element badge artwork |
 | AlgoMon battle animation frames | PixelLab | Project-specific pixel-style sprite animation frames |
+| Battle action effect animations | [Super Pixel Effects Pack 2 by unTied Games](https://untiedgames.itch.io/super-pixel-effects-pack-2) | Used for AlgoMon attack/guard effects (claw, electric burst, fire burst, explosion, splatter, magic swirl). License: attribution required, no reselling the asset itself; commercial and non-commercial use OK. |
+| Heapion & Overflux attack effects | [Combat Effects 6 — 2D Pixel Art VFX Pack by Pozac](https://pozac.itch.io/combat-effects-6-2d-pixel-art-vfx-pack) | Effect 1 (6 frames) for Heapion's base attack; Effect 3 (12 frames) for Overflux's base attack. Paid itch.io pack; confirm exact license terms before final submission. |
 | Pixel-art editing and Aseprite import workflow | Aseprite prebuilt GitHub build + Unity 2D Aseprite package | Used as the pixel-art canvas/editor workflow for sprite cleanup, frame editing, and Unity import support |
 | UI icons | [Lucide Icons](https://lucide.dev/) | Used under the ISC License |
 | Fonts | [Nico Font Pack by Emily Huo](https://emhuo.itch.io/nico-pixel-fonts-pack) | Used under the SIL Open Font License 1.1 |

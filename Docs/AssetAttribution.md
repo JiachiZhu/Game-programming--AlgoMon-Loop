@@ -4,7 +4,7 @@ This file tracks third-party, generated, and externally assisted assets used by
 AlgoMon. It is meant as the citation checklist for reports, presentations, and
 final submission packaging.
 
-Last reviewed: 2026-06-07
+Last reviewed: 2026-06-09
 
 For the generated list of assets that are currently referenced, loaded, or
 packaged by the project, see `Docs/UsedAssetInventory.md` and
@@ -36,6 +36,7 @@ needing confirmation as follow-up work before final submission.
 | Pixel UI & HUD MainTerminal UI sprites | `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/**`, including `Buttons/Blue/ButtonE_Unpressed.png`, `ButtonStone_Highlighted.png`, and `ButtonF_Pressed.png` | [Pixel UI & HUD Pack](https://deadrevolver.itch.io/pixel-ui-hud-pack) by Dead Revolver, obtained from an itch.io purchase for this project; local source `C:\Users\rog\OneDrive\桌面\游戏编程\Pixel UI & HUD` | Imported UI sprites used for MainTerminal panel frames, selectors, grid/select states, skill-tree pieces, value bars, tooltips, and the Payload/Squad command-button states. Keep Dead Revolver credit, purchase/license evidence, and purchaser permission evidence if bought via another account. | Source confirmed by project author on 2026-06-06; local readme names Dead Revolver. |
 | PRO Cyberpunk HUD System PNG assets | `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/**`, `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/InventorySlots/cyber_slot_*.png` (generator: `Docs/tools/pro_cyberpunk_slots_export.py`) | "PRO Cyberpunk HUD System - Godot 4 Animated UI" by DJY66 / GameSupply; local source `Cyberpunk_HUD_PNG_Assets_Only` | Local license says assets may be used and modified in personal/commercial projects, but may not be resold, redistributed, repackaged, or uploaded as a competing asset pack. Used for MainTerminal cyber HUD panels, frames, icons, deco, progress pieces, the Payload talent-bar fill, and PRO-derived Payload storage-grid slot states. | Confirmed from local `CyberpunkHUD_License.txt` and `CyberpunkHUD_README_PNG_ONLY.txt`; keep purchase/download evidence. Payload slot states were regenerated from `CyberpunkHUD/slot_item_bg.png` on 2026-06-06 to avoid relying on unclear free-pack commercial terms. |
 | Monster base oval pedestal | `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/Inspector/UI_MonsterBase_Oval.png` | PixelLab generation by the project author | Project-specific generated output. Used as the Payload inspector pedestal beneath the selected AlgoMon idle sprite. Keep AI-generation disclosure in report. | Confirmed by project author on 2026-06-06. |
+| Super Pixel Effects Pack 2 battle effects | `AlgoMon/Assets/_AlgoMon/Resources/Effects/{SortexBaseClawLargeBlue,SortexBaseElectricBurstLargeBlue,OverfluxBaseFireBurstSmallOrange,OverfluxEvolvedExplosionLargeRed,OverfluxSplatterLargeRed,NullbyteBaseSplatterLargeBlue,RecursixBaseFireBurstLargeGreen,RecursixEvolvedMagicSwirlLargeGreen}/**` | [Super Pixel Effects Pack 2 by unTied Games](https://untiedgames.itch.io/super-pixel-effects-pack-2); local source `C:\Users\rog\OneDrive\桌面\游戏编程\Super Pixel Effects Pack 2` | Animated pixel effects used as AlgoMon attack/guard action effects. License: attribution required, no reselling the asset itself, commercial and non-commercial use OK; pack page states no generative AI was used. Frames imported as individual sprite sequences; the `RecursixEvolvedMagicSwirlLargeGreen` swirl is subsampled to every other source frame (26 of 52). | Confirmed from local `readme.txt` and the itch.io page on 2026-06-09. Keep purchase/download evidence. |
 | Unity packages from registry | `AlgoMon/Packages/manifest.json`, `AlgoMon/Packages/packages-lock.json` | Unity Package Manager | Unity package terms/licenses apply. | Confirmed by package manifest/lock file. |
 | Git package: UOS Launcher | `AlgoMon/Packages/manifest.json`, `AlgoMon/Assets/UOSLauncherEncrypt/` | `https://cnb.cool/unity/uos/UOSLauncher.git` | Check upstream package license before redistribution. | Source URL recorded in manifest. |
 | Git package: Unity MCP plugin | `AlgoMon/Packages/manifest.json` | `https://github.com/AnkleBreaker-Studio/unity-mcp-plugin.git` | Check upstream package license before redistribution. | Source URL recorded in manifest. |
@@ -45,6 +46,8 @@ needing confirmation as follow-up work before final submission.
 | Asset or package | Project paths | Current source note | Required confirmation |
 |---|---|---|---|
 | Payload panel frame exports | `AlgoMon/Assets/_AlgoMon/Sprites/UI/MainTerminal/Inspector/PanelFrame01.png`, `PanelFrame03.png` | Exported from frame 1 and frame 3 of local `C:\Users\rog\OneDrive\桌面\游戏编程\panel.aseprite`, then cropped to its visible panel bounds for Unity UI stretching. | Confirm whether `panel.aseprite` is project-created, AI-generated, or derived from a licensed third-party pack. Once confirmed, move this row into the confirmed table with the correct license/source note. |
+| Numbered battle effects | `AlgoMon/Assets/_AlgoMon/Resources/Effects/{SortexEvolvedEffect31,NullbyteBaseEffect26,CachelonBaseEffect29,SortexGuardStatusEffect16}/**` | Folder naming (`EffectNN`) does not match Super Pixel Effects Pack 2's descriptive scheme; likely sourced from unTied Games' earlier "Super Pixel Effects" pack, but not yet confirmed. | Confirm the exact source pack and license for these numbered effects before final submission, then move into the confirmed table. |
+| Heapion & Overflux base attack effects | `AlgoMon/Assets/_AlgoMon/Resources/Effects/{HeapionBaseCombatEffect1,OverfluxBaseCombatEffect3}/**` | [Combat Effects 6 — 2D Pixel Art VFX Pack by Pozac](https://pozac.itch.io/combat-effects-6-2d-pixel-art-vfx-pack); local source `C:\Users\rog\OneDrive\桌面\游戏编程\Beat 'em Up Combat Effects – 2D Pixel Art VFX Pack 6`. "Effect 1" (6 frames, Heapion) and "Effect 3" (12 frames, Overflux) imported as sprite sequences. | Paid itch.io pack with no explicit license file shipped in the download. Confirm the exact usage license with Pozac (page/EULA) and keep purchase evidence before final submission. |
 
 ## Recommended Citation Text
 
@@ -64,7 +67,9 @@ sources above:
 > 3.1 Pro / Nano Banana. The MainTerminal typing-character loop, main menu
 > cover, and battle background were generated with ChatGPT Image 2. MainTerminal
 > UI sprites also use PRO Cyberpunk HUD System PNG assets by DJY66/GameSupply
-> and Pixel UI & HUD by Dead Revolver.
+> and Pixel UI & HUD by Dead Revolver. Battle action effect animations use
+> Super Pixel Effects Pack 2 by unTied Games (attribution required, no reselling
+> the asset itself).
 
 ## Before Final Submission
 

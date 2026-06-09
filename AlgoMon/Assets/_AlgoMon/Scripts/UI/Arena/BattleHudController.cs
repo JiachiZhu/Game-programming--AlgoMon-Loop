@@ -66,6 +66,15 @@ public class BattleHudController : MonoBehaviour
     private static readonly Vector2 AnnouncerAnchorMin = new Vector2(0.30f, 0.805f);
     private static readonly Vector2 AnnouncerAnchorMax = new Vector2(0.70f, 0.925f);
 
+    // --- Unified HUD panel chrome (dark translucent fill + cyan pixel border) ---
+    // A single procedural 9-slice sprite is shared by every battle panel so the
+    // skill bar, top prompt, status cards, and log/action area read as one
+    // cyber-glass family. Generated once and cached for the editor session.
+    private static readonly Color HudPanelFill   = new Color(0.039f, 0.063f, 0.090f, 0.93f);
+    private static readonly Color32 HudPanelBorder = new Color32(78, 206, 230, 255);
+    private static readonly Color HudPanelGlow   = new Color(0.30f, 0.80f, 0.94f, 0.45f);
+    private static Sprite hudPanelSprite;
+
     [Header("Resource Animation")]
     [SerializeField, Min(0f)] private float batteryLerpSpeed = 8f;
     [SerializeField, Min(0f)] private float cpLerpSpeed = 12f;
@@ -233,6 +242,7 @@ public class BattleHudController : MonoBehaviour
         enemy  = BindCombatant("SafeArea/CombatLayer/EnemyCombatantPanel");
         playerDisplay = default;
         enemyDisplay = default;
+        ApplyUnifiedPanelChrome();
         EnsureSkillPanelPresentation();
 
         for (int i = 0; i < MaxSkillSlots; i++)
@@ -943,27 +953,25 @@ public class BattleHudController : MonoBehaviour
         if (panelImage == null)
             return;
 
+        // SkillPanelBackdropSprite() is still consulted as the flag that drives
+        // the transparent-slot layout below; the panel itself now wears the
+        // shared cyber-glass chrome so the skill bar matches every other panel.
         Sprite backdrop = SkillPanelBackdropSprite();
         if (backdrop == null)
             return;
 
-        bool needsPanelApply = !skillPanelPresentationApplied || panelImage.sprite != backdrop || panelImage.color != Color.white;
+        Sprite chrome = HudPanelSprite();
+        bool needsPanelApply = !skillPanelPresentationApplied || panelImage.sprite != chrome || panelImage.color != Color.white;
         if (!needsPanelApply && skillPanelSlotLayoutApplied)
             return;
 
         if (needsPanelApply)
         {
-            panelImage.sprite = backdrop;
-            panelImage.type = Image.Type.Simple;
+            ApplyPanelChrome(panelImage);
             panelImage.preserveAspect = false;
-            panelImage.color = Color.white;
             panelImage.raycastTarget = false;
             skillPanelSlotLayoutApplied = false;
         }
-
-        Outline outline = panelImage.GetComponent<Outline>();
-        if (outline != null)
-            outline.enabled = false;
 
         skillPanelPresentationApplied = true;
         if (!skillPanelSlotLayoutApplied)
@@ -1348,6 +1356,114 @@ public class BattleHudController : MonoBehaviour
         image.color = new Color(0f, 0f, 0f, 0f);
     }
 
+    /// <summary>
+    /// Builds (and caches) the shared 9-slice HUD panel sprite: a dark
+    /// translucent fill wrapped in a 2px cyan pixel border with chamfered
+    /// corners. Purely procedural so no art asset or scene edit is needed and
+    /// the look is identical across every battle panel.
+    /// </summary>
+    private static Sprite HudPanelSprite()
+    {
+        if (hudPanelSprite != null)
+            return hudPanelSprite;
+
+        const int size = 28;
+        const int chamfer = 5; // diagonal corner cut, in pixels
+        const int border = 2;  // straight + diagonal edge thickness
+        const int slice = chamfer + border; // 9-slice margin keeps corners crisp
+
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+        };
+
+        Color fill = HudPanelFill;
+        Color edge = (Color)HudPanelBorder;
+        Color clear = new Color(0f, 0f, 0f, 0f);
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                int l = x;
+                int r = size - 1 - x;
+                int b = y;
+                int t = size - 1 - y;
+
+                // Chamfered corners: cut a diagonal wedge out of each corner.
+                bool cut = (l + b < chamfer) || (r + b < chamfer) ||
+                           (l + t < chamfer) || (r + t < chamfer);
+                if (cut)
+                {
+                    texture.SetPixel(x, y, clear);
+                    continue;
+                }
+
+                bool diagonalEdge = (l + b < chamfer + border) || (r + b < chamfer + border) ||
+                                    (l + t < chamfer + border) || (r + t < chamfer + border);
+                int straight = Mathf.Min(Mathf.Min(l, r), Mathf.Min(b, t));
+                bool straightEdge = straight < border;
+
+                texture.SetPixel(x, y, diagonalEdge || straightEdge ? edge : fill);
+            }
+        }
+
+        texture.Apply();
+        hudPanelSprite = Sprite.Create(
+            texture,
+            new Rect(0, 0, size, size),
+            new Vector2(0.5f, 0.5f),
+            100f,
+            0,
+            SpriteMeshType.FullRect,
+            new Vector4(slice, slice, slice, slice));
+        hudPanelSprite.name = "HudPanelChrome";
+        return hudPanelSprite;
+    }
+
+    /// <summary>
+    /// Skins a panel background Image with the shared cyber-glass chrome and a
+    /// soft cyan outline glow. Leaves raycast/interaction state untouched.
+    /// </summary>
+    private static void ApplyPanelChrome(Image image)
+    {
+        if (image == null)
+            return;
+
+        image.sprite = HudPanelSprite();
+        image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = 1.5f;
+        image.color = Color.white;
+        EnsureGlow(image.gameObject);
+    }
+
+    private static void EnsureGlow(GameObject target)
+    {
+        if (target == null)
+            return;
+
+        Outline glow = target.GetComponent<Outline>();
+        if (glow == null)
+            glow = target.AddComponent<Outline>();
+        glow.effectColor = HudPanelGlow;
+        glow.effectDistance = new Vector2(2f, -2f);
+        glow.useGraphicAlpha = false;
+        glow.enabled = true;
+    }
+
+    private void ApplyUnifiedPanelChrome()
+    {
+        ApplyPanelChrome(Find<Image>("SafeArea/TopBar"));
+        ApplyPanelChrome(Find<Image>("SafeArea/CombatLayer/PlayerCombatantPanel"));
+        ApplyPanelChrome(Find<Image>("SafeArea/CombatLayer/EnemyCombatantPanel"));
+        ApplyPanelChrome(Find<Image>("SafeArea/CommandPanel/ActionPanel"));
+        ApplyPanelChrome(Find<Image>("SafeArea/CommandPanel/ActionPanel/SkillDetailPanel"));
+        // SkillPanel chrome is applied inside EnsureSkillPanelPresentation, and
+        // the BattleAnnouncer inside ConfigureAnnouncerFrame, so their own
+        // update paths don't overwrite it.
+    }
+
     private static void EnsureShadow(GameObject target, Color color, Vector2 distance)
     {
         if (target == null)
@@ -1388,17 +1504,10 @@ public class BattleHudController : MonoBehaviour
         if (announcerFrame == null)
             return;
 
-        Sprite panelSprite = AnnouncerPanelSprite();
-        if (panelSprite != null)
-        {
-            announcerFrame.sprite = panelSprite;
-            announcerFrame.type = Image.Type.Sliced;
-            announcerFrame.pixelsPerUnitMultiplier = 2.5f;
-            announcerFrame.color = Color.white;
-            return;
-        }
-
-        announcerFrame.color = announcerFrameBaseColor;
+        // Top prompt now shares the unified dark cyber-glass chrome instead of
+        // the old large green panel. The brief green pulse in
+        // ApplyAnnouncerFrameColor is kept as the only small green accent.
+        ApplyPanelChrome(announcerFrame);
     }
 
     private void UpdateAnnouncerPulse()

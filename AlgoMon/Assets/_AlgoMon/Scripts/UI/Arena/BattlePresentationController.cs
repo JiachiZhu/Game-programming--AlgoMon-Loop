@@ -20,6 +20,23 @@ using UnityEngine;
 [DisallowMultipleComponent]
 public class BattlePresentationController : MonoBehaviour
 {
+    [System.Serializable]
+    private class BattleActionEffectBinding
+    {
+        public string codeName = "Sortex";
+        public string formName = "Base";
+        public InstructionType instructionType = InstructionType.Attack;
+        public string resourcePath;
+        [Min(1f)] public float framesPerSecond = 28f;
+        [Min(0.01f)] public float scale = 2f;
+        public Vector3 offset;
+        public Color color = Color.white;
+        public int sortingBoost = 16;
+        [Min(0f)] public float startDelay = 0f;
+
+        [System.NonSerialized] public Sprite[] cachedFrames;
+    }
+
     [Header("Combatants")]
     // Sprint 2 uses the fixed TheArena matchup. Party switching should replace
     // these static ids with runtime combatant registration.
@@ -76,6 +93,13 @@ public class BattlePresentationController : MonoBehaviour
     [Tooltip("Safety window for suppressing the real damage event's lunge after the counter clash already played it.")]
     [SerializeField, Min(0f)] private float counterActionSuppressSeconds = 12f;
 
+    [Header("Switch Reveal")]
+    [SerializeField, Min(0f)] private float switchRevealDuration = 0.48f;
+    [SerializeField] private Color switchRevealFeedbackColor = new Color(0.62f, 0.95f, 1f);
+
+    [Header("Battle Action Effects")]
+    [SerializeField] private BattleActionEffectBinding[] actionEffectBindings;
+
     private static readonly Vector3[] FeedbackOffsets =
     {
         new Vector3(-0.28f, 0.10f, 0f),
@@ -115,15 +139,21 @@ public class BattlePresentationController : MonoBehaviour
         new Dictionary<string, float>();
     private readonly Dictionary<string, float> hitReactionSuppressUntil =
         new Dictionary<string, float>();
+    private string registeredPlayerCodeName = "Sortex";
+    private string registeredEnemyCodeName = "Cachelon";
+    private string registeredPlayerFormName = "Base";
+    private string registeredEnemyFormName = "Base";
 
     private void Awake()
     {
+        EnsureActionEffectDefaults();
         EnsureBitmapFontDefaults();
         AutoBind();
     }
 
     private void OnValidate()
     {
+        EnsureActionEffectDefaults();
         EnsureBitmapFontDefaults();
     }
 
@@ -220,6 +250,205 @@ public class BattlePresentationController : MonoBehaviour
             textFeedbackFontSize = 64;
     }
 
+    private void EnsureActionEffectDefaults()
+    {
+        if (actionEffectBindings != null && actionEffectBindings.Length > 0)
+            return;
+
+        actionEffectBindings = new[]
+        {
+            CreateActionEffect(
+                "Sortex",
+                "Base",
+                InstructionType.Attack,
+                "Effects/SortexBaseClawLargeBlue",
+                34f,
+                3.35f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Sortex",
+                "Base",
+                InstructionType.Attack,
+                "Effects/SortexBaseElectricBurstLargeBlue",
+                38f,
+                3.6f,
+                Vector3.zero,
+                Color.white,
+                20),
+            CreateActionEffect(
+                "Sortex",
+                "Evolved",
+                InstructionType.Attack,
+                "Effects/SortexEvolvedEffect31",
+                30f,
+                0.95f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Overflux",
+                "Base",
+                InstructionType.Attack,
+                "Effects/OverfluxBaseCombatEffect3",
+                24f,
+                2.6f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Overflux",
+                "Evolved",
+                InstructionType.Attack,
+                "Effects/OverfluxEvolvedExplosionLargeRed",
+                30f,
+                2.4f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Overflux",
+                "Base",
+                InstructionType.Attack,
+                "Effects/OverfluxSplatterLargeRed",
+                28f,
+                3.0f,
+                Vector3.zero,
+                Color.white,
+                21,
+                0f),
+            CreateActionEffect(
+                "Overflux",
+                "Evolved",
+                InstructionType.Attack,
+                "Effects/OverfluxSplatterLargeRed",
+                28f,
+                3.7f,
+                Vector3.zero,
+                Color.white,
+                21,
+                0.28f),
+            CreateActionEffect(
+                "Nullbyte",
+                "Base",
+                InstructionType.Attack,
+                "Effects/NullbyteBaseEffect26",
+                32f,
+                2.55f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Cachelon",
+                "Base",
+                InstructionType.Attack,
+                "Effects/CachelonBaseEffect29",
+                32f,
+                2.55f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Recursix",
+                "Base",
+                InstructionType.Attack,
+                "Effects/RecursixBaseFireBurstLargeGreen",
+                32f,
+                3.3f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Recursix",
+                "Evolved",
+                InstructionType.Attack,
+                "Effects/RecursixEvolvedMagicSwirlLargeGreen",
+                40f,
+                2.4f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Heapion",
+                "Base",
+                InstructionType.Attack,
+                "Effects/HeapionBaseCombatEffect1",
+                18f,
+                2.6f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Sortex",
+                "Base",
+                InstructionType.Defense,
+                "Effects/SortexGuardStatusEffect16",
+                30f,
+                1.35f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Sortex",
+                "Base",
+                InstructionType.Status,
+                "Effects/SortexGuardStatusEffect16",
+                30f,
+                1.35f,
+                Vector3.zero,
+                new Color(0.72f, 0.88f, 1f, 1f),
+                22),
+            CreateActionEffect(
+                "Sortex",
+                "Evolved",
+                InstructionType.Defense,
+                "Effects/SortexGuardStatusEffect16",
+                30f,
+                1.55f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Sortex",
+                "Evolved",
+                InstructionType.Status,
+                "Effects/SortexGuardStatusEffect16",
+                30f,
+                1.55f,
+                Vector3.zero,
+                new Color(0.72f, 0.88f, 1f, 1f),
+                22),
+        };
+    }
+
+    private static BattleActionEffectBinding CreateActionEffect(
+        string codeName,
+        string formName,
+        InstructionType instructionType,
+        string resourcePath,
+        float framesPerSecond,
+        float scale,
+        Vector3 offset,
+        Color color,
+        int sortingBoost,
+        float startDelay = 0f)
+    {
+        return new BattleActionEffectBinding
+        {
+            codeName = codeName,
+            formName = formName,
+            instructionType = instructionType,
+            resourcePath = resourcePath,
+            framesPerSecond = framesPerSecond,
+            scale = scale,
+            offset = offset,
+            color = color,
+            sortingBoost = sortingBoost,
+            startDelay = startDelay,
+        };
+    }
+
     public void RegisterCombatants(
         string playerCombatantId,
         string enemyCombatantId,
@@ -234,6 +463,10 @@ public class BattlePresentationController : MonoBehaviour
             playerId = playerCombatantId;
         if (!string.IsNullOrWhiteSpace(enemyCombatantId))
             enemyId = enemyCombatantId;
+        registeredPlayerCodeName = !string.IsNullOrWhiteSpace(playerCodeName) ? playerCodeName.Trim() : playerId;
+        registeredEnemyCodeName = !string.IsNullOrWhiteSpace(enemyCodeName) ? enemyCodeName.Trim() : enemyId;
+        registeredPlayerFormName = !string.IsNullOrWhiteSpace(playerFormName) ? playerFormName.Trim() : defaultAnimationForm;
+        registeredEnemyFormName = !string.IsNullOrWhiteSpace(enemyFormName) ? enemyFormName.Trim() : defaultAnimationForm;
 
         BattleAnimationProfile resolvedPlayerProfile =
             ResolveProfile(playerAnimationProfileOverride, playerProfile, playerCodeName, playerId, playerFormName);
@@ -281,6 +514,198 @@ public class BattlePresentationController : MonoBehaviour
             animator.SetAnimationProfile(profile);
     }
 
+    public IEnumerator PlaySwitchReveal(string combatantId)
+    {
+        BattleSpriteAnimator animator = AnimatorFor(combatantId);
+        if (animator == null)
+            yield break;
+
+        SpawnUtilityFeedback(animator, "SWITCH", switchRevealFeedbackColor);
+        yield return animator.PlaySwitchReveal(switchRevealDuration);
+    }
+
+    private IEnumerator PlayActionEffectAtMarker(
+        string actorId,
+        InstructionType instructionType,
+        BattleSpriteAnimator actor,
+        BattleSpriteAnimator target)
+    {
+        List<BattleActionEffectBinding> bindings = ActionEffectsForCombatant(actorId, instructionType);
+        if (bindings == null || bindings.Count == 0 || actor == null)
+            yield break;
+
+        float delay = 0f;
+        BattleAnimationState state = StateForInstruction(instructionType);
+        if (actor.TryGetActionMarkerDelay(state, out float markerDelay))
+            delay = markerDelay;
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+
+        for (int i = 0; i < bindings.Count; i++)
+            StartCoroutine(SpawnAndPlayActionEffect(bindings[i], instructionType, actor, target));
+    }
+
+    private IEnumerator SpawnAndPlayActionEffect(
+        BattleActionEffectBinding binding,
+        InstructionType instructionType,
+        BattleSpriteAnimator actor,
+        BattleSpriteAnimator target)
+    {
+        if (binding == null || actor == null)
+            yield break;
+
+        Sprite[] frames = ActionEffectFrames(binding);
+        if (frames == null || frames.Length == 0)
+            yield break;
+
+        if (binding.startDelay > 0f)
+            yield return new WaitForSeconds(binding.startDelay);
+
+        BattleSpriteAnimator effectTarget =
+            instructionType == InstructionType.Attack && target != null ? target : actor;
+        Vector3 position = effectTarget.VisualCenterWorldPosition + binding.offset;
+
+        GameObject go = new GameObject(
+            $"{binding.codeName}{binding.formName}{instructionType}Effect");
+        go.transform.position = position;
+        go.transform.localScale = Vector3.one * binding.scale;
+
+        SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
+        renderer.sprite = frames[0];
+        renderer.color = binding.color;
+        renderer.sortingOrder = effectTarget.MaxBodySortingOrder + binding.sortingBoost;
+        if (instructionType == InstructionType.Attack && target != null)
+            renderer.flipX = target.ContactWorldPosition.x < actor.ContactWorldPosition.x;
+
+        yield return PlayOneShotSpriteEffect(go, renderer, frames, binding.framesPerSecond, binding.color);
+    }
+
+    private IEnumerator PlayOneShotSpriteEffect(
+        GameObject go,
+        SpriteRenderer renderer,
+        Sprite[] frames,
+        float framesPerSecond,
+        Color baseColor)
+    {
+        if (go == null || renderer == null || frames == null || frames.Length == 0)
+            yield break;
+
+        float frameSeconds = 1f / Mathf.Max(1f, framesPerSecond);
+        for (int i = 0; i < frames.Length; i++)
+        {
+            renderer.sprite = frames[i];
+            Color color = baseColor;
+            if (i >= frames.Length - 2)
+                color.a *= Mathf.Lerp(1f, 0.35f, (i - (frames.Length - 2)) / 1f);
+            renderer.color = color;
+
+            float elapsed = 0f;
+            while (elapsed < frameSeconds)
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+        }
+
+        if (go != null)
+            Destroy(go);
+    }
+
+    private Sprite[] ActionEffectFrames(BattleActionEffectBinding binding)
+    {
+        if (binding == null)
+            return null;
+        if (binding.cachedFrames != null)
+            return binding.cachedFrames;
+        if (string.IsNullOrWhiteSpace(binding.resourcePath))
+            return null;
+
+        binding.cachedFrames = Resources.LoadAll<Sprite>(binding.resourcePath);
+        if (binding.cachedFrames != null && binding.cachedFrames.Length > 1)
+        {
+            System.Array.Sort(
+                binding.cachedFrames,
+                (a, b) => string.Compare(a != null ? a.name : string.Empty, b != null ? b.name : string.Empty, System.StringComparison.OrdinalIgnoreCase));
+        }
+
+        return binding.cachedFrames;
+    }
+
+    private List<BattleActionEffectBinding> ActionEffectsForCombatant(string id, InstructionType instructionType)
+    {
+        EnsureActionEffectDefaults();
+        if (actionEffectBindings == null || actionEffectBindings.Length == 0)
+            return null;
+
+        List<BattleActionEffectBinding> matches = null;
+        for (int i = 0; i < actionEffectBindings.Length; i++)
+        {
+            BattleActionEffectBinding binding = actionEffectBindings[i];
+            if (binding == null || binding.instructionType != instructionType)
+                continue;
+            if (!MatchesCombatantProfile(id, binding.codeName, binding.formName))
+                continue;
+            if (matches == null)
+                matches = new List<BattleActionEffectBinding>();
+            matches.Add(binding);
+        }
+
+        return matches;
+    }
+
+    private bool MatchesCombatantProfile(string id, string codeName, string formName)
+    {
+        if (string.IsNullOrEmpty(id))
+            return false;
+        if (string.Equals(id, playerId, System.StringComparison.Ordinal) ||
+            string.Equals(id, "Player", System.StringComparison.Ordinal))
+        {
+            return MatchesRegisteredProfile(registeredPlayerCodeName, registeredPlayerFormName, codeName, formName);
+        }
+        if (string.Equals(id, enemyId, System.StringComparison.Ordinal) ||
+            string.Equals(id, "Enemy", System.StringComparison.Ordinal))
+        {
+            return MatchesRegisteredProfile(registeredEnemyCodeName, registeredEnemyFormName, codeName, formName);
+        }
+
+        return MatchesRegisteredProfile(id, defaultAnimationForm, codeName, formName);
+    }
+
+    private static bool MatchesRegisteredProfile(
+        string registeredCodeName,
+        string registeredFormName,
+        string expectedCodeName,
+        string expectedFormName)
+    {
+        if (string.IsNullOrWhiteSpace(registeredCodeName) ||
+            string.IsNullOrWhiteSpace(expectedCodeName))
+        {
+            return false;
+        }
+
+        return string.Equals(
+                   registeredCodeName.Trim(),
+                   expectedCodeName.Trim(),
+                   System.StringComparison.OrdinalIgnoreCase) &&
+               FormsMatch(registeredFormName, expectedFormName);
+    }
+
+    private static bool FormsMatch(string left, string right)
+    {
+        string leftForm = string.IsNullOrWhiteSpace(left) ? "Base" : left.Trim();
+        string rightForm = string.IsNullOrWhiteSpace(right) ? "Base" : right.Trim();
+        if (string.Equals(leftForm, rightForm, System.StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return IsEvolvedAlias(leftForm) && IsEvolvedAlias(rightForm);
+    }
+
+    private static bool IsEvolvedAlias(string formName)
+    {
+        return string.Equals(formName, "Evolved", System.StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(formName, "Evolve", System.StringComparison.OrdinalIgnoreCase);
+    }
+
     private BattleAnimationProfile ResolveProfile(
         BattleAnimationProfile overrideProfile,
         BattleAnimationProfile dataProfile,
@@ -320,6 +745,7 @@ public class BattlePresentationController : MonoBehaviour
         }
 
         Vector3 targetPosition = target != null ? target.ContactWorldPosition : actor.ContactWorldPosition;
+        StartCoroutine(PlayActionEffectAtMarker(evt.ActorId, evt.InstructionType, actor, target));
         switch (evt.InstructionType)
         {
             case InstructionType.Attack:

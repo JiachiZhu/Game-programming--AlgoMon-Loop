@@ -45,6 +45,8 @@ public class BattleSpriteAnimator : MonoBehaviour
     [SerializeField, Min(0f)] private float actionLungeDistance = 0.38f;
     [SerializeField, Min(0f)] private float actionDuration = 0.28f;
     [SerializeField, Min(0f)] private float statusPulseDuration = 0.35f;
+    [SerializeField, Min(0f)] private float switchRevealDefaultDuration = 0.48f;
+    [SerializeField, Min(0f)] private float switchRevealScalePop = 0.18f;
     [SerializeField, Range(0f, 1f)] private float contactPerspectiveScaleBlend;
     [SerializeField, Min(0)] private int contactSortingOrderBoost = 4;
 
@@ -52,7 +54,7 @@ public class BattleSpriteAnimator : MonoBehaviour
     [SerializeField] private bool normalizeProfileVisualHeight = true;
     [SerializeField, Min(0.1f)] private float targetProfileVisualHeight = 2.25f;
     [SerializeField, Min(0.05f)] private float minimumProfileScaleMultiplier = 0.45f;
-    [SerializeField, Min(0.05f)] private float maximumProfileScaleMultiplier = 2.20f;
+    [SerializeField, Min(0.05f)] private float maximumProfileScaleMultiplier = 2.80f;
 
     [Header("Profile Movement")]
     [SerializeField] private bool faceReturnDirectionForSmoothMovement = true;
@@ -66,6 +68,9 @@ public class BattleSpriteAnimator : MonoBehaviour
     private float motionFacingSign = 1f;
     private float hitFlash;
     private float statusFlash;
+    private float switchRevealAlpha = 1f;
+    private float switchRevealFlash;
+    private float switchRevealScaleOffset;
     private Color statusColor = Color.white;
     private Color[] baseRendererColors;
     private int[] baseRendererSortingOrders;
@@ -95,6 +100,19 @@ public class BattleSpriteAnimator : MonoBehaviour
         {
             Transform target = body != null ? body : transform;
             return target.position + Vector3.up * 0.9f;
+        }
+    }
+
+    public Vector3 VisualCenterWorldPosition
+    {
+        get
+        {
+            Initialize();
+            if (TryGetVisualBounds(out Bounds bounds))
+                return bounds.center;
+
+            Transform target = body != null ? body : transform;
+            return target.position + Vector3.up * 0.45f;
         }
     }
 
@@ -167,6 +185,8 @@ public class BattleSpriteAnimator : MonoBehaviour
         SpriteRenderer[] renderers,
         SpriteRenderer shadowSpriteRenderer)
     {
+        RestoreRendererBaseColors();
+
         body = bodyTransform;
         primaryRenderer = primarySpriteRenderer;
         bodyRenderers = renderers;
@@ -231,18 +251,19 @@ public class BattleSpriteAnimator : MonoBehaviour
         Vector3 idleOffset = Vector3.up * (wave * idleBobAmplitude);
         float scalePulse = softWave * idleScaleAmplitude;
         Vector3 idleScale = new Vector3(1f + scalePulse, 1f + scalePulse, 1f);
+        Vector3 revealScale = new Vector3(1f + switchRevealScaleOffset, 1f + switchRevealScaleOffset, 1f);
 
         body.localPosition = baseBodyLocalPosition + idleOffset + feedbackOffset;
         Vector3 facingScale = baseBodyLocalScale;
         facingScale.x *= motionFacingSign;
-        body.localScale = Vector3.Scale(facingScale * contactScaleMultiplier, idleScale);
+        body.localScale = Vector3.Scale(facingScale * contactScaleMultiplier, Vector3.Scale(idleScale, revealScale));
         body.localRotation = baseBodyLocalRotation * Quaternion.Euler(0f, 0f, wave * idleTiltDegrees);
 
         if (shadowRenderer != null)
         {
             float shadowPulse = 1f - Mathf.Abs(wave) * 0.06f;
             Color shadowColor = baseShadowColor;
-            shadowColor.a = baseShadowColor.a * shadowPulse;
+            shadowColor.a = baseShadowColor.a * shadowPulse * switchRevealAlpha;
             shadowRenderer.color = shadowColor;
         }
 
@@ -268,12 +289,74 @@ public class BattleSpriteAnimator : MonoBehaviour
         feedbackOffset = Vector3.zero;
         contactScaleMultiplier = 1f;
         motionFacingSign = 1f;
+        ResetSwitchRevealVisuals();
         RestoreSortingOrders();
         fainted = false;
         faintFallbackApplied = false;
         hitFlash = 0f;
         statusFlash = 0f;
         BeginIdleClip();
+    }
+
+    public IEnumerator PlaySwitchReveal(float duration = -1f)
+    {
+        Initialize();
+        if (body == null)
+            yield break;
+
+        StopProfileClip();
+        if (actionRoutine != null)
+            StopCoroutine(actionRoutine);
+        if (hitRoutine != null)
+            StopCoroutine(hitRoutine);
+        if (statusRoutine != null)
+            StopCoroutine(statusRoutine);
+
+        actionRoutine = null;
+        hitRoutine = null;
+        statusRoutine = null;
+        feedbackOffset = Vector3.zero;
+        contactScaleMultiplier = 1f;
+        motionFacingSign = 1f;
+        hitFlash = 0f;
+        statusFlash = 0f;
+        fainted = false;
+        faintFallbackApplied = false;
+        RestoreSortingOrders();
+        BeginIdleClip();
+
+        float revealDuration = duration >= 0f ? duration : switchRevealDefaultDuration;
+        if (revealDuration <= 0f)
+        {
+            ResetSwitchRevealVisuals();
+            yield break;
+        }
+
+        switchRevealAlpha = 0.28f;
+        switchRevealFlash = 1f;
+        switchRevealScaleOffset = Mathf.Max(0f, switchRevealScalePop);
+        ApplyRendererColors();
+        ApplySwitchRevealShadowColor();
+
+        float elapsed = 0f;
+        while (elapsed < revealDuration)
+        {
+            elapsed += Time.deltaTime;
+            float p = Mathf.Clamp01(elapsed / revealDuration);
+            float eased = SmoothStep01(p);
+            float flashFade = 1f - SmoothStep01(Mathf.InverseLerp(0.18f, 0.74f, p));
+            float pulse = Mathf.Abs(Mathf.Sin(p * Mathf.PI * 9f)) * (1f - eased) * 0.28f;
+
+            switchRevealAlpha = Mathf.Lerp(0.28f, 1f, eased);
+            switchRevealFlash = Mathf.Clamp01(flashFade + pulse);
+            switchRevealScaleOffset = Mathf.Lerp(Mathf.Max(0f, switchRevealScalePop), 0f, eased);
+            yield return null;
+        }
+
+        ResetSwitchRevealVisuals();
+        BeginIdleClip();
+        ApplyRendererColors();
+        ApplySwitchRevealShadowColor();
     }
 
     public bool PlayEntry()
@@ -1049,6 +1132,41 @@ public class BattleSpriteAnimator : MonoBehaviour
         ClearHeldProfileClip();
     }
 
+    private void ResetSwitchRevealVisuals()
+    {
+        switchRevealAlpha = 1f;
+        switchRevealFlash = 0f;
+        switchRevealScaleOffset = 0f;
+    }
+
+    private void RestoreRendererBaseColors()
+    {
+        if (!initialized)
+            return;
+
+        if (bodyRenderers != null && baseRendererColors != null)
+        {
+            for (int i = 0; i < bodyRenderers.Length && i < baseRendererColors.Length; i++)
+            {
+                if (bodyRenderers[i] != null)
+                    bodyRenderers[i].color = baseRendererColors[i];
+            }
+        }
+
+        if (shadowRenderer != null)
+            shadowRenderer.color = baseShadowColor;
+    }
+
+    private void ApplySwitchRevealShadowColor()
+    {
+        if (shadowRenderer == null)
+            return;
+
+        Color shadowColor = baseShadowColor;
+        shadowColor.a = baseShadowColor.a * switchRevealAlpha;
+        shadowRenderer.color = shadowColor;
+    }
+
     private IEnumerator ActionRoutine(Vector3 direction)
     {
         float elapsed = 0f;
@@ -1127,6 +1245,8 @@ public class BattleSpriteAnimator : MonoBehaviour
             Color color = i < baseRendererColors.Length ? baseRendererColors[i] : Color.white;
             color = Color.Lerp(color, statusColor, statusFlash * 0.45f);
             color = Color.Lerp(color, Color.white, hitFlash * 0.75f);
+            color = Color.Lerp(color, Color.white, switchRevealFlash);
+            color.a *= switchRevealAlpha;
             if (faintFallbackApplied)
                 color.a *= 0.45f;
             renderer.color = color;
