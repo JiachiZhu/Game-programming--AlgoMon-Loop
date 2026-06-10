@@ -1123,7 +1123,11 @@ public class BattlePresentationController : MonoBehaviour
         if (counter != null && countered != null)
         {
             SuppressNextCounterAction(evt.CounterId);
-            SuppressNextCounterAction(evt.CounteredId);
+            // A nullified loser never emits its BattleActionEvent; arming a
+            // suppression for it would leak and silently eat the unit's NEXT real
+            // action (no lunge, no VFX) — the "second use does nothing" bug.
+            if (!evt.CounteredCancelled)
+                SuppressNextCounterAction(evt.CounteredId);
             actionMarkerFeedbackTimes.Remove(evt.CounterId);
             actionMarkerFeedbackTimes.Remove(evt.CounteredId);
 
@@ -1432,6 +1436,9 @@ public class BattlePresentationController : MonoBehaviour
             defender);
         if (!heldAttack)
             attacker.PlayAttackToward(defender.ContactWorldPosition, defender);
+        // The attacker's real action event is suppressed during the counter, which
+        // also dropped its attack VFX — spawn it explicitly (lands at the marker).
+        StartCoroutine(PlayActionEffectAtMarker(evt.CounteredId, InstructionType.Attack, attacker, defender));
 
         if (attackMarkerDelay > 0f)
             yield return new WaitForSeconds(attackMarkerDelay);

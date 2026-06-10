@@ -1352,6 +1352,7 @@ public class BattleManager : MonoBehaviour
             CounteredId = PresentationIdFor(loser.Actor),
             CounterHasDamage = winner.Skill.damageType != DamageType.None,
             CounteredHasDamage = loser.Skill.damageType != DamageType.None && !winner.Skill.counterNullifies,
+            CounteredCancelled = winner.Skill.counterNullifies && !IsRechargeSkill(loser.Skill),
             CounterInstructionType = winner.Skill.instructionType,
             CounteredInstructionType = loser.Skill.instructionType
         });

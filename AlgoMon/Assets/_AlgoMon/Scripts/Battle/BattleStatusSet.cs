@@ -320,7 +320,9 @@ public sealed class BattleStatusSet
         NormalizeModifierDuration(ref durationType, ref duration);
 
         bool isNew = firewallShred.Amount <= 0f;
-        firewallShred.Amount = Mathf.Clamp01(Mathf.Max(firewallShred.Amount, amount));
+        // Shreds stack additively (two 20% counters = 40%), capped at 100%; Max()
+        // here made repeat counter wins silently do nothing.
+        firewallShred.Amount = Mathf.Clamp01(firewallShred.Amount + amount);
         firewallShred.DurationType = isNew
             ? durationType
             : StrongerDuration(firewallShred.DurationType, durationType);

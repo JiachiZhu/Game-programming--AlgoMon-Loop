@@ -22,6 +22,9 @@ public struct CounterEvent
     public string CounteredId;  // unit that lost
     public bool CounterHasDamage;
     public bool CounteredHasDamage;
+    // True when the loser's action gets nullified: it will never emit a
+    // BattleActionEvent, so the presentation must not arm a suppression for it.
+    public bool CounteredCancelled;
     public InstructionType CounterInstructionType;
     public InstructionType CounteredInstructionType;
 }
@@ -34,6 +37,7 @@ public struct BattleEndEvent
 public struct BattleActionEvent
 {
     public string ActorId;
+    public string ActorName;
     public string TargetId;
     public string SkillName;
     public InstructionType InstructionType;
