@@ -29,6 +29,9 @@ public class BattlePresentationController : MonoBehaviour
         public string resourcePath;
         [Min(1f)] public float framesPerSecond = 28f;
         [Min(0.01f)] public float scale = 2f;
+        // Extra vertical stretch on top of `scale` (1 = square). >1 makes the
+        // effect taller than wide for a punchier hit.
+        [Min(0.01f)] public float verticalScale = 1f;
         public Vector3 offset;
         public Color color = Color.white;
         public int sortingBoost = 16;
@@ -61,9 +64,15 @@ public class BattlePresentationController : MonoBehaviour
     [SerializeField, Min(0.01f)] private float bitmapFeedbackScale = 1.25f;
     [SerializeField, Min(0.01f)] private float textFeedbackCharacterSize = 0.21f;
     [SerializeField, Min(1)] private int textFeedbackFontSize = 64;
-    [SerializeField] private bool moveEnemyDamageFeedbackRight;
-    [SerializeField, Min(0f)] private float enemyDamageFeedbackRightPadding = 0.55f;
-    [SerializeField] private float enemyDamageFeedbackVerticalOffset = 0.15f;
+    // The enemy status card sits in the top-right corner (Screen Space - Overlay,
+    // so it always draws over world-space feedback). Erupting the enemy's damage
+    // numbers straight up — or outward to the right — pushes them under that card.
+    // Instead nudge them inward (toward arena centre) and slightly up: up-left of
+    // the sprite stays clear of the card and of melee contact at the sprite's
+    // lower-left.
+    [SerializeField] private bool offsetEnemyDamageInward = true;
+    [SerializeField, Min(0f)] private float enemyDamageFeedbackInwardPadding = 0.45f;
+    [SerializeField] private float enemyDamageFeedbackYOffset = 0.35f;
     [SerializeField] private bool movePlayerFeedbackLeft = true;
     [SerializeField, Min(0f)] private float playerFeedbackLeftPadding = 0.45f;
     [SerializeField] private float playerFeedbackVerticalOffset = -0.28f;
@@ -92,6 +101,15 @@ public class BattlePresentationController : MonoBehaviour
     [Header("Counter Clash")]
     [Tooltip("Safety window for suppressing the real damage event's lunge after the counter clash already played it.")]
     [SerializeField, Min(0f)] private float counterActionSuppressSeconds = 12f;
+    [Tooltip("How long the winner holds its status flourish during the counter cut-in before the clash.")]
+    [SerializeField, Min(0f)] private float counterCutInSeconds = 0.55f;
+    [Tooltip("Minimum time the defender's block (and the attacker's frozen contact frame) hold when a Defense counters an Attack — fast attacks otherwise flash the defense frames by too quickly to read.")]
+    [SerializeField, Min(0f)] private float minCounterClashHold = 0.6f;
+    [Tooltip("Sprite-frame resource spawned at the contact point the instant a Defense blocks an Attack, so the deflection reads instead of the suppressed hit VFX being invisible. Empty = no burst.")]
+    [SerializeField] private string counterClashBurstResource = "Effects/SortexGuardStatusEffect16";
+    [SerializeField, Min(0.01f)] private float counterClashBurstScale = 3.4f;
+    [SerializeField, Min(1f)] private float counterClashBurstFps = 30f;
+    [SerializeField] private Color counterClashBurstColor = new Color(0.55f, 0.85f, 1f, 1f);
 
     [Header("Switch Reveal")]
     [SerializeField, Min(0f)] private float switchRevealDuration = 0.48f;
@@ -99,6 +117,12 @@ public class BattlePresentationController : MonoBehaviour
 
     [Header("Battle Action Effects")]
     [SerializeField] private BattleActionEffectBinding[] actionEffectBindings;
+
+    // Floating damage / status text must always sit above the combatant body
+    // sprites. Scene sorting on those sprites can exceed the flat
+    // feedbackSortingOrder, which let the enemy sprite's corner cover the number;
+    // deriving the order from the target body clears the sprite every time.
+    private const int FeedbackSortingBoostAboveBody = 20;
 
     private static readonly Vector3[] FeedbackOffsets =
     {
@@ -153,7 +177,11 @@ public class BattlePresentationController : MonoBehaviour
 
     private void OnValidate()
     {
-        EnsureActionEffectDefaults();
+        // NOTE: deliberately NOT calling EnsureActionEffectDefaults() here. In edit
+        // mode OnValidate would populate the list and a scene save would serialize
+        // it, which then overrides (and goes stale vs) the code defaults. The list
+        // is built at runtime in Awake / ActionEffectsForCombatant instead, so the
+        // code stays the single source of truth for action-effect bindings.
         EnsureBitmapFontDefaults();
     }
 
@@ -330,6 +358,30 @@ public class BattlePresentationController : MonoBehaviour
                 21,
                 0.28f),
             CreateActionEffect(
+                "Overflux",
+                "Base",
+                InstructionType.Status,
+                "Effects/OverfluxStatusEffect25",
+                24f,
+                1.9f,
+                Vector3.zero,
+                Color.white,
+                22,
+                0f,
+                1.3f),
+            CreateActionEffect(
+                "Overflux",
+                "Evolved",
+                InstructionType.Status,
+                "Effects/OverfluxStatusEffect25",
+                24f,
+                2.2f,
+                Vector3.zero,
+                Color.white,
+                22,
+                0f,
+                1.3f),
+            CreateActionEffect(
                 "Nullbyte",
                 "Base",
                 InstructionType.Attack,
@@ -340,15 +392,39 @@ public class BattlePresentationController : MonoBehaviour
                 Color.white,
                 22),
             CreateActionEffect(
+                "Nullbyte",
+                "Evolved",
+                InstructionType.Attack,
+                "Effects/NullbyteEvolvedCombatEffect8",
+                20f,
+                3.6f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
                 "Cachelon",
                 "Base",
                 InstructionType.Attack,
                 "Effects/CachelonBaseEffect29",
-                32f,
-                2.55f,
+                18f,
+                3.1f,
                 Vector3.zero,
                 Color.white,
-                22),
+                22,
+                0f,
+                1.5f),
+            CreateActionEffect(
+                "Cachelon",
+                "Evolved",
+                InstructionType.Attack,
+                "Effects/CachelonBaseEffect29",
+                18f,
+                3.45f,
+                Vector3.zero,
+                Color.white,
+                22,
+                0f,
+                1.5f),
             CreateActionEffect(
                 "Recursix",
                 "Base",
@@ -432,7 +508,8 @@ public class BattlePresentationController : MonoBehaviour
         Vector3 offset,
         Color color,
         int sortingBoost,
-        float startDelay = 0f)
+        float startDelay = 0f,
+        float verticalScale = 1f)
     {
         return new BattleActionEffectBinding
         {
@@ -442,6 +519,7 @@ public class BattlePresentationController : MonoBehaviour
             resourcePath = resourcePath,
             framesPerSecond = framesPerSecond,
             scale = scale,
+            verticalScale = verticalScale,
             offset = offset,
             color = color,
             sortingBoost = sortingBoost,
@@ -489,6 +567,43 @@ public class BattlePresentationController : MonoBehaviour
             enemyCodeName,
             enemyFormName,
             autoLoadAnimationProfilesInEditor);
+    }
+
+    /// <summary>
+    /// Re-applies the profile for ONE side only. Used on a switch / send-next so
+    /// the side that actually changed re-binds (and replays its entry), while the
+    /// other side is left untouched — re-registering both made the bystander
+    /// replay its entry animation every time the opponent switched.
+    /// </summary>
+    public void RegisterCombatantSide(
+        bool playerSide,
+        string combatantId,
+        BattleAnimationProfile profile,
+        string codeName,
+        string formName)
+    {
+        if (playerSide)
+        {
+            if (!string.IsNullOrWhiteSpace(combatantId))
+                playerId = combatantId;
+            registeredPlayerCodeName = !string.IsNullOrWhiteSpace(codeName) ? codeName.Trim() : playerId;
+            registeredPlayerFormName = !string.IsNullOrWhiteSpace(formName) ? formName.Trim() : defaultAnimationForm;
+            BattleAnimationProfile resolved =
+                ResolveProfile(playerAnimationProfileOverride, profile, codeName, playerId, formName);
+            ApplyCombatantProfile(
+                ref playerView, ref playerAnimator, playerId, resolved, codeName, formName, autoLoadAnimationProfilesInEditor);
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(combatantId))
+                enemyId = combatantId;
+            registeredEnemyCodeName = !string.IsNullOrWhiteSpace(codeName) ? codeName.Trim() : enemyId;
+            registeredEnemyFormName = !string.IsNullOrWhiteSpace(formName) ? formName.Trim() : defaultAnimationForm;
+            BattleAnimationProfile resolved =
+                ResolveProfile(enemyAnimationProfileOverride, profile, codeName, enemyId, formName);
+            ApplyCombatantProfile(
+                ref enemyView, ref enemyAnimator, enemyId, resolved, codeName, formName, autoLoadAnimationProfilesInEditor);
+        }
     }
 
     private static void ApplyCombatantProfile(
@@ -568,7 +683,7 @@ public class BattlePresentationController : MonoBehaviour
         GameObject go = new GameObject(
             $"{binding.codeName}{binding.formName}{instructionType}Effect");
         go.transform.position = position;
-        go.transform.localScale = Vector3.one * binding.scale;
+        go.transform.localScale = new Vector3(binding.scale, binding.scale * binding.verticalScale, binding.scale);
 
         SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
         renderer.sprite = frames[0];
@@ -578,6 +693,41 @@ public class BattlePresentationController : MonoBehaviour
             renderer.flipX = target.ContactWorldPosition.x < actor.ContactWorldPosition.x;
 
         yield return PlayOneShotSpriteEffect(go, renderer, frames, binding.framesPerSecond, binding.color);
+    }
+
+    private BattleActionEffectBinding clashBurstBinding;
+
+    private IEnumerator SpawnCounterClashBurst(Vector3 position, int sortingOrder)
+    {
+        if (string.IsNullOrWhiteSpace(counterClashBurstResource))
+            yield break;
+
+        if (clashBurstBinding == null || clashBurstBinding.resourcePath != counterClashBurstResource)
+        {
+            clashBurstBinding = new BattleActionEffectBinding
+            {
+                codeName = "CounterClash",
+                resourcePath = counterClashBurstResource,
+                framesPerSecond = counterClashBurstFps,
+                scale = counterClashBurstScale,
+                color = counterClashBurstColor,
+            };
+        }
+
+        Sprite[] frames = ActionEffectFrames(clashBurstBinding);
+        if (frames == null || frames.Length == 0)
+            yield break;
+
+        GameObject go = new GameObject("CounterClashBurst");
+        go.transform.position = position;
+        go.transform.localScale = new Vector3(counterClashBurstScale, counterClashBurstScale, counterClashBurstScale);
+
+        SpriteRenderer renderer = go.AddComponent<SpriteRenderer>();
+        renderer.sprite = frames[0];
+        renderer.color = counterClashBurstColor;
+        renderer.sortingOrder = sortingOrder;
+
+        yield return PlayOneShotSpriteEffect(go, renderer, frames, counterClashBurstFps, counterClashBurstColor);
     }
 
     private IEnumerator PlayOneShotSpriteEffect(
@@ -797,6 +947,12 @@ public class BattlePresentationController : MonoBehaviour
         return markerDelay + target.HitPlaybackDurationSeconds;
     }
 
+    public float ExpectedFaintRemaining(string unitId)
+    {
+        BattleSpriteAnimator target = AnimatorFor(unitId);
+        return target != null ? target.FaintPlaybackDurationSeconds : 0f;
+    }
+
     private IEnumerator PlayDamageFeedbackAfterDelay(DamageEvent evt, float delay)
     {
         yield return new WaitForSeconds(delay);
@@ -1006,8 +1162,14 @@ public class BattlePresentationController : MonoBehaviour
         else if (useUtilityBitmapFont)
             bitmapSource = utilityBitmapFont;
 
+        int effectiveSortingOrder = feedbackSortingOrder;
+        if (target != null)
+            effectiveSortingOrder = Mathf.Max(
+                effectiveSortingOrder,
+                target.MaxBodySortingOrder + FeedbackSortingBoostAboveBody);
+
         if (bitmapSource != null &&
-            TryCreateBitmapFeedback(go.transform, label, bitmapSource, out List<SpriteRenderer> glyphRenderers))
+            TryCreateBitmapFeedback(go.transform, label, bitmapSource, effectiveSortingOrder, out List<SpriteRenderer> glyphRenderers))
         {
             StartCoroutine(FloatAndFade(go, glyphRenderers));
             return;
@@ -1025,14 +1187,48 @@ public class BattlePresentationController : MonoBehaviour
 
         MeshRenderer renderer = go.GetComponent<MeshRenderer>();
         if (renderer != null)
-            renderer.sortingOrder = feedbackSortingOrder;
+            renderer.sortingOrder = effectiveSortingOrder;
 
         StartCoroutine(FloatAndFade(go, text, color));
     }
 
+    /// <summary>
+    /// Quick status flourish the counter winner plays during the counter cut-in,
+    /// while the HUD shows its flash + letterbox banner. Yields for the hold so
+    /// the manager can chain straight into the normal clash animation afterward.
+    /// </summary>
+    public IEnumerator PlayCounterCutInFlourish(string winnerId)
+    {
+        BattleSpriteAnimator winner = AnimatorFor(winnerId);
+        if (winner == null)
+            yield break;
+
+        winner.PlayStatusAction(new Color(1f, 0.92f, 0.45f));
+        if (counterCutInSeconds > 0f)
+            yield return new WaitForSeconds(counterCutInSeconds);
+    }
+
+    /// <summary>
+    /// Exposes a combatant's Status animation frames + fps so the HUD can replay
+    /// the winner's status pose inside the counter banner.
+    /// </summary>
+    public bool TryGetStatusFrames(string id, out Sprite[] frames, out float fps)
+    {
+        frames = null;
+        fps = 12f;
+
+        BattleAnimationClipData clip = AnimatorFor(id)?.AnimationProfile?.ClipFor(BattleAnimationState.Status);
+        if (clip == null || !clip.HasFrames)
+            return false;
+
+        frames = clip.frames;
+        fps = clip.fps;
+        return true;
+    }
+
     private bool ShouldUseEnemyDamageSidePosition(BattleSpriteAnimator target)
     {
-        return moveEnemyDamageFeedbackRight && target != null && target == enemyAnimator;
+        return offsetEnemyDamageInward && target != null && target == enemyAnimator;
     }
 
     private bool ShouldUsePlayerLeftPosition(BattleSpriteAnimator target)
@@ -1046,7 +1242,7 @@ public class BattlePresentationController : MonoBehaviour
         bool usePlayerLeftPosition)
     {
         if (useEnemyDamageSidePosition)
-            return target.SideFeedbackWorldPosition(1f, enemyDamageFeedbackRightPadding, enemyDamageFeedbackVerticalOffset);
+            return target.SideFeedbackWorldPosition(-1f, enemyDamageFeedbackInwardPadding, enemyDamageFeedbackYOffset);
         if (usePlayerLeftPosition)
             return target.SideFeedbackWorldPosition(-1f, playerFeedbackLeftPadding, playerFeedbackVerticalOffset);
         return target.FeedbackWorldPosition;
@@ -1056,6 +1252,7 @@ public class BattlePresentationController : MonoBehaviour
         Transform root,
         string label,
         NicoBitmapFontReference source,
+        int sortingOrder,
         out List<SpriteRenderer> glyphRenderers)
     {
         glyphRenderers = null;
@@ -1065,7 +1262,7 @@ public class BattlePresentationController : MonoBehaviour
         if (!TryGetBitmapFont(source, out NicoBitmapFont font))
             return false;
 
-        glyphRenderers = font.CreateRenderers(root, label, feedbackSortingOrder);
+        glyphRenderers = font.CreateRenderers(root, label, sortingOrder);
         if (glyphRenderers.Count > 0)
             root.localScale = Vector3.one * bitmapFeedbackScale;
         return glyphRenderers.Count > 0;
@@ -1117,7 +1314,12 @@ public class BattlePresentationController : MonoBehaviour
 
         attacker.TryGetClipTiming(BattleAnimationState.Attack, out float attackMarkerDelay, out float attackDuration);
         float attackRemainingFromMarker = Mathf.Max(0f, attackDuration - attackMarkerDelay);
-        float totalShieldSequenceDuration = Mathf.Max(attackDuration, attackMarkerDelay + attackRemainingFromMarker);
+        // The block window is normally just the attack's follow-through (often only
+        // a frame or two), so a fast attack flashes the defence by. Hold the clash
+        // — defender's block + attacker's frozen contact frame — for at least
+        // minCounterClashHold so it actually reads.
+        float clashWindow = Mathf.Max(attackRemainingFromMarker, minCounterClashHold);
+        float totalShieldSequenceDuration = Mathf.Max(attackDuration, attackMarkerDelay + clashWindow);
         if (totalShieldSequenceDuration > 0f)
             hitReactionSuppressUntil[evt.CounterId] = Time.time + totalShieldSequenceDuration;
 
@@ -1135,12 +1337,19 @@ public class BattlePresentationController : MonoBehaviour
         if (attackMarkerDelay > 0f)
             yield return new WaitForSeconds(attackMarkerDelay);
 
-        if (!defender.PlayActionMarkerWindowLoop(BattleAnimationState.Defense, attackRemainingFromMarker))
+        if (!defender.PlayActionMarkerWindowLoop(BattleAnimationState.Defense, clashWindow))
             defender.PlayDefense();
         SpawnUtilityFeedback(defender, "COUNTER", new Color(1f, 0.92f, 0.45f));
 
-        if (attackRemainingFromMarker > 0f)
-            yield return new WaitForSeconds(attackRemainingFromMarker);
+        // The blocked attack's own hit VFX is suppressed, so the deflection used to
+        // read as nothing but the defender's tiny block frame. Punch a cold guard
+        // burst at the contact point so the clash actually lands visually.
+        Vector3 clashPosition = Vector3.Lerp(defender.ContactWorldPosition, attacker.ContactWorldPosition, 0.35f);
+        int clashSorting = Mathf.Max(defender.MaxBodySortingOrder, attacker.MaxBodySortingOrder) + 24;
+        StartCoroutine(SpawnCounterClashBurst(clashPosition, clashSorting));
+
+        if (clashWindow > 0f)
+            yield return new WaitForSeconds(clashWindow);
 
         if (heldAttack)
             attacker.ContinueHeldProfileClip();

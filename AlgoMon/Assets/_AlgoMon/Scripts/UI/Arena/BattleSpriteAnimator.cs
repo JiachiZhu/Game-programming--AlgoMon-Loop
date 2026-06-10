@@ -177,6 +177,18 @@ public class BattleSpriteAnimator : MonoBehaviour
         }
     }
 
+    // Full faint/defeat clip length, so the battle can hold the result panel until
+    // the KO animation has actually played out. Profile-less faints use the dim
+    // fallback (no animated frames), so they report 0.
+    public float FaintPlaybackDurationSeconds
+    {
+        get
+        {
+            Initialize();
+            return TryGetClipTiming(BattleAnimationState.Faint, out _, out float duration) ? duration : 0f;
+        }
+    }
+
     public BattleAnimationProfile AnimationProfile => animationProfile;
 
     public void ConfigureSpriteBindings(

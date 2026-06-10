@@ -282,6 +282,8 @@ public class BattleManager : MonoBehaviour
 
     [SerializeField] private BattleHudController hud;
     [SerializeField] private BattlePresentationController presentation;
+    [Tooltip("Extra pause after the faint/defeat animation finishes before the victory panel or defeat result appears, so the KO has a beat to land.")]
+    [SerializeField, Min(0f)] private float postFaintResultDelay = 0.2f;
     [SerializeField] private SkillData rechargeSkill;
 
     [Header("Player")]
@@ -343,6 +345,7 @@ public class BattleManager : MonoBehaviour
     private bool battleEndPublished;
     private bool waitingForPostBattleContinue;
     private bool pendingBattleEndPlayerWon;
+    private bool finishingBattle;
     private readonly HashSet<BattleUnit> faintPublishedUnits = new HashSet<BattleUnit>();
     private string activeActionAnnouncementLine;
     private Coroutine activeResolution;
@@ -420,6 +423,7 @@ public class BattleManager : MonoBehaviour
         forcePlayerSwitchTarget = false;
         waitingForPostBattleContinue = false;
         pendingBattleEndPlayerWon = false;
+        finishingBattle = false;
         if (hud != null)
             hud.HidePostBattlePanel();
 
@@ -769,6 +773,27 @@ public class BattleManager : MonoBehaviour
             enemy.Instance.data != null ? enemy.Instance.data.codeName : null,
             player.Instance.battleFormName,
             enemy.Instance.battleFormName);
+    }
+
+    /// <summary>
+    /// Re-registers only the side that changed (a switch / send-next), so the
+    /// opponent — which did not change — does not replay its entry animation.
+    /// </summary>
+    private void RegisterPresentationCombatant(bool playerSide)
+    {
+        if (presentation == null || player == null || enemy == null)
+            return;
+
+        BattleUnit unit = playerSide ? player : enemy;
+        if (unit?.Instance == null)
+            return;
+
+        presentation.RegisterCombatantSide(
+            playerSide,
+            playerSide ? PlayerPresentationId : EnemyPresentationId,
+            unit.Instance.data != null ? unit.Instance.data.battleAnimationProfile : null,
+            unit.Instance.data != null ? unit.Instance.data.codeName : null,
+            unit.Instance.battleFormName);
     }
 
     private string PresentationIdFor(BattleUnit unit)
@@ -1254,7 +1279,7 @@ public class BattleManager : MonoBehaviour
         else
             enemy = next;
 
-        RegisterPresentationCombatants();
+        RegisterPresentationCombatant(playerSide);
         EmitLog($"{previous.Name} switches out. {next.Name} enters.");
         if (cleared > 0)
             EmitLog($"{previous.Name}'s temporary effects clear on switch.");
@@ -1305,6 +1330,22 @@ public class BattleManager : MonoBehaviour
         winner.Actor.StatusText = "Counter";
         loser.Actor.StatusText = "Delayed";
 
+        // Counter cut-in: flash + letterbox banner over a quick status flourish from
+        // the winner, giving clear "counter!" feedback before the clash plays.
+        BattleHudController.Side winnerSide =
+            playerCounters ? BattleHudController.Side.Player : BattleHudController.Side.Enemy;
+        string winnerPresentationId = PresentationIdFor(winner.Actor);
+        if (hud != null)
+        {
+            Sprite[] statusFrames = null;
+            float statusFps = 12f;
+            if (presentation != null)
+                presentation.TryGetStatusFrames(winnerPresentationId, out statusFrames, out statusFps);
+            hud.PlayCounterBanner(winnerSide, winner.Actor.Name, statusFrames, statusFps);
+        }
+        if (presentation != null)
+            yield return presentation.PlayCounterCutInFlourish(winnerPresentationId);
+
         EventBus.Publish(new CounterEvent
         {
             CounterId = PresentationIdFor(winner.Actor),
@@ -1320,7 +1361,10 @@ public class BattleManager : MonoBehaviour
         if (logLineDelay > 0f)
             yield return new WaitForSeconds(logLineDelay);
 
-        if (winner.Skill.counterNullifies)
+        // Recharge is the only 0-CP action, so nullifying it would soft-lock a
+        // player at 0 CP (their recharge gets cancelled every turn). It still
+        // loses the ASD check and takes the hit, but its CP restore always lands.
+        if (winner.Skill.counterNullifies && !IsRechargeSkill(loser.Skill))
         {
             loser.Cancelled = true;
             loser.Actor.StatusText = "Nullified";
@@ -1629,9 +1673,17 @@ public class BattleManager : MonoBehaviour
             else
                 EmitLog($"{SkillName(action.Skill)} repeats from Concurrent.");
 
+            if (repeat == 0 && hud != null)
+            {
+                BattleHudController.Side actorSide =
+                    IsPlayerUnit(action.Actor) ? BattleHudController.Side.Player : BattleHudController.Side.Enemy;
+                hud.PlayActionBanner(actorSide, cost, action.Actor.Name, SkillName(action.Skill));
+            }
+
             EventBus.Publish(new BattleActionEvent
             {
                 ActorId = PresentationIdFor(action.Actor),
+                ActorName = action.Actor.Name,
                 TargetId = PresentationIdFor(action.Target),
                 SkillName = SkillName(action.Skill),
                 InstructionType = action.Skill.instructionType,
@@ -2274,7 +2326,7 @@ public class BattleManager : MonoBehaviour
 
         next.StatusText = "Ready";
         enemy = next;
-        RegisterPresentationCombatants();
+        RegisterPresentationCombatant(false);
 
         EmitLog($"{previous.Name} is offline.");
         EmitLog($"{EnemyTrainerLabel()} sends out {next.Name}.");
@@ -2315,7 +2367,7 @@ public class BattleManager : MonoBehaviour
 
     private void FinishBattle(bool playerWon, string message)
     {
-        if (battleEndPublished || waitingForPostBattleContinue)
+        if (battleEndPublished || waitingForPostBattleContinue || finishingBattle)
             return;
 
         phase = BattlePhase.BattleOver;
@@ -2327,15 +2379,35 @@ public class BattleManager : MonoBehaviour
 
         RefreshHud();
 
+        // The losing AlgoMon's faint animation was just published; hold the result
+        // (victory panel or defeat hand-off) until that KO animation has played out
+        // instead of snapping the panel up the instant Battery hits zero.
+        finishingBattle = true;
+        StartCoroutine(ShowBattleResultAfterFaint(playerWon, message, reward));
+    }
+
+    private IEnumerator ShowBattleResultAfterFaint(bool playerWon, string message, EncounterReward reward)
+    {
+        float wait = postFaintResultDelay;
+        if (presentation != null)
+        {
+            string faintedId = playerWon ? EnemyPresentationId : PlayerPresentationId;
+            wait += presentation.ExpectedFaintRemaining(faintedId);
+        }
+
+        if (wait > 0f)
+            yield return new WaitForSeconds(wait);
+
         if (playerWon)
         {
             waitingForPostBattleContinue = true;
             pendingBattleEndPlayerWon = true;
             ShowPostBattleRewardSummary(message, reward);
-            return;
         }
-
-        PublishBattleEnd(playerWon);
+        else
+        {
+            PublishBattleEnd(playerWon);
+        }
     }
 
     private void HandlePostBattleContinueClicked()
@@ -2427,6 +2499,10 @@ public class BattleManager : MonoBehaviour
     {
         if (hud == null || player == null || enemy == null)
             return;
+
+        // Hide the skill bar / action buttons / top bar while a round resolves so
+        // the attack animations play unobstructed; status cards stay visible.
+        hud.SetActionUiHidden(phase != BattlePhase.WaitingForPlayer);
 
         hud.SetRound(currentRound);
         hud.SetBattleState(PhaseLabel());
