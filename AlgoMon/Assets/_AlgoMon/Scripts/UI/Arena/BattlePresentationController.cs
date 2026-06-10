@@ -163,6 +163,11 @@ public class BattlePresentationController : MonoBehaviour
         new Dictionary<string, float>();
     private readonly Dictionary<string, float> hitReactionSuppressUntil =
         new Dictionary<string, float>();
+    // Deterministic, count-based "skip the next hit reaction" used by the counter
+    // sequences. Unlike the time-window above it can't expire mid-exchange, so the
+    // damage NUMBER still shows but the flinch/shake never double-fires.
+    private readonly Dictionary<string, int> hitReactionSuppressCounts =
+        new Dictionary<string, int>();
     private string registeredPlayerCodeName = "Sortex";
     private string registeredEnemyCodeName = "Cachelon";
     private string registeredPlayerFormName = "Base";
@@ -350,7 +355,7 @@ public class BattlePresentationController : MonoBehaviour
                 "Overflux",
                 "Evolved",
                 InstructionType.Attack,
-                "Effects/OverfluxSplatterLargeRed",
+                "Effects/OverfluxEvolvedExplosionLargeRed",
                 28f,
                 3.7f,
                 Vector3.zero,
@@ -400,7 +405,30 @@ public class BattlePresentationController : MonoBehaviour
                 3.6f,
                 Vector3.zero,
                 Color.white,
-                22),
+                22,
+                0f,
+                1.6f),
+            // Nullbyte status: a few small water bubbles appear-and-pop above its head.
+            // Staggered start delays + offsets scatter them. Tune the Y offset if they
+            // sit too high/low over the sprite.
+            CreateActionEffect(
+                "Nullbyte", "Base", InstructionType.Status, "Effects/BubbleSmallBlueAppear",
+                16f, 0.9f, new Vector3(-0.45f, 1.25f, 0f), Color.white, 24, 0f),
+            CreateActionEffect(
+                "Nullbyte", "Base", InstructionType.Status, "Effects/BubbleSmallBlueAppear",
+                16f, 1.05f, new Vector3(0.15f, 1.65f, 0f), Color.white, 24, 0.12f),
+            CreateActionEffect(
+                "Nullbyte", "Base", InstructionType.Status, "Effects/BubbleSmallBlueAppear",
+                16f, 0.75f, new Vector3(0.55f, 1.35f, 0f), Color.white, 24, 0.24f),
+            CreateActionEffect(
+                "Nullbyte", "Evolved", InstructionType.Status, "Effects/BubbleSmallBlueAppear",
+                16f, 0.95f, new Vector3(-0.5f, 1.35f, 0f), Color.white, 24, 0f),
+            CreateActionEffect(
+                "Nullbyte", "Evolved", InstructionType.Status, "Effects/BubbleSmallBlueAppear",
+                16f, 1.15f, new Vector3(0.2f, 1.8f, 0f), Color.white, 24, 0.12f),
+            CreateActionEffect(
+                "Nullbyte", "Evolved", InstructionType.Status, "Effects/BubbleSmallBlueAppear",
+                16f, 0.8f, new Vector3(0.6f, 1.45f, 0f), Color.white, 24, 0.3f),
             CreateActionEffect(
                 "Cachelon",
                 "Base",
@@ -453,6 +481,26 @@ public class BattlePresentationController : MonoBehaviour
                 18f,
                 2.6f,
                 Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Heapion",
+                "Base",
+                InstructionType.Attack,
+                "Effects/HeapionImpactShockLargeBrown",
+                22f,
+                3.0f,
+                new Vector3(0f, -0.6f, 0f),
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Heapion",
+                "Evolved",
+                InstructionType.Attack,
+                "Effects/HeapionImpactShockLargeBrown",
+                22f,
+                3.4f,
+                new Vector3(0f, -0.6f, 0f),
                 Color.white,
                 22),
             CreateActionEffect(
@@ -925,7 +973,11 @@ public class BattlePresentationController : MonoBehaviour
     private void PlayDamageFeedback(DamageEvent evt)
     {
         BattleSpriteAnimator target = AnimatorFor(evt.TargetId);
-        if (target != null && !ShouldSuppressHitReaction(evt.TargetId))
+        // Evaluate both gates unconditionally so the count is always consumed when
+        // present (no leaking a suppression onto a later, unrelated hit).
+        bool timeSuppressed = ShouldSuppressHitReaction(evt.TargetId);
+        bool countSuppressed = ConsumeHitReactionSuppression(evt.TargetId);
+        if (target != null && !(timeSuppressed || countSuppressed))
             target.PlayHit();
 
         SpawnFeedback(
@@ -1075,10 +1127,26 @@ public class BattlePresentationController : MonoBehaviour
             actionMarkerFeedbackTimes.Remove(evt.CounterId);
             actionMarkerFeedbackTimes.Remove(evt.CounteredId);
 
+            // The ASD wheel only yields three counter match-ups; each gets its own
+            // deliberately simple presentation to keep the animation state machine
+            // predictable (counter winner = evt.Counter*, loser = evt.Countered*).
             if (evt.CounterInstructionType == InstructionType.Defense &&
                 evt.CounteredInstructionType == InstructionType.Attack)
             {
+                // Case 1: a Defense blocks an Attack.
                 StartCoroutine(PlayDefenseBlocksAttackCounter(evt, counter, countered));
+            }
+            else if (evt.CounterInstructionType == InstructionType.Attack &&
+                     evt.CounteredInstructionType == InstructionType.Status)
+            {
+                // Case 2: an Attack interrupts a Status windup.
+                StartCoroutine(PlayAttackCountersStatus(evt, counter, countered));
+            }
+            else if (evt.CounterInstructionType == InstructionType.Status &&
+                     evt.CounteredInstructionType == InstructionType.Defense)
+            {
+                // Case 3: a Status slips past a Defense.
+                StartCoroutine(PlayStatusCountersDefense(evt, counter, countered));
             }
             else
             {
@@ -1098,6 +1166,32 @@ public class BattlePresentationController : MonoBehaviour
         counterActionSuppressCounts.TryGetValue(combatantId, out int count);
         counterActionSuppressCounts[combatantId] = count + 1;
         counterActionSuppressUntil[combatantId] = Time.time + counterActionSuppressSeconds;
+    }
+
+    // The counter sequence plays its own flinch (or intentionally plays none), so the
+    // async DamageEvent must not also flinch the same target. Number still shows.
+    private void SuppressNextHitReaction(string combatantId)
+    {
+        if (string.IsNullOrEmpty(combatantId))
+            return;
+
+        hitReactionSuppressCounts.TryGetValue(combatantId, out int count);
+        hitReactionSuppressCounts[combatantId] = count + 1;
+    }
+
+    private bool ConsumeHitReactionSuppression(string combatantId)
+    {
+        if (string.IsNullOrEmpty(combatantId))
+            return false;
+        if (!hitReactionSuppressCounts.TryGetValue(combatantId, out int count) || count <= 0)
+            return false;
+
+        count--;
+        if (count <= 0)
+            hitReactionSuppressCounts.Remove(combatantId);
+        else
+            hitReactionSuppressCounts[combatantId] = count;
+        return true;
     }
 
     private BattleSpriteAnimator AnimatorFor(string id)
@@ -1323,6 +1417,11 @@ public class BattlePresentationController : MonoBehaviour
         if (totalShieldSequenceDuration > 0f)
             hitReactionSuppressUntil[evt.CounterId] = Time.time + totalShieldSequenceDuration;
 
+        // The defender simply holds the block: the chip damage still pops a number,
+        // but no flinch and no shake — it stays in the defense pose. Deterministic so
+        // the reaction can't leak through after the time window above expires.
+        SuppressNextHitReaction(evt.CounterId);
+
         if (attackMarkerDelay > 0f)
             actionMarkerFeedbackTimes[evt.CounteredId] = Time.time + attackMarkerDelay;
 
@@ -1339,6 +1438,9 @@ public class BattlePresentationController : MonoBehaviour
 
         if (!defender.PlayActionMarkerWindowLoop(BattleAnimationState.Defense, clashWindow))
             defender.PlayDefense();
+        // Both combatants' real action events are suppressed during a counter, so their
+        // action VFX never spawned — restore the winner's here (the defender's guard).
+        StartCoroutine(PlayActionEffectAtMarker(evt.CounterId, InstructionType.Defense, defender, attacker));
         SpawnUtilityFeedback(defender, "COUNTER", new Color(1f, 0.92f, 0.45f));
 
         // The blocked attack's own hit VFX is suppressed, so the deflection used to
@@ -1372,6 +1474,70 @@ public class BattlePresentationController : MonoBehaviour
 
         PlayCounterInstruction(counter, evt.CounterInstructionType, countered);
         SpawnUtilityFeedback(counter, "COUNTER", new Color(1f, 0.92f, 0.45f));
+    }
+
+    // Case 2: Attack counters Status. The status user starts its windup, the attacker
+    // lands its hit, and at contact the windup is cut to idle and the loser flinches
+    // once. The damage NUMBER comes from the async DamageEvent; we suppress only its
+    // (duplicate) flinch.
+    private IEnumerator PlayAttackCountersStatus(
+        CounterEvent evt,
+        BattleSpriteAnimator attacker,
+        BattleSpriteAnimator statusUser)
+    {
+        if (attacker == null || statusUser == null)
+            yield break;
+
+        statusUser.PlayStatusAction(new Color(0.64f, 0.82f, 1f));
+
+        attacker.TryGetClipTiming(BattleAnimationState.Attack, out float attackMarkerDelay, out _);
+        if (attackMarkerDelay > 0f)
+            actionMarkerFeedbackTimes[evt.CounterId] = Time.time + attackMarkerDelay;
+
+        // Claim the flinch up front: the DamageEvent fires at this same marker time, so
+        // suppressing here (not at contact) avoids a race where it flinches first and
+        // we then double up. We play the one intended flinch ourselves at contact.
+        SuppressNextHitReaction(evt.CounteredId);
+
+        attacker.PlayAttackToward(statusUser.ContactWorldPosition, statusUser);
+        // Counter suppresses the attacker's real action event, so spawn its attack VFX
+        // explicitly or the hit would land with no effect.
+        StartCoroutine(PlayActionEffectAtMarker(evt.CounterId, InstructionType.Attack, attacker, statusUser));
+        SpawnUtilityFeedback(attacker, "COUNTER", new Color(1f, 0.92f, 0.45f));
+
+        if (attackMarkerDelay > 0f)
+            yield return new WaitForSeconds(attackMarkerDelay);
+
+        // Contact: kill the rest of the status windup and flinch once.
+        statusUser.CancelActionToIdle();
+        statusUser.PlayHit();
+    }
+
+    // Case 3: Status counters Defense. The defender just holds (loops) its block frames
+    // until the status user's windup has fully played out — no flinch, no shake.
+    private IEnumerator PlayStatusCountersDefense(
+        CounterEvent evt,
+        BattleSpriteAnimator statusUser,
+        BattleSpriteAnimator defender)
+    {
+        if (statusUser == null || defender == null)
+            yield break;
+
+        statusUser.TryGetClipTiming(BattleAnimationState.Status, out _, out float statusDuration);
+        float holdWindow = Mathf.Max(statusDuration, minCounterClashHold);
+
+        // Defender keeps the block pose; any chip damage pops a number but no flinch.
+        SuppressNextHitReaction(evt.CounteredId);
+        if (!defender.PlayActionMarkerWindowLoop(BattleAnimationState.Defense, holdWindow))
+            defender.PlayDefense();
+
+        statusUser.PlayStatusAction(new Color(0.64f, 0.82f, 1f));
+        // Restore the winner's status VFX that the counter suppression dropped.
+        StartCoroutine(PlayActionEffectAtMarker(evt.CounterId, InstructionType.Status, statusUser, defender));
+        SpawnUtilityFeedback(statusUser, "COUNTER", new Color(1f, 0.92f, 0.45f));
+
+        if (holdWindow > 0f)
+            yield return new WaitForSeconds(holdWindow);
     }
 
     private void PlayCounterInstruction(

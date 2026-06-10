@@ -429,6 +429,21 @@ public class BattleSpriteAnimator : MonoBehaviour
         PlayStatus(color);
     }
 
+    // Hard-stops whatever action clip is playing and drops back to idle. Used to
+    // truncate a countered action (e.g. cut the rest of a status windup the moment
+    // an Attack counter connects) regardless of whether a Hit clip exists.
+    public void CancelActionToIdle()
+    {
+        Initialize();
+        if (fainted)
+            return;
+
+        StopProfileClip();
+        if (actionRoutine != null)
+            StopCoroutine(actionRoutine);
+        BeginIdleClip();
+    }
+
     public void PlayHit()
     {
         Initialize();

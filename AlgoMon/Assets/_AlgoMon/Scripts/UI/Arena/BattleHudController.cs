@@ -10,6 +10,7 @@ Script Audit:
 - Testing notes: In battle, verify all four skill slots, Recharge/Bag/Switch/Flee buttons, HP/CP bars, hover details, and announcer updates.
 */
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -47,8 +48,10 @@ public class BattleHudController : MonoBehaviour
     private const string SkillTagFrameResourcePath = "UI/SkillFrame/scifi_inventory02_box_select01";
     private const string SkillPanelBackdropResourcePath = "UI/SkillFrame/inventory_example_02_four_rows_soft";
     private const string ElementIconResourcePrefix = "UI/Elements/Element_";
-    private const float RoundSandclockTopBarAnchorX = 0.655f;
-    private const float RoundSandclockSize = 48f;
+    private const string AnnouncementBannerResourcePath = "UI/Banners/TitleBanner";
+    private const string ActionBannerPlayerResourcePath = "UI/Banners/TitleBannerDecoratorB_Blue";
+    private const string ActionBannerEnemyResourcePath = "UI/Banners/TitleBannerDecoratorB_Red";
+    private const string ZapIconResourcePath = "UI/Icons/zap";
 
     // Default text shown in the Skill Details panel when no button is hovered.
     private const string DefaultSkillDetailTitle = "Skill Details";
@@ -57,12 +60,6 @@ public class BattleHudController : MonoBehaviour
     // CP dot palette used by both prefab defaults and live HUD updates.
     private static readonly Color32 CPDotActive   = new Color32(120, 235, 244, 255);
     private static readonly Color32 CPDotInactive = new Color32(120, 235, 244,   0);
-    private static readonly Color32 PlayerBatteryFillColor = new Color32( 70, 221, 233, 255);
-    private static readonly Color32 EnemyBatteryFillColor  = new Color32(242, 131,  92, 255);
-    private static readonly Vector2 BatteryFillFallbackAnchorMin = new Vector2(0.30f, 0.02f);
-    private static readonly Vector2 BatteryFillFallbackAnchorMax = new Vector2(0.82f, 0.98f);
-    private static readonly Vector2 BatteryFillInsetMin = new Vector2(0f, 0f);
-    private static readonly Vector2 BatteryFillInsetMax = new Vector2(1f, 1f);
     private static readonly Vector2 AnnouncerAnchorMin = new Vector2(0.30f, 0.805f);
     private static readonly Vector2 AnnouncerAnchorMax = new Vector2(0.70f, 0.925f);
 
@@ -98,6 +95,10 @@ public class BattleHudController : MonoBehaviour
     [SerializeField] private Sprite skillInsetFrameSprite;
     [SerializeField] private Sprite skillTagFrameSprite;
     [SerializeField] private Sprite skillPanelBackdropSprite;
+    private Sprite announcementBannerSprite;
+    private Sprite actionBannerPlayerSprite;
+    private Sprite actionBannerEnemySprite;
+    private Sprite zapIconSprite;
 
     // Placeholder hover bodies for the default Sortex loadout baked into the
     // prefab. Keyed by skill name so layout edits that change slot order still
@@ -131,8 +132,6 @@ public class BattleHudController : MonoBehaviour
         public Text    LevelText;
         public Text    BatteryValueText;
         public Image   BatteryFill;
-        public Color32 BatteryFillColor;
-        public RectTransform BatteryFrameRect;
         public Image[] CPDots;
         public Text    CPValueText;
         public Text    StatusText;
@@ -197,6 +196,32 @@ public class BattleHudController : MonoBehaviour
     private Text postBattleTitleText;
     private Text postBattleBodyText;
     private Button postBattleContinueButton;
+
+    // --- Combat-UI visibility + counter cut-in overlay (runtime-built) ---
+    // While a round resolves the skill bar / action buttons / top bar fade out so
+    // animations play clean; the status cards stay up. The counter cut-in is a
+    // flash + translucent letterbox banner shown over the arena.
+    private CanvasGroup commandPanelGroup;
+    private CanvasGroup topBarGroup;
+    private GameObject counterCutInRoot;
+    private CanvasGroup counterCutInGroup;
+    private Image counterFlashImage;
+    private Image counterBand;
+    private Image counterTopEdge;
+    private Image counterBottomEdge;
+    private Text counterBannerText;
+    private Image counterStatusImage;
+    private Sprite[] counterStatusFrames;
+    private float counterStatusSecondsPerFrame;
+    private Coroutine counterCutInRoutine;
+
+    // Skill announcement banner (TitleBanner sprite) pinned to the acting side.
+    private GameObject actionBannerRoot;
+    private CanvasGroup actionBannerGroup;
+    private RectTransform actionBannerRect;
+    private Image actionBannerBg;
+    private Text actionBannerText;
+    private Coroutine actionBannerRoutine;
 
     private void Start()
     {
@@ -364,14 +389,9 @@ public class BattleHudController : MonoBehaviour
 
     public void SetBattleAnnouncement(string title, string body)
     {
-        EnsureBattleAnnouncer();
-        if (announcerTitleText != null)
-            announcerTitleText.text = string.IsNullOrWhiteSpace(title) ? "BATTLE" : title.Trim().ToUpperInvariant();
-        if (announcerBodyText != null)
-            announcerBodyText.text = body ?? string.Empty;
-
-        announcerPulseTimer = announcerPulseSeconds;
-        ApplyAnnouncerFrameColor(1f);
+        // No-op: the top announcer board was replaced by above-sprite action
+        // callouts. Battle narration still streams into the Skill Details log.
+        // Retained so existing BattleManager calls stay valid.
     }
 
     public void ShowPostBattlePanel(string title, string body, string continueLabel = "CONTINUE")
@@ -399,6 +419,362 @@ public class BattleHudController : MonoBehaviour
     {
         if (postBattlePanel != null)
             postBattlePanel.SetActive(false);
+    }
+
+    /// <summary>
+    /// Fades the skill bar, action buttons, and top round bar in/out so battle
+    /// animations play unobstructed. The combatant status cards are intentionally
+    /// left untouched so HP/CP/Battery changes stay visible during the hit.
+    /// </summary>
+    public void SetActionUiHidden(bool hidden)
+    {
+        if (commandPanelGroup == null)
+            commandPanelGroup = EnsureCanvasGroup("SafeArea/CommandPanel");
+        if (topBarGroup == null)
+            topBarGroup = EnsureCanvasGroup("SafeArea/TopBar");
+
+        ApplyGroupHidden(commandPanelGroup, hidden);
+        ApplyGroupHidden(topBarGroup, hidden);
+    }
+
+    private CanvasGroup EnsureCanvasGroup(string path)
+    {
+        Transform target = FindTransform(path);
+        if (target == null)
+            return null;
+
+        CanvasGroup group = target.GetComponent<CanvasGroup>();
+        if (group == null)
+            group = target.gameObject.AddComponent<CanvasGroup>();
+        return group;
+    }
+
+    private static void ApplyGroupHidden(CanvasGroup group, bool hidden)
+    {
+        if (group == null)
+            return;
+
+        group.alpha = hidden ? 0f : 1f;
+        group.interactable = !hidden;
+        group.blocksRaycasts = !hidden;
+    }
+
+    /// <summary>
+    /// Shows the skill announcement banner ("[zap] {cp}CP  {Name} used {Skill}")
+    /// on the acting side's half of the upper arena, dressed with the pixel
+    /// TitleBanner sprite. Lives on the HUD root so it stays visible while the
+    /// command bar / top bar fade out during the action.
+    /// </summary>
+    public void PlayActionBanner(Side side, int cp, string actorName, string skillName)
+    {
+        BuildActionBanner();
+        if (actionBannerRoot == null)
+            return;
+
+        if (actionBannerBg != null)
+            ConfigureFramedImage(actionBannerBg, ActionBannerSprite(side), new Color(0.02f, 0.05f, 0.08f, 0.85f));
+
+        string who = string.IsNullOrWhiteSpace(actorName) ? string.Empty : actorName.Trim();
+        string skill = string.IsNullOrWhiteSpace(skillName) ? string.Empty : skillName.Trim();
+        string label = string.IsNullOrEmpty(skill)
+            ? who
+            : (string.IsNullOrEmpty(who) ? skill : $"{who} used {skill}");
+        string cpPart = cp > 0 ? $"{cp}CP  " : string.Empty;
+        if (actionBannerText != null)
+            actionBannerText.text = cpPart + label;
+
+        if (actionBannerRect != null)
+            SetStretchRect(actionBannerRect, ActionBannerAnchorMin(side), ActionBannerAnchorMax(side));
+
+        actionBannerRoot.transform.SetAsLastSibling();
+        actionBannerRoot.SetActive(true);
+
+        if (actionBannerRoutine != null)
+            StopCoroutine(actionBannerRoutine);
+        actionBannerRoutine = StartCoroutine(ActionBannerRoutine());
+    }
+
+    private void BuildActionBanner()
+    {
+        if (actionBannerRoot != null)
+            return;
+
+        actionBannerRoot = new GameObject("ActionBanner", typeof(RectTransform), typeof(CanvasGroup));
+        actionBannerRect = actionBannerRoot.GetComponent<RectTransform>();
+        actionBannerRect.SetParent(transform, false);
+        SetStretchRect(actionBannerRect, ActionBannerAnchorMin(Side.Player), ActionBannerAnchorMax(Side.Player));
+        actionBannerRoot.layer = gameObject.layer;
+        actionBannerGroup = actionBannerRoot.GetComponent<CanvasGroup>();
+        actionBannerGroup.blocksRaycasts = false;
+        actionBannerGroup.interactable = false;
+        actionBannerGroup.alpha = 0f;
+
+        Image bg = EnsureChildImage(actionBannerRect, "Banner");
+        actionBannerBg = bg;
+        SetStretchRect(bg.rectTransform, Vector2.zero, Vector2.one);
+        ConfigureFramedImage(bg, ActionBannerSprite(Side.Player), new Color(0.02f, 0.05f, 0.08f, 0.85f));
+        EnsureGlow(bg.gameObject);
+
+        Image zap = EnsureChildImage(bg.transform, "Zap");
+        SetStretchRect(zap.rectTransform, new Vector2(0.045f, 0.24f), new Vector2(0.150f, 0.78f));
+        Sprite zapSprite = ZapIconSprite();
+        zap.sprite = zapSprite;
+        zap.type = Image.Type.Simple;
+        zap.preserveAspect = true;
+        zap.raycastTarget = false;
+        zap.enabled = zapSprite != null;
+        zap.color = new Color(1f, 0.95f, 0.5f, 1f);
+
+        actionBannerText = EnsureChildText(bg.transform, "Label", 24, TextAnchor.MiddleLeft);
+        SetStretchRect(actionBannerText.rectTransform, new Vector2(0.175f, 0.08f), new Vector2(0.965f, 0.92f));
+        actionBannerText.fontStyle = FontStyle.Bold;
+        actionBannerText.color = new Color(0.86f, 0.97f, 1f, 1f);
+        actionBannerText.raycastTarget = false;
+        EnsureShadow(actionBannerText.gameObject, new Color(0f, 0f, 0f, 0.8f), new Vector2(2f, -2f));
+    }
+
+    // Compact banner placed clear of the acting sprite. The player sprite sits
+    // low-left (its body tops out around viewport y 0.55), so the player banner
+    // rides just above it; the enemy sprite sits high-right (body up to ~0.80),
+    // so the enemy banner drops to the ground strip below it.
+    private static Vector2 ActionBannerAnchorMin(Side side)
+    {
+        return side == Side.Player ? new Vector2(0.050f, 0.585f) : new Vector2(0.560f, 0.360f);
+    }
+
+    private static Vector2 ActionBannerAnchorMax(Side side)
+    {
+        return side == Side.Player ? new Vector2(0.410f, 0.665f) : new Vector2(0.920f, 0.440f);
+    }
+
+    private IEnumerator ActionBannerRoutine()
+    {
+        const float inDuration = 0.16f;
+        const float holdDuration = 1.0f;
+        const float outDuration = 0.28f;
+
+        Transform t = actionBannerRoot != null ? actionBannerRoot.transform : null;
+
+        float elapsed = 0f;
+        while (elapsed < inDuration)
+        {
+            elapsed += Time.deltaTime;
+            float p = Mathf.Clamp01(elapsed / inDuration);
+            if (actionBannerGroup != null) actionBannerGroup.alpha = p;
+            if (t != null) t.localScale = Vector3.one * Mathf.Lerp(0.82f, 1f, p);
+            yield return null;
+        }
+        if (actionBannerGroup != null) actionBannerGroup.alpha = 1f;
+        if (t != null) t.localScale = Vector3.one;
+
+        yield return new WaitForSeconds(holdDuration);
+
+        elapsed = 0f;
+        while (elapsed < outDuration)
+        {
+            elapsed += Time.deltaTime;
+            float p = Mathf.Clamp01(elapsed / outDuration);
+            if (actionBannerGroup != null) actionBannerGroup.alpha = 1f - p;
+            yield return null;
+        }
+
+        if (actionBannerGroup != null) actionBannerGroup.alpha = 0f;
+        if (actionBannerRoot != null) actionBannerRoot.SetActive(false);
+        actionBannerRoutine = null;
+    }
+
+    /// <summary>
+    /// Plays the counter cut-in: a quick full-screen flash plus a TitleBanner
+    /// letterbox that replays the winner's Status animation as a portrait beside
+    /// the "NAME / COUNTER!" text, giving clear "counter succeeded" feedback.
+    /// </summary>
+    public void PlayCounterBanner(Side side, string actorName, Sprite[] statusFrames, float statusFps)
+    {
+        BuildCounterCutIn();
+        if (counterCutInRoot == null)
+            return;
+
+        ApplyCounterCutInSide(side);
+
+        string name = string.IsNullOrWhiteSpace(actorName) ? string.Empty : actorName.Trim().ToUpperInvariant();
+        if (counterBannerText != null)
+            counterBannerText.text = string.IsNullOrEmpty(name) ? "COUNTER!" : $"{name}\nCOUNTER!";
+
+        counterStatusFrames = statusFrames != null && statusFrames.Length > 0 ? statusFrames : null;
+        counterStatusSecondsPerFrame = 1f / Mathf.Max(1f, statusFps);
+        if (counterStatusImage != null)
+        {
+            bool hasFrames = counterStatusFrames != null;
+            counterStatusImage.enabled = hasFrames;
+            counterStatusImage.sprite = hasFrames ? counterStatusFrames[0] : null;
+        }
+
+        counterCutInRoot.transform.SetAsLastSibling();
+        counterCutInRoot.SetActive(true);
+
+        if (counterCutInRoutine != null)
+            StopCoroutine(counterCutInRoutine);
+        counterCutInRoutine = StartCoroutine(CounterCutInRoutine());
+    }
+
+    // Cyan family when the player counters, red family when the enemy does, so the
+    // cut-in itself reads who won the ASD check at a glance.
+    private static readonly Color32 CounterEdgePlayer = new Color32(78, 206, 230, 255);
+    private static readonly Color32 CounterEdgeEnemy  = new Color32(232, 72, 60, 255);
+    private static readonly Color CounterFlashPlayer = new Color(0.62f, 0.95f, 1f, 1f);
+    private static readonly Color CounterFlashEnemy  = new Color(1f, 0.42f, 0.34f, 1f);
+
+    /// <summary>
+    /// Recolours the counter cut-in (edges, flash, band tint, label) to the
+    /// winning side's palette — cyan for the player, red for the enemy.
+    /// </summary>
+    private void ApplyCounterCutInSide(Side side)
+    {
+        bool enemy = side == Side.Enemy;
+        Color edge = enemy ? (Color)CounterEdgeEnemy : (Color)CounterEdgePlayer;
+
+        if (counterTopEdge != null) counterTopEdge.color = edge;
+        if (counterBottomEdge != null) counterBottomEdge.color = edge;
+
+        if (counterFlashImage != null)
+        {
+            Color flash = enemy ? CounterFlashEnemy : CounterFlashPlayer;
+            flash.a = counterFlashImage.color.a; // keep the routine-driven alpha
+            counterFlashImage.color = flash;
+        }
+
+        if (counterBand != null && counterBand.sprite != null)
+            counterBand.color = enemy ? new Color(1f, 0.62f, 0.58f, 1f) : Color.white;
+
+        if (counterBannerText != null)
+            counterBannerText.color = enemy ? new Color(1f, 0.82f, 0.5f, 1f) : new Color(1f, 0.95f, 0.55f, 1f);
+    }
+
+    private void BuildCounterCutIn()
+    {
+        if (counterCutInRoot != null)
+            return;
+
+        counterCutInRoot = new GameObject("CounterCutIn", typeof(RectTransform), typeof(CanvasGroup));
+        var rootRect = counterCutInRoot.GetComponent<RectTransform>();
+        rootRect.SetParent(transform, false);
+        SetStretchRect(rootRect, Vector2.zero, Vector2.one);
+        counterCutInRoot.layer = gameObject.layer;
+        counterCutInGroup = counterCutInRoot.GetComponent<CanvasGroup>();
+        counterCutInGroup.blocksRaycasts = false;
+        counterCutInGroup.interactable = false;
+        counterCutInGroup.alpha = 0f;
+
+        counterFlashImage = EnsureChildImage(rootRect, "Flash");
+        SetStretchRect(counterFlashImage.rectTransform, Vector2.zero, Vector2.one);
+        counterFlashImage.sprite = null;
+        counterFlashImage.color = new Color(0.62f, 0.95f, 1f, 0f);
+        counterFlashImage.raycastTarget = false;
+
+        Image band = EnsureChildImage(rootRect, "Band");
+        counterBand = band;
+        SetStretchRect(band.rectTransform, new Vector2(0f, 0.36f), new Vector2(1f, 0.64f));
+        ConfigureFramedImage(band, AnnouncementBannerSprite(), new Color(0.02f, 0.05f, 0.08f, 0.92f));
+        EnsureGlow(band.gameObject);
+
+        counterTopEdge = EnsureChildImage(band.transform, "TopEdge");
+        SetStretchRect(counterTopEdge.rectTransform, new Vector2(0f, 0.955f), new Vector2(1f, 1f));
+        counterTopEdge.sprite = null;
+        counterTopEdge.color = (Color)HudPanelBorder;
+        counterTopEdge.raycastTarget = false;
+
+        counterBottomEdge = EnsureChildImage(band.transform, "BottomEdge");
+        SetStretchRect(counterBottomEdge.rectTransform, new Vector2(0f, 0f), new Vector2(1f, 0.045f));
+        counterBottomEdge.sprite = null;
+        counterBottomEdge.color = (Color)HudPanelBorder;
+        counterBottomEdge.raycastTarget = false;
+
+        counterStatusImage = EnsureChildImage(band.transform, "StatusPortrait");
+        SetStretchRect(counterStatusImage.rectTransform, new Vector2(0.16f, 0.08f), new Vector2(0.34f, 0.94f));
+        counterStatusImage.sprite = null;
+        counterStatusImage.type = Image.Type.Simple;
+        counterStatusImage.preserveAspect = true;
+        counterStatusImage.raycastTarget = false;
+        counterStatusImage.enabled = false;
+
+        counterBannerText = EnsureChildText(band.transform, "Label", 40, TextAnchor.MiddleCenter);
+        SetStretchRect(counterBannerText.rectTransform, new Vector2(0.36f, 0.04f), new Vector2(0.94f, 0.96f));
+        counterBannerText.fontStyle = FontStyle.Bold;
+        counterBannerText.color = new Color(1f, 0.95f, 0.55f, 1f);
+        counterBannerText.raycastTarget = false;
+        EnsureShadow(counterBannerText.gameObject, new Color(0f, 0f, 0f, 0.8f), new Vector2(2f, -2f));
+    }
+
+    private IEnumerator CounterCutInRoutine()
+    {
+        const float inDuration = 0.12f;
+        const float holdDuration = 0.70f;
+        const float outDuration = 0.22f;
+
+        float statusTimer = 0f;
+        int statusIndex = 0;
+        if (counterStatusImage != null && counterStatusFrames != null)
+            counterStatusImage.sprite = counterStatusFrames[0];
+
+        float elapsed = 0f;
+        while (elapsed < inDuration)
+        {
+            elapsed += Time.deltaTime;
+            float p = Mathf.Clamp01(elapsed / inDuration);
+            if (counterCutInGroup != null) counterCutInGroup.alpha = p;
+            SetFlashAlpha(Mathf.Lerp(0f, 0.55f, p));
+            AdvanceCounterStatus(ref statusTimer, ref statusIndex, Time.deltaTime);
+            yield return null;
+        }
+        if (counterCutInGroup != null) counterCutInGroup.alpha = 1f;
+
+        elapsed = 0f;
+        while (elapsed < holdDuration)
+        {
+            elapsed += Time.deltaTime;
+            SetFlashAlpha(Mathf.Lerp(0.55f, 0f, Mathf.Clamp01(elapsed / holdDuration)));
+            AdvanceCounterStatus(ref statusTimer, ref statusIndex, Time.deltaTime);
+            yield return null;
+        }
+
+        elapsed = 0f;
+        while (elapsed < outDuration)
+        {
+            elapsed += Time.deltaTime;
+            if (counterCutInGroup != null)
+                counterCutInGroup.alpha = 1f - Mathf.Clamp01(elapsed / outDuration);
+            AdvanceCounterStatus(ref statusTimer, ref statusIndex, Time.deltaTime);
+            yield return null;
+        }
+
+        if (counterCutInGroup != null) counterCutInGroup.alpha = 0f;
+        if (counterCutInRoot != null) counterCutInRoot.SetActive(false);
+        counterCutInRoutine = null;
+    }
+
+    private void AdvanceCounterStatus(ref float timer, ref int index, float dt)
+    {
+        if (counterStatusImage == null || counterStatusFrames == null || counterStatusFrames.Length < 2)
+            return;
+
+        timer += dt;
+        if (timer < counterStatusSecondsPerFrame)
+            return;
+
+        timer -= counterStatusSecondsPerFrame;
+        index = (index + 1) % counterStatusFrames.Length;
+        Sprite frame = counterStatusFrames[index];
+        if (frame != null)
+            counterStatusImage.sprite = frame;
+    }
+
+    private void SetFlashAlpha(float alpha)
+    {
+        if (counterFlashImage == null)
+            return;
+        Color c = counterFlashImage.color;
+        c.a = alpha;
+        counterFlashImage.color = c;
     }
 
     public void SetRoundSandclockActive(bool active)
@@ -682,22 +1058,12 @@ public class BattleHudController : MonoBehaviour
 
     private void EnsureBattleAnnouncer()
     {
+        // The top announcer board is retired: action narration now appears as an
+        // above-sprite callout (BattlePresentationController.SpawnActionCallout).
+        // Hide any existing board so it never occupies the top of the screen.
         Transform root = FindTransform("SafeArea/BattleAnnouncer");
-        if (root == null && autoCreateAnnouncer)
-            root = CreateBattleAnnouncer();
-        if (root == null)
-            return;
-
-        ConfigureBattleAnnouncerLayout(root as RectTransform);
-        if (announcerFrame == null)
-            announcerFrame = root.GetComponent<Image>();
-        ConfigureAnnouncerFrame();
-        if (announcerTitleText == null)
-            announcerTitleText = FindText("SafeArea/BattleAnnouncer/TitleText");
-        if (announcerBodyText == null)
-            announcerBodyText = FindText("SafeArea/BattleAnnouncer/BodyText");
-
-        ApplyAnnouncerFrameColor(0f);
+        if (root != null && root.gameObject.activeSelf)
+            root.gameObject.SetActive(false);
     }
 
     private void EnsurePostBattlePanel()
@@ -743,7 +1109,9 @@ public class BattleHudController : MonoBehaviour
         root.SetAsLastSibling();
 
         Image frame = rootObject.GetComponent<Image>();
-        ConfigureFramedImage(frame, AnnouncerPanelSprite(), new Color(0.018f, 0.045f, 0.062f, 0.96f));
+        // Use the shared cyber-glass chrome so the result panel matches the rest of
+        // the battle HUD instead of the old standalone green announcer panel.
+        ApplyPanelChrome(frame);
 
         postBattleTitleText = CreateAnnouncerText(
             "TitleText",
@@ -772,7 +1140,7 @@ public class BattleHudController : MonoBehaviour
         SetStretchRect(buttonRect, new Vector2(0.32f, 0.08f), new Vector2(0.68f, 0.22f));
 
         Image buttonImage = buttonObject.GetComponent<Image>();
-        ConfigureFramedImage(buttonImage, SkillTagFrameSprite(), new Color(0.08f, 0.50f, 0.34f, 0.92f));
+        ConfigureChromeChip(buttonImage, 2f);
         buttonImage.raycastTarget = true;
 
         postBattleContinueButton = buttonObject.GetComponent<Button>();
@@ -840,17 +1208,9 @@ public class BattleHudController : MonoBehaviour
         if (roundSandclockImage == null)
             return;
 
-        RectTransform rect = roundSandclockImage.rectTransform;
-        if (rect != null)
-        {
-            rect.anchorMin = new Vector2(RoundSandclockTopBarAnchorX, 0.5f);
-            rect.anchorMax = new Vector2(RoundSandclockTopBarAnchorX, 0.5f);
-            rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = Vector2.zero;
-            rect.sizeDelta = new Vector2(RoundSandclockSize, RoundSandclockSize);
-            rect.SetAsLastSibling();
-        }
-
+        // Position/size of the round sandclock is authored in BattleHud.prefab now.
+        // Code only keeps it on top of the top bar and sets non-layout flags.
+        roundSandclockImage.rectTransform?.SetAsLastSibling();
         roundSandclockImage.raycastTarget = false;
         roundSandclockImage.preserveAspect = true;
     }
@@ -947,6 +1307,40 @@ public class BattleHudController : MonoBehaviour
         return skillPanelBackdropSprite;
     }
 
+    private Sprite AnnouncementBannerSprite()
+    {
+        if (announcementBannerSprite == null)
+            announcementBannerSprite = Resources.Load<Sprite>(AnnouncementBannerResourcePath);
+        return announcementBannerSprite;
+    }
+
+    /// <summary>
+    /// Side-tinted action-callout banner: the blue TitleBanner decorator for the
+    /// player, the red one for the enemy. Falls back to the shared TitleBanner if
+    /// a decorator sprite is missing.
+    /// </summary>
+    private Sprite ActionBannerSprite(Side side)
+    {
+        if (side == Side.Player)
+        {
+            if (actionBannerPlayerSprite == null)
+                actionBannerPlayerSprite = Resources.Load<Sprite>(ActionBannerPlayerResourcePath);
+            return actionBannerPlayerSprite != null ? actionBannerPlayerSprite : AnnouncementBannerSprite();
+        }
+
+        if (actionBannerEnemySprite == null)
+            actionBannerEnemySprite = Resources.Load<Sprite>(ActionBannerEnemyResourcePath);
+        return actionBannerEnemySprite != null ? actionBannerEnemySprite : AnnouncementBannerSprite();
+    }
+
+
+    private Sprite ZapIconSprite()
+    {
+        if (zapIconSprite == null)
+            zapIconSprite = Resources.Load<Sprite>(ZapIconResourcePath);
+        return zapIconSprite;
+    }
+
     private void EnsureSkillPanelPresentation()
     {
         Image panelImage = Find<Image>("SafeArea/CommandPanel/SkillPanel");
@@ -970,6 +1364,8 @@ public class BattleHudController : MonoBehaviour
             ApplyPanelChrome(panelImage);
             panelImage.preserveAspect = false;
             panelImage.raycastTarget = false;
+            // Skill bar position/size is authored in BattleHud.prefab now — edit it
+            // there. The slots below anchor fractionally, so they follow the panel.
             skillPanelSlotLayoutApplied = false;
         }
 
@@ -1078,20 +1474,30 @@ public class BattleHudController : MonoBehaviour
             : null;
         if (nameRect != null)
         {
-            SetStretchRect(nameRect, new Vector2(hasPanelBackdrop ? 0.245f : 0.145f, 0.10f), new Vector2(0.515f, 0.90f));
+            // A short, slightly wider name band: limiting the height to roughly one
+            // line makes best-fit shrink long names onto a single line instead of
+            // wrapping to two, while the extra width keeps them clear of the icon.
+            float nameLeft = hasPanelBackdrop ? 0.235f : 0.145f;
+            float nameRight = hasPanelBackdrop ? 0.540f : 0.515f;
+            float nameBottom = hasPanelBackdrop ? 0.28f : 0.10f;
+            float nameTop = hasPanelBackdrop ? 0.72f : 0.90f;
+            SetStretchRect(nameRect, new Vector2(nameLeft, nameBottom), new Vector2(nameRight, nameTop));
             ConfigureSkillNameText(skillNameTexts[index], hasPanelBackdrop);
         }
 
         skillInstructionFrames[index] = EnsureChildImage(root, "InstructionFrame");
         RectTransform instructionRect = skillInstructionFrames[index].rectTransform;
         if (hasPanelBackdrop)
-            SetStretchRect(instructionRect, new Vector2(0.050f, 0.10f), new Vector2(0.205f, 0.90f));
+        {
+            // Compact square A/D/S badge wearing the shared cyan chrome.
+            SetStretchRect(instructionRect, new Vector2(0.042f, 0.17f), new Vector2(0.150f, 0.83f));
+            ConfigureChromeChip(skillInstructionFrames[index], 3f);
+        }
         else
+        {
             SetFixedLeftRect(instructionRect, 10f, 42f);
-        if (hasPanelBackdrop)
-            ConfigureTransparentImage(skillInstructionFrames[index]);
-        else
             ConfigureFramedImage(skillInstructionFrames[index], SkillInsetFrameSprite(), new Color(0.10f, 0.48f, 0.28f, 0.78f));
+        }
         skillInstructionFrames[index].transform.SetAsFirstSibling();
 
         skillInstructionTexts[index] = EnsureChildText(skillInstructionFrames[index].transform, "InstructionText", hasPanelBackdrop ? 20 : 23, TextAnchor.MiddleCenter);
@@ -1100,7 +1506,7 @@ public class BattleHudController : MonoBehaviour
         EnsureShadow(skillInstructionTexts[index].gameObject, new Color(0f, 0f, 0f, 0.75f), new Vector2(1.2f, -1.2f));
 
         skillElementBadges[index] = EnsureChildImage(root, "ElementBadge");
-        SetStretchRect(skillElementBadges[index].rectTransform, new Vector2(0.535f, 0.27f), new Vector2(0.595f, 0.73f));
+        SetStretchRect(skillElementBadges[index].rectTransform, new Vector2(0.560f, 0.27f), new Vector2(0.615f, 0.73f));
         if (hasPanelBackdrop)
             ConfigureTransparentImage(skillElementBadges[index]);
         else
@@ -1129,10 +1535,12 @@ public class BattleHudController : MonoBehaviour
         text.fontStyle = FontStyle.Bold;
         text.fontSize = hasPanelBackdrop ? 17 : Mathf.Max(17, text.fontSize);
         text.alignment = TextAnchor.MiddleLeft;
-        text.horizontalOverflow = HorizontalWrapMode.Overflow;
+        // Wrap (not Overflow) so best-fit shrinks long names to their box instead of
+        // spilling rightward over the element icon (e.g. "Hyper-Threading").
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Truncate;
         text.resizeTextForBestFit = true;
-        text.resizeTextMinSize = 11;
+        text.resizeTextMinSize = 10;
         text.resizeTextMaxSize = hasPanelBackdrop ? 17 : Mathf.Max(17, text.fontSize);
         text.color = new Color(0.96f, 1f, 1f, 1f);
         EnsureShadow(text.gameObject, new Color(0f, 0f, 0f, 0.70f), new Vector2(1f, -1f));
@@ -1150,7 +1558,8 @@ public class BattleHudController : MonoBehaviour
         Image image = tagObject.GetComponent<Image>();
         if (image == null)
             image = tagObject.AddComponent<Image>();
-        ConfigureFramedImage(image, SkillTagFrameSprite(), new Color(0.10f, 0.45f, 0.30f, 0.64f));
+        // Unified cyan pixel-tech chip (matches the A/D/S badge + panels).
+        ConfigureChromeChip(image, 3f);
 
         if (text == null)
             return;
@@ -1456,12 +1865,66 @@ public class BattleHudController : MonoBehaviour
     {
         ApplyPanelChrome(Find<Image>("SafeArea/TopBar"));
         ApplyPanelChrome(Find<Image>("SafeArea/CombatLayer/PlayerCombatantPanel"));
-        ApplyPanelChrome(Find<Image>("SafeArea/CombatLayer/EnemyCombatantPanel"));
+
+        Image enemyPanel = Find<Image>("SafeArea/CombatLayer/EnemyCombatantPanel");
+        ApplyPanelChrome(enemyPanel);
+        // Position/size of the enemy card is authored in BattleHud.prefab now —
+        // edit it there. Code only applies the chrome (sprite + glow).
+
         ApplyPanelChrome(Find<Image>("SafeArea/CommandPanel/ActionPanel"));
         ApplyPanelChrome(Find<Image>("SafeArea/CommandPanel/ActionPanel/SkillDetailPanel"));
+
+        // Give both status cards an identical inner treatment (framed pixel
+        // energy bars + matching label chrome).
+        StyleCombatantCard("SafeArea/CombatLayer/PlayerCombatantPanel");
+        StyleCombatantCard("SafeArea/CombatLayer/EnemyCombatantPanel");
         // SkillPanel chrome is applied inside EnsureSkillPanelPresentation, and
         // the BattleAnnouncer inside ConfigureAnnouncerFrame, so their own
         // update paths don't overwrite it.
+    }
+
+    /// <summary>
+    /// Skins a small inline element (A/D/S badge, CP/BP/Counter tag) with the
+    /// same cyber-glass chrome as the panels, but with a thinner border so the
+    /// chip stays legible at row scale.
+    /// </summary>
+    private static void ConfigureChromeChip(Image image, float pixelsPerUnitMultiplier)
+    {
+        if (image == null)
+            return;
+
+        image.raycastTarget = false;
+        image.sprite = HudPanelSprite();
+        image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = pixelsPerUnitMultiplier;
+        image.color = Color.white;
+    }
+
+    /// <summary>
+    /// Applies the shared status-card treatment. The Battery frame + fill (sprite,
+    /// colour, position, octagon nesting) are authored in BattleHud.prefab now;
+    /// this only styles the CP well. Purely cosmetic — no value/logic touched.
+    /// </summary>
+    private void StyleCombatantCard(string root)
+    {
+        // CP: frame the well and flatten cells into solid pixel squares.
+        Image cpInterior = Find<Image>($"{root}/CPDots/Interior");
+        if (cpInterior != null)
+            ConfigureChromeChip(cpInterior, 2.4f);
+
+        Transform cpCells = FindTransform($"{root}/CPDots/CPCells");
+        if (cpCells != null)
+        {
+            foreach (Transform cell in cpCells)
+            {
+                Image cellImage = cell.GetComponent<Image>();
+                if (cellImage != null)
+                {
+                    cellImage.sprite = null;
+                    cellImage.raycastTarget = false;
+                }
+            }
+        }
     }
 
     private static void EnsureShadow(GameObject target, Color color, Vector2 distance)
@@ -1576,31 +2039,9 @@ public class BattleHudController : MonoBehaviour
         if (refs.BatteryFill == null)
             return;
 
-        float ratio = max <= 0 ? 0f : Mathf.Clamp01(current / max);
-        RectTransform rt = refs.BatteryFill.rectTransform;
-        if (refs.BatteryFrameRect != null && rt.parent == refs.BatteryFrameRect.parent)
-        {
-            Vector2 frameMin = refs.BatteryFrameRect.anchorMin;
-            Vector2 frameMax = refs.BatteryFrameRect.anchorMax;
-            Vector2 frameSize = frameMax - frameMin;
-            rt.anchorMin = frameMin + Vector2.Scale(frameSize, BatteryFillInsetMin);
-            rt.anchorMax = frameMin + Vector2.Scale(frameSize, BatteryFillInsetMax);
-        }
-        else
-        {
-            rt.anchorMin = BatteryFillFallbackAnchorMin;
-            rt.anchorMax = BatteryFillFallbackAnchorMax;
-        }
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-        if (refs.BatteryFrameRect != null && rt.parent == refs.BatteryFrameRect.parent)
-            rt.SetSiblingIndex(Mathf.Min(rt.parent.childCount - 1, refs.BatteryFrameRect.GetSiblingIndex() + 1));
-
-        refs.BatteryFill.color = refs.BatteryFill.sprite == null ? refs.BatteryFillColor : Color.white;
-        refs.BatteryFill.type = Image.Type.Filled;
-        refs.BatteryFill.fillMethod = Image.FillMethod.Horizontal;
-        refs.BatteryFill.fillOrigin = 0;
-        refs.BatteryFill.fillAmount = ratio;
+        // The fill's sprite, colour, Filled-mode and position are authored in the
+        // prefab; only the dynamic clip amount is driven here.
+        refs.BatteryFill.fillAmount = max <= 0 ? 0f : Mathf.Clamp01(current / max);
     }
 
     private static void ApplyCPVisual(CombatantRefs refs, float current, int max)
@@ -1631,8 +2072,6 @@ public class BattleHudController : MonoBehaviour
             LevelText        = FindText($"{root}/LevelText"),
             BatteryValueText = FindText($"{root}/BatteryBar/ValueText"),
             BatteryFill      = Find<Image>($"{root}/BatteryBar/Fill"),
-            BatteryFillColor = root.Contains("Enemy") ? EnemyBatteryFillColor : PlayerBatteryFillColor,
-            BatteryFrameRect = Find<RectTransform>($"{root}/BatteryBar/BatteryFrame"),
             CPValueText      = FindText($"{root}/CPDots/CPValueText"),
             StatusText       = FindText($"{root}/StatusRow/StatusText"),
             CPDots           = new Image[0],

@@ -21,6 +21,14 @@ public class RunResultController : MonoBehaviour
     private GameManager manager;
     private float startTime;
     private Font defaultFont;
+    private Sprite panelChromeSprite;
+
+    // Matches the battle HUD's unified cyber-glass chrome (BattleHudController),
+    // so the run-result screen reads as the same UI family instead of the old
+    // flat default fill.
+    private static readonly Color PanelFill = new Color(0.039f, 0.063f, 0.090f, 0.95f);
+    private static readonly Color32 PanelBorder = new Color32(78, 206, 230, 255);
+    private static readonly Color PanelGlow = new Color(0.30f, 0.80f, 0.94f, 0.45f);
 
     private void Awake()
     {
@@ -143,6 +151,21 @@ public class RunResultController : MonoBehaviour
         background.rectTransform.offsetMin = Vector2.zero;
         background.rectTransform.offsetMax = Vector2.zero;
 
+        // Framed cyber-glass panel that holds the result content, matching the
+        // battle HUD chrome instead of the bare flat background.
+        Image panel = CreateImage("ResultPanel", root, Color.white);
+        panel.sprite = CyberPanelSprite();
+        panel.type = Image.Type.Sliced;
+        panel.pixelsPerUnitMultiplier = 1.5f;
+        panel.rectTransform.anchorMin = new Vector2(0.055f, 0.10f);
+        panel.rectTransform.anchorMax = new Vector2(0.945f, 0.88f);
+        panel.rectTransform.offsetMin = Vector2.zero;
+        panel.rectTransform.offsetMax = Vector2.zero;
+        Outline panelGlow = panel.gameObject.AddComponent<Outline>();
+        panelGlow.effectColor = PanelGlow;
+        panelGlow.effectDistance = new Vector2(2f, -2f);
+        panelGlow.useGraphicAlpha = false;
+
         Image topLine = CreateImage("TopLine", root, new Color(0.11f, 0.75f, 0.88f, 0.75f));
         topLine.rectTransform.anchorMin = new Vector2(0.08f, 0.82f);
         topLine.rectTransform.anchorMax = new Vector2(0.92f, 0.82f);
@@ -193,6 +216,64 @@ public class RunResultController : MonoBehaviour
         footerText.rectTransform.offsetMin = Vector2.zero;
         footerText.rectTransform.offsetMax = Vector2.zero;
         footerText.color = new Color(0.46f, 0.78f, 0.86f, 1f);
+    }
+
+    // 9-slice cyber-glass chrome: dark translucent fill, 2px cyan border, chamfered
+    // corners. Purely procedural so the run-result scene needs no art asset or scene
+    // wiring and looks identical to the battle HUD panels.
+    private Sprite CyberPanelSprite()
+    {
+        if (panelChromeSprite != null)
+            return panelChromeSprite;
+
+        const int size = 28;
+        const int chamfer = 5;
+        const int border = 2;
+        const int slice = chamfer + border;
+
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+        };
+
+        Color fill = PanelFill;
+        Color edge = (Color)PanelBorder;
+        Color clear = new Color(0f, 0f, 0f, 0f);
+
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                int l = x;
+                int r = size - 1 - x;
+                int b = y;
+                int t = size - 1 - y;
+
+                if ((l + b < chamfer) || (r + b < chamfer) || (l + t < chamfer) || (r + t < chamfer))
+                {
+                    texture.SetPixel(x, y, clear);
+                    continue;
+                }
+
+                bool diagonalEdge = (l + b < chamfer + border) || (r + b < chamfer + border) ||
+                                    (l + t < chamfer + border) || (r + t < chamfer + border);
+                int straight = Mathf.Min(Mathf.Min(l, r), Mathf.Min(b, t));
+                texture.SetPixel(x, y, diagonalEdge || straight < border ? edge : fill);
+            }
+        }
+
+        texture.Apply();
+        panelChromeSprite = Sprite.Create(
+            texture,
+            new Rect(0, 0, size, size),
+            new Vector2(0.5f, 0.5f),
+            100f,
+            0,
+            SpriteMeshType.FullRect,
+            new Vector4(slice, slice, slice, slice));
+        panelChromeSprite.name = "RunResultPanelChrome";
+        return panelChromeSprite;
     }
 
     private Canvas CreateCanvas()
