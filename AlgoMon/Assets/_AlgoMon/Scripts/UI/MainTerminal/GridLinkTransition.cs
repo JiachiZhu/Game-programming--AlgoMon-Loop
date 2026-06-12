@@ -824,35 +824,37 @@ public sealed class GridLinkTransition : MonoBehaviour
     private void LoadVisualSprites()
     {
         portalBackplateSprite =
-            LoadEditorSprite(PixelHudSpriteRoot + "/Panels/White/FrameDigitalLarge.png") ??
-            LoadEditorSprite(PixelHudSpriteRoot + "/Panels/White/PanelOutlined.png") ??
-            LoadEditorSprite(PixelHudSpriteRoot + "/Panels/Blue/PanelDigital.png");
-        portalShellSprite = LoadEditorSprite(CyberHudSpriteRoot + "/panel_base_01_outer_shell.png");
-        portalRadarSprite = LoadEditorSprite(CyberHudSpriteRoot + "/hud_radar_frame.png");
+            LoadSprite(PixelHudSpriteRoot + "/Panels/White/FrameDigitalLarge.png") ??
+            LoadSprite(PixelHudSpriteRoot + "/Panels/White/PanelOutlined.png") ??
+            LoadSprite(PixelHudSpriteRoot + "/Panels/Blue/PanelDigital.png");
+        portalShellSprite = LoadSprite(CyberHudSpriteRoot + "/panel_base_01_outer_shell.png");
+        portalRadarSprite = LoadSprite(CyberHudSpriteRoot + "/hud_radar_frame.png");
         portalGlyphSprite =
-            LoadEditorSprite(CyberHudSpriteRoot + "/deco_misc_03.png") ??
-            LoadEditorSprite(CyberHudSpriteRoot + "/icon_skill_06.png");
+            LoadSprite(CyberHudSpriteRoot + "/deco_misc_03.png") ??
+            LoadSprite(CyberHudSpriteRoot + "/icon_skill_06.png");
         nodeFrameSprite =
-            LoadEditorSprite(PixelHudSpriteRoot + "/SkillTree/White/SkillSlotSharp.png") ??
-            LoadEditorSprite(PixelHudSpriteRoot + "/SkillTree/White/SkillSlotRound.png");
+            LoadSprite(PixelHudSpriteRoot + "/SkillTree/White/SkillSlotSharp.png") ??
+            LoadSprite(PixelHudSpriteRoot + "/SkillTree/White/SkillSlotRound.png");
         nodeReticleSprite =
-            LoadEditorSprite(PixelHudSpriteRoot + "/Selectors/Reticle_Select.png") ??
-            LoadEditorSprite(PixelHudSpriteRoot + "/Grid/White/SelectorEdge_Focus.png");
+            LoadSprite(PixelHudSpriteRoot + "/Selectors/Reticle_Select.png") ??
+            LoadSprite(PixelHudSpriteRoot + "/Grid/White/SelectorEdge_Focus.png");
         edgeLineSprite =
-            LoadEditorSprite(PixelHudSpriteRoot + "/SkillTree/White/ConnectorThinHorizontal.png") ??
-            LoadEditorSprite(PixelHudSpriteRoot + "/SkillTree/White/ConnectorHorizontal.png");
-        edgeHeadSprite = LoadEditorSprite(PixelHudSpriteRoot + "/Selectors/ChevronRight_Select.png");
-        progressTrackSprite = LoadEditorSprite(CyberHudSpriteRoot + "/progress_bar_striped_frame.png");
-        progressFillSprite = LoadEditorSprite(CyberHudSpriteRoot + "/progress_fill_striped_texture.png");
+            LoadSprite(PixelHudSpriteRoot + "/SkillTree/White/ConnectorThinHorizontal.png") ??
+            LoadSprite(PixelHudSpriteRoot + "/SkillTree/White/ConnectorHorizontal.png");
+        edgeHeadSprite = LoadSprite(PixelHudSpriteRoot + "/Selectors/ChevronRight_Select.png");
+        progressTrackSprite = LoadSprite(CyberHudSpriteRoot + "/progress_bar_striped_frame.png");
+        progressFillSprite = LoadSprite(CyberHudSpriteRoot + "/progress_fill_striped_texture.png");
     }
 
-    private static Sprite LoadEditorSprite(string assetPath)
+    private static Sprite LoadSprite(string assetPath)
     {
+        Sprite sprite = null;
 #if UNITY_EDITOR
-        return AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
-#else
-        return null;
+        sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
 #endif
+        if (sprite == null)
+            sprite = RuntimeUiAssetCatalog.FindSprite(assetPath);
+        return sprite;
     }
 
     private Font ResolveFont()

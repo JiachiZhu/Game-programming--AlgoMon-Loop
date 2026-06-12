@@ -1156,11 +1156,11 @@ public class BattlePresentationController : MonoBehaviour
 
         string resolvedCodeName = !string.IsNullOrWhiteSpace(codeName) ? codeName : fallbackId;
         string resolvedFormName = !string.IsNullOrWhiteSpace(formName) ? formName : defaultAnimationForm;
-        BattleAnimationProfile profile = BattleAnimationProfileLoader.TryLoadEditorProfile(resolvedCodeName, resolvedFormName);
+        BattleAnimationProfile profile = BattleAnimationProfileLoader.TryLoadProfile(resolvedCodeName, resolvedFormName);
         if (profile == null &&
             !string.Equals(resolvedFormName, defaultAnimationForm, System.StringComparison.OrdinalIgnoreCase))
         {
-            profile = BattleAnimationProfileLoader.TryLoadEditorProfile(resolvedCodeName, defaultAnimationForm);
+            profile = BattleAnimationProfileLoader.TryLoadProfile(resolvedCodeName, defaultAnimationForm);
         }
 
         return profile;
@@ -1707,12 +1707,11 @@ public class BattlePresentationController : MonoBehaviour
             return true;
 
 #if UNITY_EDITOR
-        if (autoLoadBitmapFeedbackFontsInEditor)
-            return source.TryGetEditorAutoFont(bitmapFeedbackFontAssetRoot, out font);
+        if (autoLoadBitmapFeedbackFontsInEditor && source.TryGetEditorAutoFont(bitmapFeedbackFontAssetRoot, out font))
+            return true;
 #endif
 
-        font = null;
-        return false;
+        return source.TryGetCatalogFont(bitmapFeedbackFontAssetRoot, out font);
     }
 
     private NicoBitmapFontReference BitmapFontForElement(ElementType element)

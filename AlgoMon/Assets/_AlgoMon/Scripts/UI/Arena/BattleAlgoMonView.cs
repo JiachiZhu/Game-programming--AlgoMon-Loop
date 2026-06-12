@@ -144,7 +144,7 @@ public class BattleAlgoMonView : MonoBehaviour
         if (string.IsNullOrWhiteSpace(resolvedCodeName))
             resolvedCodeName = combatantId;
 
-        return BattleAnimationProfileLoader.TryLoadEditorProfile(resolvedCodeName, FormName);
+        return BattleAnimationProfileLoader.TryLoadProfile(resolvedCodeName, FormName);
     }
 
     private void ApplyResolvedProfile(BattleAnimationProfile profile)

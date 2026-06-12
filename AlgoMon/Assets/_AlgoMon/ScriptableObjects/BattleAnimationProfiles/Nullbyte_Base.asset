@@ -1,0 +1,179 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb23f3a5fef0468ea629a2e8b05f7c53, type: 3}
+  m_Name: Nullbyte_Base
+  m_EditorClassIdentifier: 
+  profileId: Nullbyte_Base
+  mirrorX: 0
+  visualScaleMultiplier: 1
+  entry:
+    frames:
+    - {fileID: 21300000, guid: 70aa6ad84243451dbd7e7ad1d455642d, type: 3}
+    - {fileID: 21300000, guid: 7193b953447f4752be390eac434a6b60, type: 3}
+    - {fileID: 21300000, guid: a8834cebb06f4b53ba6ae636dcdde1a5, type: 3}
+    - {fileID: 21300000, guid: b91d8d38e2a64b06ace86d61ccbbb9b2, type: 3}
+    - {fileID: 21300000, guid: e815ce97b9e6447fa8e9d607ea396a22, type: 3}
+    - {fileID: 21300000, guid: 15d7a3584e7b499c8a97ca0ad23f098b, type: 3}
+    - {fileID: 21300000, guid: 36529e42c5a5488dad3ffa748849481c, type: 3}
+    - {fileID: 21300000, guid: 0fd4e813bafa4dabae1fef8b982fae7f, type: 3}
+    - {fileID: 21300000, guid: 87dceec9dc094c1989d2a9e5404c9517, type: 3}
+    - {fileID: 21300000, guid: e3eebbaed33b4b6380e37159c78d16b7, type: 3}
+    - {fileID: 21300000, guid: 7f99fb8d60484182a8cad8f8fe1b29ea, type: 3}
+    - {fileID: 21300000, guid: 4f4c5e442d4243ac989c0f6f5b0fa585, type: 3}
+    - {fileID: 21300000, guid: 019638f95dbd46b89d6def5c1d4206d1, type: 3}
+    fps: 8
+    loop: 0
+    startFrame: 1
+    actionFrame: -1
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  idle:
+    frames:
+    - {fileID: 21300000, guid: 4f4447b5beeca474496c3e11342fd3ae, type: 3}
+    - {fileID: 21300000, guid: 7a512d88d51572244915c6f5554460d1, type: 3}
+    - {fileID: 21300000, guid: 6783806aee869e148b6d19659d4f5a09, type: 3}
+    - {fileID: 21300000, guid: a255bcea5cfda4c4a83cefed3111ff3a, type: 3}
+    - {fileID: 21300000, guid: d9edfe9bc7b84c14090042fdc058a2f0, type: 3}
+    - {fileID: 21300000, guid: 40ef574f8c75e7f4c8774a92276e5f79, type: 3}
+    - {fileID: 21300000, guid: a6bcdeefac97ac14aa7e0782076a8013, type: 3}
+    - {fileID: 21300000, guid: 8fc60465b8c003a4496086d8caf92fe7, type: 3}
+    - {fileID: 21300000, guid: 93ff34b8046d1da408a0210bb83e6f08, type: 3}
+    - {fileID: 21300000, guid: 05d7a4d3c931f894e8194374995629e6, type: 3}
+    - {fileID: 21300000, guid: 537e9653cbf0e9b428ac0ab2911f6d0e, type: 3}
+    fps: 8
+    loop: 1
+    startFrame: 1
+    actionFrame: -1
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  attack:
+    frames:
+    - {fileID: 21300000, guid: 62782e011f82498fb2e8884c57600995, type: 3}
+    - {fileID: 21300000, guid: 85f580bf836749d992cf19a92a899e02, type: 3}
+    - {fileID: 21300000, guid: 1d8975de447844e9b45e24930e32b523, type: 3}
+    - {fileID: 21300000, guid: 78080999c93a46929d9b7b678f198026, type: 3}
+    - {fileID: 21300000, guid: 72f0b509a7e144448bc82ac00ab7c134, type: 3}
+    - {fileID: 21300000, guid: f32bb9b5649f423281a9085513981c15, type: 3}
+    - {fileID: 21300000, guid: 3e19441f9c174c8291ba3cfa89347e64, type: 3}
+    fps: 10
+    loop: 0
+    startFrame: 1
+    actionFrame: 4
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  defense:
+    frames:
+    - {fileID: 21300000, guid: 507ab5a33308b284489c6927b2118076, type: 3}
+    - {fileID: 21300000, guid: 088c2d79bf4ce1246b14cec9a1246a51, type: 3}
+    - {fileID: 21300000, guid: 5bd4471aa40bcd04fa5e5be298efe80a, type: 3}
+    - {fileID: 21300000, guid: 58bfdbcb1d9a5424cbcb7fb823169580, type: 3}
+    - {fileID: 21300000, guid: 71c9e234de48f5944bc3ae620b2c36f1, type: 3}
+    - {fileID: 21300000, guid: 01bdce0424e72994697b8ffba4bf9793, type: 3}
+    - {fileID: 21300000, guid: 556f98bfc1cccd644896841237667027, type: 3}
+    - {fileID: 21300000, guid: a0c8d9428c56cea40a7486f9c34bb0d2, type: 3}
+    - {fileID: 21300000, guid: 4a5f4b1ec44ef034f9e469bbe7c717ef, type: 3}
+    - {fileID: 21300000, guid: 77cbf604da474d44f90770eb99ada672, type: 3}
+    - {fileID: 21300000, guid: 5a5650139bb649c40b05361d5e13f9d2, type: 3}
+    fps: 10
+    loop: 0
+    startFrame: 1
+    actionFrame: 9
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  status:
+    frames:
+    - {fileID: 21300000, guid: c2f46fba9e834ed0b7696bbc6be746fd, type: 3}
+    - {fileID: 21300000, guid: 8f3a313202854e4ca826d0df1209eea4, type: 3}
+    - {fileID: 21300000, guid: dec60ac4509c434e86f0192ec8ff96be, type: 3}
+    - {fileID: 21300000, guid: 2a76a36b159949e8a838f098e3755bf0, type: 3}
+    - {fileID: 21300000, guid: d2c51ddf70d140b3846aa7c02226b1aa, type: 3}
+    - {fileID: 21300000, guid: 01f96a36114749189c998bc543d5874f, type: 3}
+    - {fileID: 21300000, guid: 117818a49ba84b3eb3e4cd420b9510ab, type: 3}
+    - {fileID: 21300000, guid: e650ef8b78174771bc2a5dd9749718df, type: 3}
+    - {fileID: 21300000, guid: 61ea28cbe327445f91692df32904be5e, type: 3}
+    - {fileID: 21300000, guid: 71d03439954f4fb5ab39f05e4f2a7e7c, type: 3}
+    - {fileID: 21300000, guid: dbfecdbc5c314a4b96af69b32d57d18b, type: 3}
+    fps: 10
+    loop: 0
+    startFrame: 1
+    actionFrame: 4
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  hit:
+    frames:
+    - {fileID: 21300000, guid: b75f929c7bf3484fb71951243fda48a2, type: 3}
+    - {fileID: 21300000, guid: fc3ca03bb5df4f83b548a1565b28a8af, type: 3}
+    - {fileID: 21300000, guid: bea180f8b4924bcd9489948dc2871f1f, type: 3}
+    - {fileID: 21300000, guid: 0511ddfbc2b14cecbe5a452841d49c67, type: 3}
+    - {fileID: 21300000, guid: 990d22427e4146079d7d61cede2e625c, type: 3}
+    - {fileID: 21300000, guid: ed9199e95f30486d913b414c3deb06e1, type: 3}
+    - {fileID: 21300000, guid: 9818dc0bb42243f2ae4df01b65b65e04, type: 3}
+    - {fileID: 21300000, guid: ed7bad19b0a84b759b6f607733184189, type: 3}
+    - {fileID: 21300000, guid: 6bda81e3c19f4c7b971c6d2ce1d4ebdc, type: 3}
+    fps: 12
+    loop: 0
+    startFrame: 1
+    actionFrame: -1
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  faint:
+    frames:
+    - {fileID: 21300000, guid: 40d192a5e6294fe4873159d136812c7c, type: 3}
+    - {fileID: 21300000, guid: c3ae1f4f14904d2e8271ca54008b535b, type: 3}
+    - {fileID: 21300000, guid: c22c4c9e116a434a8bb9c03cfb423cd1, type: 3}
+    - {fileID: 21300000, guid: d112477a632e4ad5a19ad678cd2835bd, type: 3}
+    - {fileID: 21300000, guid: 1ec67bc9770a476092bde5a7716f0324, type: 3}
+    - {fileID: 21300000, guid: 4b997df3be9d46e786673bb5f8b9a061, type: 3}
+    - {fileID: 21300000, guid: b3b80ec8c5de4731ab5f0113ce0b092d, type: 3}
+    - {fileID: 21300000, guid: 80b1869b8c324262ac174a7d5fc99a11, type: 3}
+    - {fileID: 21300000, guid: 6e6c49839ee348ee94fc1522d9474a89, type: 3}
+    fps: 8
+    loop: 0
+    startFrame: 1
+    actionFrame: -1
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 1

@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c823780660bbcf41a40ae9702c137b4, type: 3}
+  m_Name: BattleAnimationProfileCatalog
+  m_EditorClassIdentifier: 
+  entries:
+  - codeName: Cachelon
+    formName: Base
+    profile: {fileID: 11400000, guid: 250886e6eed3aa74892b84cab9a25437, type: 2}
+  - codeName: Cachelon
+    formName: Evolved
+    profile: {fileID: 11400000, guid: 5f05cb0c37c651340bef95ebaaae6b45, type: 2}
+  - codeName: Heapion
+    formName: Base
+    profile: {fileID: 11400000, guid: 7494043e325740841b80f5e085a22b58, type: 2}
+  - codeName: Heapion
+    formName: Evolved
+    profile: {fileID: 11400000, guid: c777ce4b362361042be90a99f613ee58, type: 2}
+  - codeName: Nullbyte
+    formName: Base
+    profile: {fileID: 11400000, guid: 07bf2525402ba924bbae9425d76d153c, type: 2}
+  - codeName: Nullbyte
+    formName: Evolved
+    profile: {fileID: 11400000, guid: c6c3972db7d470e4ba834ccd55c86019, type: 2}
+  - codeName: Overflux
+    formName: Base
+    profile: {fileID: 11400000, guid: d5e117c9876fa3744ac9fdfc5c5ac45f, type: 2}
+  - codeName: Overflux
+    formName: Evolved
+    profile: {fileID: 11400000, guid: 6a0c0ee6b9885ad4790617a471e297ef, type: 2}
+  - codeName: Recursix
+    formName: Base
+    profile: {fileID: 11400000, guid: d0567b56ac4adca4c87a6a944d0544c0, type: 2}
+  - codeName: Recursix
+    formName: Evolved
+    profile: {fileID: 11400000, guid: 16af4683ce7489f49b3747a0d74969f3, type: 2}
+  - codeName: Sortex
+    formName: Base
+    profile: {fileID: 11400000, guid: 257a5304400a9ff4695a5416a5b9dae9, type: 2}
+  - codeName: Sortex
+    formName: Evolved
+    profile: {fileID: 11400000, guid: 5a819f925b2181b4fa7722c6dceedcbd, type: 2}

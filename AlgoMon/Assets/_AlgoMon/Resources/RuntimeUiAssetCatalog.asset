@@ -1,0 +1,129 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f865187ff5a362b4398b424639aa5367, type: 3}
+  m_Name: RuntimeUiAssetCatalog
+  m_EditorClassIdentifier: 
+  entries:
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/Inspector/PanelFrame01.png
+    asset: {fileID: 21300000, guid: b0a7e2d3653643d498bd9dd3266f9101, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/Inspector/PanelFrame03.png
+    asset: {fileID: 21300000, guid: c4cf2c2f1f2b4b84be2c4ec541df39b2, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/Components/CyberpunkHUD/progress_fill_striped_texture_tint.png
+    asset: {fileID: 21300000, guid: c9fe3aa840f71d04f8648b41de689e15, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/health_bar_under.png
+    asset: {fileID: 21300000, guid: 5854a070a1591a74cb23ea55058b36fe, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/toggle_on.png
+    asset: {fileID: 21300000, guid: be1d69fb81401394fafc7dca9375475f, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/toggle_off.png
+    asset: {fileID: 21300000, guid: e5336303e0b70f649b80496392a5a297, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/slider_track_bg.png
+    asset: {fileID: 21300000, guid: 8ea0a70761419774483a6b05b3b582b8, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/slider_fill_highlight.png
+    asset: {fileID: 21300000, guid: d80923a3ed345cc4c9f6728f00573517, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/slider_handle.png
+    asset: {fileID: 21300000, guid: 7818ff6bc75fda541933963303b7a1f9, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/hud_radar_frame.png
+    asset: {fileID: 21300000, guid: 775c9db23556fdd41b4c41efa07a655d, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/deco_misc_03.png
+    asset: {fileID: 21300000, guid: 4e49bcecfa28b0e4a9df9e5a072a80b4, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/icon_skill_06.png
+    asset: {fileID: 21300000, guid: 8854770b2f0991545bc82aad82d13d7d, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/progress_bar_striped_frame.png
+    asset: {fileID: 21300000, guid: 20043c85f98951c4caa1a65e79cdbbc3, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/progress_fill_striped_texture.png
+    asset: {fileID: 21300000, guid: 72e06d500335f744f9c87c5add52b933, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Panels/Blue/PanelDigital.png
+    asset: {fileID: 21300000, guid: 81659c0829bc6174dace3dda674563c4, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Panels/White/FrameDigitalLarge.png
+    asset: {fileID: 21300000, guid: 2ea779ab9308b3a48b218ddf7a380f4f, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Panels/White/PanelOutlined.png
+    asset: {fileID: 21300000, guid: 8d9190f4b21738d4bb9f81651e972905, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/SkillTree/White/SkillSlotSharp.png
+    asset: {fileID: 21300000, guid: 1e8376a19347cdb4e9e12d96960022c3, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/SkillTree/White/SkillSlotRound.png
+    asset: {fileID: 21300000, guid: 1d6b9ac9a31c1094fbac9c2070f187d2, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/SkillTree/White/ConnectorThinHorizontal.png
+    asset: {fileID: 21300000, guid: d18a2ecb9c4cc844a8e39f79055df77d, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/SkillTree/White/ConnectorHorizontal.png
+    asset: {fileID: 21300000, guid: b76614fc3cda0d842a35bae198036529, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Selectors/Reticle_Select.png
+    asset: {fileID: 21300000, guid: ef280d4ea0995244bbbc266e205e2c32, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Selectors/ChevronRight_Select.png
+    asset: {fileID: 21300000, guid: 8d8dbbe930730f94daa17fd3de44b32e, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Selectors/Square_Select.png
+    asset: {fileID: 21300000, guid: f9d5438e105de8f4fb8fae3b6f475085, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Grid/White/SelectorEdge_Focus.png
+    asset: {fileID: 21300000, guid: 38ebccbc3cef7c14582ac1ef407839cb, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Grid/White/SelectorThick_Focus.png
+    asset: {fileID: 21300000, guid: ae17abd22b5ddea4aa99645294b9329a, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonE_Unpressed.png
+    asset: {fileID: 2800000, guid: 14febac8170541c2b9b2943e1bf1d761, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonF_Pressed.png
+    asset: {fileID: 2800000, guid: 80f59207174545a5ab9b74c0da78b147, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonStone_Highlighted.png
+    asset: {fileID: 2800000, guid: 52a13c108b814c6e887bd675179d8109, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/BoldBasic/BoldBasic.png
+    asset: {fileID: 2800000, guid: 56968ac0334cb8240985a9e6c4187d28, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/BoldBasic/BoldBasic.txt
+    asset: {fileID: 4900000, guid: a4c53d573c9c3a647a24e2ee8b7e9bb6, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/BoldCheese/BoldCheese.png
+    asset: {fileID: 2800000, guid: 2593ab7cb5a21ec4d9021cf048f56ad4, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/BoldCheese/BoldCheese.txt
+    asset: {fileID: 4900000, guid: 82909c0bff42eca43ad8d77e4a5cfb35, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/BoldTwilight/BoldTwilight.png
+    asset: {fileID: 2800000, guid: 1ef3d4d2a01e84e4bb638f0f29123680, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/BoldTwilight/BoldTwilight.txt
+    asset: {fileID: 4900000, guid: d75caba45b6b63143bafcfa8fa7ee2b5, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/CakeIcing/CakeIcing.png
+    asset: {fileID: 2800000, guid: 88fd7f3e402aa1e489e19df77285ca59, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/CakeIcing/CakeIcing.txt
+    asset: {fileID: 4900000, guid: 8b4f724344ffc8d4d954b93fe32315d4, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/DigitalPup/DigitalPup.png
+    asset: {fileID: 2800000, guid: 0f3492e304f52a6438fcfa71a301c46c, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/DigitalPup/DigitalPup.txt
+    asset: {fileID: 4900000, guid: 8cf5fab3198c2f542a67023834f5e486, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/IceCream/IceCream.png
+    asset: {fileID: 2800000, guid: 25c22d4bbc9894840bae7903350a2936, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/IceCream/IceCream.txt
+    asset: {fileID: 4900000, guid: d036b8fab3d979c4da1bbcceb834ce65, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/PaintBasic/PaintBasic.png
+    asset: {fileID: 2800000, guid: 4994d75f98624bb4f8b96372fb495f02, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/PaintBasic/PaintBasic.txt
+    asset: {fileID: 4900000, guid: 1574d1ca2a6ca45479301f71f458f42a, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/PoolParty/PoolParty.png
+    asset: {fileID: 2800000, guid: 0c182395dde33b943b9fdfb6cc6c52de, type: 3}
+  - path: Assets/_AlgoMon/Fonts/NicoBitmap/PoolParty/PoolParty.txt
+    asset: {fileID: 4900000, guid: d3c346b6ed418a646ac241196e7947c2, type: 3}
+  - path: Assets/_AlgoMon/Sprites/CACHELON/Cachelon_Base.png
+    asset: {fileID: 21300000, guid: 39718d59065bc454fac022585d01bfa7, type: 3}
+  - path: Assets/_AlgoMon/Sprites/CACHELON/Cachelon_Evolved.png
+    asset: {fileID: 21300000, guid: 162bb9476804f944a8f9d672cc056620, type: 3}
+  - path: Assets/_AlgoMon/Sprites/HEAPION/Heapion_Base.png
+    asset: {fileID: 21300000, guid: 43bb48f432c86614f9e82df12fd46031, type: 3}
+  - path: Assets/_AlgoMon/Sprites/HEAPION/Heapion_Evolved.png
+    asset: {fileID: 21300000, guid: 80d9df80a151ba64593b9b2e75367331, type: 3}
+  - path: Assets/_AlgoMon/Sprites/NULLBYTE/Nullbyte_Base.png
+    asset: {fileID: 21300000, guid: 158f5d570aa5020448d4d3bc607928d5, type: 3}
+  - path: Assets/_AlgoMon/Sprites/NULLBYTE/Nullbyte_Evolved.png
+    asset: {fileID: 21300000, guid: 043d56513ddd6b0408ec5085bbbc7092, type: 3}
+  - path: Assets/_AlgoMon/Sprites/OVERFLUX/Overflux_Base.png
+    asset: {fileID: 21300000, guid: 1ceb83f7795c4674da4618d03b0f3009, type: 3}
+  - path: Assets/_AlgoMon/Sprites/OVERFLUX/Overflux_Evolved.png
+    asset: {fileID: 21300000, guid: 7520141250dca744c9588b8df806964d, type: 3}
+  - path: Assets/_AlgoMon/Sprites/RECURSIX/Recursix_Base.png
+    asset: {fileID: 21300000, guid: a5d3bcf1639f99b44a0257ba21f79ee4, type: 3}
+  - path: Assets/_AlgoMon/Sprites/RECURSIX/Recursix_Evolved.png
+    asset: {fileID: 21300000, guid: 5a3136eac0186be45a0d26ec90ba41b9, type: 3}
+  - path: Assets/_AlgoMon/Sprites/SORTEX/Sortex_Base.png
+    asset: {fileID: 21300000, guid: fdc7edabfcdeef54386591ee87c08c0d, type: 3}
+  - path: Assets/_AlgoMon/Sprites/SORTEX/Sortex_Evolved.png
+    asset: {fileID: 21300000, guid: 594fd73bea3b0e54baac9a50d71a420c, type: 3}
