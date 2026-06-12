@@ -2677,15 +2677,19 @@ public class BattleHudController : MonoBehaviour
     /// White-bordered sibling of the panel chrome for tintable chips: the
     /// Image colour multiplies through, so the border takes the tone colour
     /// while the dark fill stays dark. Drawn in code — no art asset needed.
+    /// Bilinear-filtered: at chip scale the point-filtered texture rounds the
+    /// border to a different pixel count per chip, making equal chips render
+    /// with visibly different edge thickness.
     /// </summary>
     private static Sprite ChipFrameSprite()
     {
         if (chipFrameSprite == null)
-            chipFrameSprite = BuildChamferedPanelSprite(new Color(0.16f, 0.20f, 0.24f, 0.94f), Color.white, "HudChipFrame");
+            chipFrameSprite = BuildChamferedPanelSprite(
+                new Color(0.16f, 0.20f, 0.24f, 0.94f), Color.white, "HudChipFrame", FilterMode.Bilinear);
         return chipFrameSprite;
     }
 
-    private static Sprite BuildChamferedPanelSprite(Color fill, Color edge, string spriteName)
+    private static Sprite BuildChamferedPanelSprite(Color fill, Color edge, string spriteName, FilterMode filterMode = FilterMode.Point)
     {
         const int size = 28;
         const int chamfer = 5; // diagonal corner cut, in pixels
@@ -2694,7 +2698,7 @@ public class BattleHudController : MonoBehaviour
 
         var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
         {
-            filterMode = FilterMode.Point,
+            filterMode = filterMode,
             wrapMode = TextureWrapMode.Clamp,
         };
 
@@ -3102,12 +3106,15 @@ public class BattleHudController : MonoBehaviour
             chip.pixelsPerUnitMultiplier = 2.2f;
             chip.raycastTarget = false;
 
+            // Point anchors + explicit integer size (set per chip in
+            // ApplyStatusChip) so every chip shares the exact same pixel rect;
+            // fractional-height rects rasterized the border unevenly per chip.
             RectTransform chipRect = chip.rectTransform;
-            chipRect.anchorMin = new Vector2(0f, 0.04f);
-            chipRect.anchorMax = new Vector2(0f, 0.96f);
+            chipRect.anchorMin = new Vector2(0f, 0.5f);
+            chipRect.anchorMax = new Vector2(0f, 0.5f);
             chipRect.pivot = new Vector2(0f, 0.5f);
             chipRect.anchoredPosition = Vector2.zero;
-            chipRect.sizeDelta = new Vector2(34f, 0f);
+            chipRect.sizeDelta = new Vector2(34f, 28f);
 
             Text label = EnsureChildText(chip.transform, "Text", 12, TextAnchor.MiddleCenter);
             label.font = ReadableHudFont();
@@ -3137,7 +3144,11 @@ public class BattleHudController : MonoBehaviour
 
         RectTransform rowRect = refs.StatusText.transform.parent as RectTransform;
         float rowWidth = rowRect != null && rowRect.rect.width > 1f ? rowRect.rect.width : 240f;
-        float x = MeasureTextWidth(refs.StatusText) + 9f;
+        float rowHeight = rowRect != null && rowRect.rect.height > 1f ? rowRect.rect.height : 33f;
+        // One shared integer height for every chip in the row; fractional or
+        // per-chip heights made the sliced border rasterize unevenly.
+        float chipHeight = Mathf.Round(rowHeight * 0.92f);
+        float x = Mathf.Round(MeasureTextWidth(refs.StatusText)) + 9f;
 
         int count = chips != null ? chips.Count : 0;
         int next = 0;
@@ -3156,7 +3167,7 @@ public class BattleHudController : MonoBehaviour
                 tone = StatusChipTone.Info;
             }
 
-            float width = ApplyStatusChip(refs.StatusChips[next], refs.StatusChipTexts[next], label, tone, x);
+            float width = ApplyStatusChip(refs.StatusChips[next], refs.StatusChipTexts[next], label, tone, x, chipHeight);
             if (x + width > rowWidth && next > 0)
             {
                 refs.StatusChips[next].gameObject.SetActive(false);
@@ -3187,7 +3198,7 @@ public class BattleHudController : MonoBehaviour
         return valid;
     }
 
-    private float ApplyStatusChip(Image chip, Text label, string text, StatusChipTone tone, float x)
+    private float ApplyStatusChip(Image chip, Text label, string text, StatusChipTone tone, float x, float height)
     {
         if (chip == null || label == null)
             return 0f;
@@ -3196,10 +3207,11 @@ public class BattleHudController : MonoBehaviour
         label.color = ChipTextColor(tone);
         chip.color = ChipBorderColor(tone);
 
-        float width = Mathf.Max(26f, MeasureTextWidth(label) + 14f);
+        // Integer width/position so every chip lands on the same pixel grid.
+        float width = Mathf.Round(Mathf.Max(26f, MeasureTextWidth(label) + 14f));
         RectTransform rect = chip.rectTransform;
-        rect.anchoredPosition = new Vector2(x, 0f);
-        rect.sizeDelta = new Vector2(width, 0f);
+        rect.anchoredPosition = new Vector2(Mathf.Round(x), 0f);
+        rect.sizeDelta = new Vector2(width, height);
         chip.gameObject.SetActive(true);
         return width;
     }
