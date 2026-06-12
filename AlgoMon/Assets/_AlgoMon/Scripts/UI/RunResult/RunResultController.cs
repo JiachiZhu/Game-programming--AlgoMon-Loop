@@ -21,7 +21,8 @@ public class RunResultController : MonoBehaviour
     [SerializeField] private Text routeMetaText;
 
     private GameManager manager;
-    private Font defaultFont;
+    private Font pixelFont;
+    private Font readableFont;
     private Sprite panelChromeSprite;
     private Sprite panelChromeDefeatSprite;
 
@@ -35,6 +36,10 @@ public class RunResultController : MonoBehaviour
     private Image statusPillFrame;
     private Image rewardsHeaderBar;
     private Image summaryHeaderBar;
+    private Image acquiredMonPortraitFrame;
+    private Image acquiredMonPortraitImage;
+    private Text acquiredMonTagText;
+    private Text acquiredMonNameText;
     private Image continueButtonImage;
     private readonly List<Image> backdropScanlines = new List<Image>();
     private readonly List<Image> cornerBrackets = new List<Image>();
@@ -64,9 +69,12 @@ public class RunResultController : MonoBehaviour
 
     private void Awake()
     {
-        defaultFont = Resources.Load<Font>(FontResourcePath);
-        if (defaultFont == null)
-            defaultFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        readableFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        if (readableFont == null)
+            readableFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+        pixelFont = Resources.Load<Font>(FontResourcePath);
+        if (pixelFont == null)
+            pixelFont = readableFont;
         manager = GameManager.EnsureInstance();
         EnsureSceneObjects();
     }
@@ -153,10 +161,20 @@ public class RunResultController : MonoBehaviour
         {
             SetResultRow(0, "ALGOMON EXP", $"+{RewardExp(rewards)}", accent);
             SetResultRow(1, "CREDITS", $"+{RewardCompute(rewards)}", secondary);
-            SetResultRow(2, "FORM DATA", DataRewardText(rewards), Color.Lerp(accent, secondary, 0.40f));
+            if (HasGrantedSpecies(rewards))
+            {
+                SetResultRow(2, string.Empty, string.Empty, Color.Lerp(accent, secondary, 0.40f));
+                SetAcquiredMonCard(rewards, accent, secondary, true);
+            }
+            else
+            {
+                SetAcquiredMonCard(rewards, accent, secondary, false);
+                SetResultRow(2, "FORM DATA", DataRewardText(rewards), Color.Lerp(accent, secondary, 0.40f));
+            }
         }
         else
         {
+            SetAcquiredMonCard(rewards, accent, secondary, false);
             SetResultRow(0, "REWARDS", "NONE", TextMuted);
             SetResultRow(1, string.Empty, string.Empty, TextMuted, false);
             SetResultRow(2, string.Empty, string.Empty, TextMuted, false);
@@ -283,6 +301,11 @@ public class RunResultController : MonoBehaviour
                 rewards.evolutionDataCount > 0);
     }
 
+    private static bool HasGrantedSpecies(RunRewardSummary rewards)
+    {
+        return rewards != null && !string.IsNullOrWhiteSpace(rewards.grantedSpeciesCodeName);
+    }
+
     private void EnsureSceneObjects()
     {
         EnsureEventSystem();
@@ -380,10 +403,12 @@ public class RunResultController : MonoBehaviour
         SetStretchRect(titleText.rectTransform, new Vector2(0.320f, 0.780f), new Vector2(0.680f, 0.835f));
         titleText.color = new Color(0.62f, 0.92f, 1f, 1f);
         titleText.alignment = TextAnchor.MiddleCenter;
+        ApplyReadableFont(titleText);
 
         resultText = resultText != null ? resultText : CreateText("Outcome", root, 72, FontStyle.Bold, TextAnchor.MiddleCenter);
         SetStretchRect(resultText.rectTransform, new Vector2(0.260f, 0.620f), new Vector2(0.740f, 0.735f));
         resultText.color = new Color(1f, 0.88f, 0.62f, 1f);
+        ApplyPixelFont(resultText);
 
         statusPillFrame = CreateImage("StatusPillFrame", root, Color.white);
         statusPillFrame.sprite = CyberPanelSprite();
@@ -394,12 +419,14 @@ public class RunResultController : MonoBehaviour
         statusPillText = statusPillText != null ? statusPillText : CreateText("StatusPill", root, 15, FontStyle.Bold, TextAnchor.MiddleCenter);
         SetStretchRect(statusPillText.rectTransform, new Vector2(0.340f, 0.565f), new Vector2(0.660f, 0.605f));
         statusPillText.color = TextPrimary;
+        ApplyReadableFont(statusPillText);
 
         detailText = detailText != null ? detailText : CreateText("Details", root, 18, FontStyle.Normal, TextAnchor.UpperLeft);
         SetStretchRect(detailText.rectTransform, new Vector2(0.270f, 0.485f), new Vector2(0.490f, 0.525f));
         detailText.color = new Color(0.82f, 0.90f, 0.95f, 1f);
         detailText.alignment = TextAnchor.MiddleLeft;
         detailText.fontStyle = FontStyle.Bold;
+        ApplyReadableFont(detailText);
 
         rewardsHeaderBar = CreateImage("RewardsHeaderBar", root, Color.clear);
         SetLineRect(rewardsHeaderBar.rectTransform, new Vector2(0.270f, 0.482f), new Vector2(0.490f, 0.482f), 2f);
@@ -408,6 +435,7 @@ public class RunResultController : MonoBehaviour
         SetStretchRect(routeMetaText.rectTransform, new Vector2(0.510f, 0.485f), new Vector2(0.730f, 0.525f));
         routeMetaText.color = TextMuted;
         routeMetaText.alignment = TextAnchor.MiddleLeft;
+        ApplyReadableFont(routeMetaText);
 
         summaryHeaderBar = CreateImage("SummaryHeaderBar", root, Color.clear);
         SetLineRect(summaryHeaderBar.rectTransform, new Vector2(0.510f, 0.482f), new Vector2(0.730f, 0.482f), 2f);
@@ -418,6 +446,7 @@ public class RunResultController : MonoBehaviour
         CreateResultRow(3, root, "SummaryRow_Node", new Vector2(0.510f, 0.415f), new Vector2(0.730f, 0.475f));
         CreateResultRow(4, root, "SummaryRow_Tier", new Vector2(0.510f, 0.342f), new Vector2(0.730f, 0.402f));
         CreateResultRow(5, root, "SummaryRow_Visited", new Vector2(0.510f, 0.269f), new Vector2(0.730f, 0.329f));
+        CreateAcquiredMonCard();
 
         continueButton = continueButton != null ? continueButton : CreateButton("ContinueButton", root, "RETURN TO TERMINAL");
         continueButtonImage = continueButton.GetComponent<Image>();
@@ -464,11 +493,43 @@ public class RunResultController : MonoBehaviour
         Text label = CreateText("Label", frame.transform, 11, FontStyle.Bold, TextAnchor.MiddleLeft);
         SetStretchRect(label.rectTransform, new Vector2(0.10f, 0.20f), new Vector2(0.60f, 0.80f));
         label.color = TextMuted;
+        ApplyReadableFont(label);
         resultRowLabels[index] = label;
 
         Text value = CreateText("Value", frame.transform, 20, FontStyle.Bold, TextAnchor.MiddleRight);
         SetStretchRect(value.rectTransform, new Vector2(0.55f, 0.12f), new Vector2(0.94f, 0.88f));
+        ApplyReadableFont(value);
         resultRowValues[index] = value;
+    }
+
+    private void CreateAcquiredMonCard()
+    {
+        if (resultRowFrames[2] == null)
+            return;
+
+        Transform parent = resultRowFrames[2].transform;
+
+        acquiredMonPortraitFrame = CreateImage("AcquiredPortraitFrame", parent, new Color(0.025f, 0.085f, 0.105f, 0.92f));
+        acquiredMonPortraitFrame.sprite = CyberPanelSprite();
+        acquiredMonPortraitFrame.type = Image.Type.Sliced;
+        acquiredMonPortraitFrame.pixelsPerUnitMultiplier = 1.2f;
+        SetStretchRect(acquiredMonPortraitFrame.rectTransform, new Vector2(0.105f, 0.10f), new Vector2(0.325f, 0.90f));
+
+        acquiredMonPortraitImage = CreateImage("AcquiredPortrait", acquiredMonPortraitFrame.transform, Color.white);
+        acquiredMonPortraitImage.preserveAspect = true;
+        SetStretchRect(acquiredMonPortraitImage.rectTransform, new Vector2(0.08f, 0.08f), new Vector2(0.92f, 0.92f));
+
+        acquiredMonTagText = CreateText("AcquiredTag", parent, 10, FontStyle.Bold, TextAnchor.MiddleLeft);
+        SetStretchRect(acquiredMonTagText.rectTransform, new Vector2(0.370f, 0.54f), new Vector2(0.940f, 0.90f));
+        acquiredMonTagText.color = TextMuted;
+        ApplyReadableFont(acquiredMonTagText);
+
+        acquiredMonNameText = CreateText("AcquiredName", parent, 18, FontStyle.Bold, TextAnchor.MiddleLeft);
+        SetStretchRect(acquiredMonNameText.rectTransform, new Vector2(0.370f, 0.08f), new Vector2(0.940f, 0.60f));
+        acquiredMonNameText.color = TextPrimary;
+        ApplyReadableFont(acquiredMonNameText);
+
+        SetAcquiredMonCard(null, TextMuted, TextMuted, false);
     }
 
     private void SetResultRow(int index, string label, string value, Color accent, bool active = true)
@@ -503,6 +564,65 @@ public class RunResultController : MonoBehaviour
             resultRowValues[index].text = value;
             resultRowValues[index].color = Color.Lerp(TextPrimary, accent, 0.20f);
         }
+    }
+
+    private void SetAcquiredMonCard(RunRewardSummary rewards, Color accent, Color secondary, bool active)
+    {
+        bool show = active && HasGrantedSpecies(rewards);
+
+        SetGraphicActive(acquiredMonPortraitFrame, show);
+        SetGraphicActive(acquiredMonPortraitImage, show);
+        SetTextActive(acquiredMonTagText, show);
+        SetTextActive(acquiredMonNameText, show);
+
+        if (resultRowLabels[2] != null)
+            resultRowLabels[2].gameObject.SetActive(!show);
+        if (resultRowValues[2] != null)
+            resultRowValues[2].gameObject.SetActive(!show);
+
+        if (!show)
+            return;
+
+        string speciesCode = rewards.grantedSpeciesCodeName.Trim();
+        AlgoMonData species = FindSpeciesByCodeName(speciesCode);
+        string displayName = species != null && !string.IsNullOrWhiteSpace(species.codeName)
+            ? species.codeName.Trim()
+            : speciesCode;
+
+        if (acquiredMonTagText != null)
+        {
+            string quality = rewards.grantedBaseDataQuality == RewardDataQuality.HighQualityBase ? "HIGH QUALITY DATA" : "FORM DATA";
+            acquiredMonTagText.text = quality + " ACQUIRED";
+            acquiredMonTagText.color = Color.Lerp(TextMuted, secondary, 0.35f);
+        }
+
+        if (acquiredMonNameText != null)
+        {
+            acquiredMonNameText.text = displayName.ToUpperInvariant();
+            acquiredMonNameText.color = Color.Lerp(TextPrimary, accent, 0.18f);
+        }
+
+        if (acquiredMonPortraitFrame != null)
+            acquiredMonPortraitFrame.color = new Color(0.04f, 0.11f, 0.12f, 0.94f);
+
+        if (acquiredMonPortraitImage != null)
+        {
+            Sprite portrait = RewardSpeciesSprite(species);
+            acquiredMonPortraitImage.sprite = portrait;
+            acquiredMonPortraitImage.color = portrait != null ? Color.white : Color.clear;
+        }
+    }
+
+    private static void SetGraphicActive(Graphic graphic, bool active)
+    {
+        if (graphic != null)
+            graphic.gameObject.SetActive(active);
+    }
+
+    private static void SetTextActive(Text text, bool active)
+    {
+        if (text != null)
+            text.gameObject.SetActive(active);
     }
 
     private static void SetStretchRect(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
@@ -607,21 +727,32 @@ public class RunResultController : MonoBehaviour
         return newCanvas;
     }
 
-    // Pixel-font crispness: fixed sizes (best-fit produces fractional scales) and
-    // no Shadow/Outline effects (their sub-pixel offsets blur bitmap glyphs) —
-    // same recipe as MainTerminal's ApplyCrispCyberText.
+    // Result text uses fixed sizes and no shadow/outline so both the readable
+    // default font and the verdict's pixel font stay crisp.
     private Text CreateText(string objectName, Transform parent, int size, FontStyle style, TextAnchor alignment)
     {
         GameObject textObject = new GameObject(objectName, typeof(RectTransform));
         textObject.transform.SetParent(parent, false);
         Text text = textObject.AddComponent<Text>();
-        text.font = defaultFont;
+        text.font = readableFont;
         text.fontSize = size;
         text.fontStyle = style;
         text.alignment = alignment;
         text.horizontalOverflow = HorizontalWrapMode.Wrap;
         text.verticalOverflow = VerticalWrapMode.Truncate;
         return text;
+    }
+
+    private void ApplyReadableFont(Text text)
+    {
+        if (text != null && readableFont != null)
+            text.font = readableFont;
+    }
+
+    private void ApplyPixelFont(Text text)
+    {
+        if (text != null && pixelFont != null)
+            text.font = pixelFont;
     }
 
     private Image CreateImage(string objectName, Transform parent, Color color)
@@ -657,8 +788,69 @@ public class RunResultController : MonoBehaviour
         labelText.text = label;
         labelText.color = new Color(0.92f, 1f, 0.98f, 1f);
         labelText.raycastTarget = false;
+        ApplyReadableFont(labelText);
         SetStretchRect(labelText.rectTransform, Vector2.zero, Vector2.one);
         return button;
+    }
+
+    private static AlgoMonData FindSpeciesByCodeName(string codeName)
+    {
+        string normalized = NormalizeSpeciesKey(codeName);
+        if (string.IsNullOrEmpty(normalized))
+            return null;
+
+        EncounterSpeciesCatalog catalog = Resources.Load<EncounterSpeciesCatalog>("EncounterSpeciesCatalog");
+        if (catalog == null)
+            return null;
+
+        AlgoMonData[] species = catalog.GetSpecies();
+        for (int i = 0; i < species.Length; i++)
+        {
+            AlgoMonData data = species[i];
+            if (data != null &&
+                string.Equals(NormalizeSpeciesKey(data.codeName), normalized, System.StringComparison.OrdinalIgnoreCase))
+            {
+                return data;
+            }
+        }
+
+        return null;
+    }
+
+    private static Sprite RewardSpeciesSprite(AlgoMonData species)
+    {
+        if (species == null)
+            return null;
+        if (species.portrait != null)
+            return species.portrait;
+
+        BattleAnimationProfile profile = species.battleAnimationProfile;
+        if (profile == null)
+            profile = BattleAnimationProfileLoader.TryLoadEditorProfile(species.codeName, "Base");
+
+        Sprite sprite = FirstSprite(profile != null ? profile.idle : null);
+        if (sprite != null)
+            return sprite;
+        return FirstSprite(profile != null ? profile.entry : null);
+    }
+
+    private static Sprite FirstSprite(BattleAnimationClipData clip)
+    {
+        if (clip == null || clip.frames == null)
+            return null;
+
+        for (int i = 0; i < clip.frames.Length; i++)
+        {
+            if (clip.frames[i] != null)
+                return clip.frames[i];
+        }
+
+        return null;
+    }
+
+    private static string NormalizeSpeciesKey(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
     private static void EnsureEventSystem()

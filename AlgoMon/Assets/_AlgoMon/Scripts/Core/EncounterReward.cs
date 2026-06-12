@@ -86,6 +86,8 @@ public class RunRewardSummary
     public int baseDataCount;
     public int highQualityBaseDataCount;
     public int evolutionDataCount;
+    public string grantedSpeciesCodeName;
+    public RewardDataQuality grantedBaseDataQuality = RewardDataQuality.None;
 
     public void Reset()
     {
@@ -94,6 +96,8 @@ public class RunRewardSummary
         baseDataCount = 0;
         highQualityBaseDataCount = 0;
         evolutionDataCount = 0;
+        grantedSpeciesCodeName = string.Empty;
+        grantedBaseDataQuality = RewardDataQuality.None;
     }
 
     public void Add(EncounterReward reward)
@@ -108,6 +112,12 @@ public class RunRewardSummary
             baseDataCount++;
             if (reward.baseDataQuality == RewardDataQuality.HighQualityBase)
                 highQualityBaseDataCount++;
+
+            if (!string.IsNullOrWhiteSpace(reward.speciesCodeName))
+            {
+                grantedSpeciesCodeName = reward.speciesCodeName.Trim();
+                grantedBaseDataQuality = reward.baseDataQuality;
+            }
         }
         if (reward.evolutionDataGranted)
             evolutionDataCount++;
@@ -121,7 +131,9 @@ public class RunRewardSummary
             compute = compute,
             baseDataCount = baseDataCount,
             highQualityBaseDataCount = highQualityBaseDataCount,
-            evolutionDataCount = evolutionDataCount
+            evolutionDataCount = evolutionDataCount,
+            grantedSpeciesCodeName = grantedSpeciesCodeName,
+            grantedBaseDataQuality = grantedBaseDataQuality
         };
     }
 

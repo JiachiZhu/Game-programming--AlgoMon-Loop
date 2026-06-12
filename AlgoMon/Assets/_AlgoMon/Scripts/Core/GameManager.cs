@@ -1229,6 +1229,9 @@ public class GameManager : MonoBehaviour
         if (captured == null)
             return false;
 
+        if (reward != null && !string.IsNullOrWhiteSpace(species.codeName))
+            reward.speciesCodeName = species.codeName.Trim();
+
         AddToPayload(captured);
         return true;
     }
