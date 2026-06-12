@@ -11,6 +11,7 @@ Script Audit:
 */
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -32,6 +33,24 @@ public class BattleHudController : MonoBehaviour
 {
     public enum Side          { Player, Enemy }
     public enum ActionButton  { Recharge, Switch, Flee }
+
+    /// <summary>
+    /// Tone of a status chip on the combatant cards: green = ready/counter,
+    /// blue = shields/buffs, red = damage/ailments, gray = informational.
+    /// </summary>
+    public enum StatusChipTone { Ready, Buff, Harm, Info }
+
+    public struct StatusChip
+    {
+        public string Label;
+        public StatusChipTone Tone;
+
+        public StatusChip(string label, StatusChipTone tone)
+        {
+            Label = label;
+            Tone = tone;
+        }
+    }
 
     public event Action<int>          SkillSlotClicked;
     public event Action<ActionButton> ActionClicked;
@@ -76,11 +95,33 @@ public class BattleHudController : MonoBehaviour
 
     // Skill-slot element preview vs the current opponent, and CP affordability.
     private static readonly Color EffectivenessStrongColor = new Color(0.45f, 1f, 0.55f, 1f);
-    private static readonly Color EffectivenessWeakColor   = new Color(1f, 0.55f, 0.36f, 1f);
+    private static readonly Color EffectivenessWeakColor   = new Color(1f, 0.25f, 0.22f, 1f);
     private static readonly Color SkillTagTextColor        = new Color(0.92f, 1f, 0.94f, 1f);
+    private static readonly Color PowerTagTextColor        = new Color(1f, 0.72f, 0.55f, 1f);
     private static readonly Color CPShortfallColor         = new Color(1f, 0.42f, 0.42f, 1f);
-    private static readonly Color HotkeyHintColor          = new Color(0.55f, 0.88f, 0.97f, 0.70f);
+    private static readonly Color HotkeyHintColor          = new Color(0.62f, 0.92f, 1f, 0.85f);
+    private static readonly Color BatteryTickColor         = new Color(0.02f, 0.06f, 0.10f, 0.55f);
     private static Sprite whitePixelSprite;
+    private static Sprite triangleUpSprite;
+    private static Sprite triangleDownSprite;
+    private static Sprite chipFrameSprite;
+
+    // Status-chip palette: border colour tints the white-bordered chip frame,
+    // text is a lighter sibling of the same hue. Green = ready/counter,
+    // blue = shields/buffs, red = damage/ailments, gray = informational.
+    // The skill tags reuse the same chip language (CP blue, PWR warm, CNT green).
+    private static readonly Color ChipReadyBorder = new Color(0.30f, 0.85f, 0.45f, 1f);
+    private static readonly Color ChipReadyText   = new Color(0.62f, 1f, 0.72f, 1f);
+    private static readonly Color ChipBuffBorder  = new Color(0.30f, 0.62f, 1f, 1f);
+    private static readonly Color ChipBuffText    = new Color(0.68f, 0.86f, 1f, 1f);
+    private static readonly Color ChipHarmBorder  = new Color(1f, 0.32f, 0.30f, 1f);
+    private static readonly Color ChipHarmText    = new Color(1f, 0.60f, 0.56f, 1f);
+    private static readonly Color ChipInfoBorder  = new Color(0.55f, 0.66f, 0.72f, 1f);
+    private static readonly Color ChipInfoText    = new Color(0.80f, 0.88f, 0.92f, 1f);
+    private static readonly Color SkillTagCPBorder      = new Color(0.32f, 0.64f, 1f, 1f);
+    private static readonly Color SkillTagPowerBorder   = new Color(1f, 0.62f, 0.40f, 1f);
+    private static readonly Color SkillTagCounterBorder = new Color(0.35f, 0.85f, 0.50f, 1f);
+    private const int MaxStatusChips = 5;
     private static readonly Vector2 AnnouncerAnchorMin = new Vector2(0.30f, 0.805f);
     private static readonly Vector2 AnnouncerAnchorMax = new Vector2(0.70f, 0.925f);
 
@@ -163,9 +204,12 @@ public class BattleHudController : MonoBehaviour
         public Image   BatteryFill;
         public Image   BatteryGhost;
         public Image   BatteryWash;
+        public Image   ElementIcon;
         public Image[] CPDots;
         public Text    CPValueText;
         public Text    StatusText;
+        public Image[] StatusChips;
+        public Text[]  StatusChipTexts;
     }
     private CombatantRefs player;
     private CombatantRefs enemy;
@@ -212,10 +256,13 @@ public class BattleHudController : MonoBehaviour
     // Element identity strip + effectiveness preview + keyboard hints.
     private readonly Image[]      skillTypeStrips             = new Image[MaxSkillSlots];
     private readonly GameObject[] skillEffectivenessTagObjects = new GameObject[MaxSkillSlots];
+    private readonly Image[]      skillEffectivenessIcons      = new Image[MaxSkillSlots];
     private readonly Text[]       skillEffectivenessTexts      = new Text[MaxSkillSlots];
     private readonly Text[]       skillHotkeyTexts             = new Text[MaxSkillSlots];
     private readonly ElementType[] skillSlotElements           = new ElementType[MaxSkillSlots];
     private readonly bool[]        skillSlotDealsDamage        = new bool[MaxSkillSlots];
+    private readonly bool[]        skillSlotShowsMatchup       = new bool[MaxSkillSlots];
+    private readonly bool[]        skillSlotIsSwitch           = new bool[MaxSkillSlots];
     private ElementType opposingElement = ElementType.Normal;
     private bool opposingElementKnown;
 
@@ -1059,7 +1106,14 @@ public class BattleHudController : MonoBehaviour
         int safeCurrent = safeMax <= 0 ? 0 : Mathf.Clamp(current, 0, safeMax);
 
         if (refs.BatteryValueText != null)
-            refs.BatteryValueText.text = $"{safeCurrent}/{safeMax}";
+        {
+            // Current value leads, "/max" recedes. In danger the whole string is
+            // left plain so ApplyLowBatteryWarning's red tint covers all of it.
+            bool dangerNow = safeMax > 0 && (float)safeCurrent / safeMax <= lowBatteryDangerRatio;
+            refs.BatteryValueText.text = dangerNow
+                ? $"{safeCurrent}/{safeMax}"
+                : $"{safeCurrent}<color=#86B9C6>/{safeMax}</color>";
+        }
 
         // Max change means a different unit is in the bar (switch-in): snap both
         // layers instead of ghosting the previous AlgoMon's value.
@@ -1162,6 +1216,8 @@ public class BattleHudController : MonoBehaviour
 
         skillSlotElements[index] = skill.elementType;
         skillSlotDealsDamage[index] = skill.damageType != DamageType.None && skill.basePower > 0;
+        skillSlotShowsMatchup[index] = skillSlotDealsDamage[index];
+        skillSlotIsSwitch[index] = false;
         ApplySkillEffectiveness(index);
         RefreshCPAffordability();
 
@@ -1202,8 +1258,11 @@ public class BattleHudController : MonoBehaviour
         SetTag(skillCounterTagObjects[index], skillCounterTexts[index], !string.IsNullOrWhiteSpace(stateText), stateText);
         LayoutSwitchTags(index);
         SetSkillSlotBadges(index, null);
-        SetTypeStrip(index, true, elementType);
+        SetTypeStrip(index, true, ElementBadgeColor(elementType));
+        skillSlotElements[index] = elementType;
         skillSlotDealsDamage[index] = false;
+        skillSlotShowsMatchup[index] = available;
+        skillSlotIsSwitch[index] = true;
         ApplySkillEffectiveness(index);
         skillCPCosts[index] = 0;
         RefreshCPAffordability();
@@ -1313,6 +1372,8 @@ public class BattleHudController : MonoBehaviour
         LayoutSkillTags(index, false, false, false);
         SetSkillSlotBadges(index, null);
         skillSlotDealsDamage[index] = false;
+        skillSlotShowsMatchup[index] = false;
+        skillSlotIsSwitch[index] = false;
         ApplySkillEffectiveness(index);
         skillCPCosts[index] = 0;
         RefreshCPAffordability();
@@ -1770,17 +1831,17 @@ public class BattleHudController : MonoBehaviour
 
         Vector2[] rowMins =
         {
-            new Vector2(0.030f, 0.535f),
-            new Vector2(0.515f, 0.535f),
-            new Vector2(0.030f, 0.075f),
-            new Vector2(0.515f, 0.075f),
+            new Vector2(0.024f, 0.520f),
+            new Vector2(0.507f, 0.520f),
+            new Vector2(0.024f, 0.060f),
+            new Vector2(0.507f, 0.060f),
         };
         Vector2[] rowMaxes =
         {
-            new Vector2(0.485f, 0.925f),
-            new Vector2(0.970f, 0.925f),
-            new Vector2(0.485f, 0.465f),
-            new Vector2(0.970f, 0.465f),
+            new Vector2(0.493f, 0.940f),
+            new Vector2(0.976f, 0.940f),
+            new Vector2(0.493f, 0.480f),
+            new Vector2(0.976f, 0.480f),
         };
 
         for (int i = 0; i < MaxSkillSlots; i++)
@@ -1841,10 +1902,10 @@ public class BattleHudController : MonoBehaviour
             buttonOutline.enabled = true;
         }
 
-        // Element identity strip: slim colour-coded edge on the row's left.
+        // Instruction identity strip: slim colour-coded edge on the row's left.
         // SetTypeStrip drives its colour/visibility from the slot's content.
         skillTypeStrips[index] = EnsureChildImage(root, "TypeStrip");
-        SetStretchRect(skillTypeStrips[index].rectTransform, new Vector2(0.012f, 0.08f), new Vector2(0.034f, 0.92f));
+        SetStretchRect(skillTypeStrips[index].rectTransform, new Vector2(0.016f, 0.155f), new Vector2(0.034f, 0.845f));
         skillTypeStrips[index].sprite = null;
         skillTypeStrips[index].type = Image.Type.Simple;
         skillTypeStrips[index].raycastTarget = false;
@@ -1855,11 +1916,11 @@ public class BattleHudController : MonoBehaviour
             : null;
         if (nameRect != null)
         {
-            // A short, slightly wider name band: limiting the height to roughly one
-            // line makes best-fit shrink long names onto a single line instead of
-            // wrapping to two, while the extra width keeps them clear of the icon.
-            float nameLeft = hasPanelBackdrop ? 0.205f : 0.145f;
-            float nameRight = hasPanelBackdrop ? 0.735f : 0.515f;
+            // A short name band: limiting the height to roughly one line makes
+            // best-fit shrink long names onto a single line instead of wrapping.
+            // The element icon sits snug after the band, mockup-style.
+            float nameLeft = hasPanelBackdrop ? 0.225f : 0.145f;
+            float nameRight = hasPanelBackdrop ? 0.680f : 0.515f;
             float nameBottom = hasPanelBackdrop ? 0.500f : 0.10f;
             float nameTop = hasPanelBackdrop ? 0.890f : 0.90f;
             SetStretchRect(nameRect, new Vector2(nameLeft, nameBottom), new Vector2(nameRight, nameTop));
@@ -1879,7 +1940,7 @@ public class BattleHudController : MonoBehaviour
         if (hasPanelBackdrop)
         {
             // Compact square A/D/S badge wearing the shared cyan chrome.
-            SetStretchRect(instructionRect, new Vector2(0.038f, 0.235f), new Vector2(0.175f, 0.800f));
+            SetStretchRect(instructionRect, new Vector2(0.060f, 0.220f), new Vector2(0.185f, 0.815f));
             ConfigureChromeChip(skillInstructionFrames[index], 3f);
         }
         else
@@ -1904,14 +1965,15 @@ public class BattleHudController : MonoBehaviour
         skillInstructionIcons[index].transform.SetAsLastSibling();
 
         skillElementBadges[index] = EnsureChildImage(root, "ElementBadge");
-        SetStretchRect(skillElementBadges[index].rectTransform, new Vector2(0.730f, 0.555f), new Vector2(0.850f, 0.865f));
+        SetStretchRect(skillElementBadges[index].rectTransform, new Vector2(0.705f, 0.575f), new Vector2(0.775f, 0.850f));
         if (hasPanelBackdrop)
             ConfigureTransparentImage(skillElementBadges[index]);
         else
             ConfigureFramedImage(skillElementBadges[index], SkillInsetFrameSprite(), new Color(0.35f, 0.75f, 0.90f, 0.88f));
 
         skillElementIconImages[index] = EnsureChildImage(skillElementBadges[index].transform, "ElementIcon");
-        SetStretchRect(skillElementIconImages[index].rectTransform, Vector2.zero, Vector2.one);
+        SetStretchRect(skillElementIconImages[index].rectTransform, new Vector2(0.14f, 0.08f), new Vector2(0.86f, 0.92f));
+        skillElementIconImages[index].preserveAspect = true;
         skillElementIconImages[index].raycastTarget = false;
 
         skillElementTexts[index] = EnsureChildText(skillElementBadges[index].transform, "ElementText", 13, TextAnchor.MiddleCenter);
@@ -1922,36 +1984,58 @@ public class BattleHudController : MonoBehaviour
         // Three tag wells: CP cost, BP (or BAT in switch mode), and the compact
         // counter "C" badge (state text in switch mode). Sized tall/wide enough
         // that the best-fit text stays readable at row scale.
-        ConfigureSkillTag(skillCPTagObjects[index], skillCPTexts[index], new Vector2(0.205f, 0.125f), new Vector2(0.370f, 0.440f));
-        ConfigureSkillTag(skillPowerTagObjects[index], skillPowerTexts[index], new Vector2(0.395f, 0.125f), new Vector2(0.585f, 0.440f));
-        ConfigureSkillTag(skillCounterTagObjects[index], skillCounterTexts[index], new Vector2(0.610f, 0.125f), new Vector2(0.805f, 0.440f));
+        ConfigureSkillTag(skillCPTagObjects[index], skillCPTexts[index], new Vector2(0.225f, 0.125f), new Vector2(0.390f, 0.440f));
+        ConfigureSkillTag(skillPowerTagObjects[index], skillPowerTexts[index], new Vector2(0.415f, 0.125f), new Vector2(0.605f, 0.440f));
+        ConfigureSkillTag(skillCounterTagObjects[index], skillCounterTexts[index], new Vector2(0.630f, 0.125f), new Vector2(0.805f, 0.440f));
+        if (skillPowerTexts[index] != null)
+            skillPowerTexts[index].color = PowerTagTextColor;
 
-        // Effectiveness preview vs the current opponent (STRONG / WEAK). Sits in
-        // the free well right of the counter tag; hidden on neutral matchups.
+        // Tag borders speak the chip colour language: CP cost blue, raw power
+        // warm, counter green (mirrors the status chips on the combatant cards).
+        TintSkillTag(skillCPTagObjects[index], SkillTagCPBorder);
+        TintSkillTag(skillPowerTagObjects[index], SkillTagPowerBorder);
+        TintSkillTag(skillCounterTagObjects[index], SkillTagCounterBorder);
+
+        // Effectiveness preview vs the current opponent: a compact arrow keeps
+        // matchup feedback readable without crowding the skill tags.
+        Image effectivenessRoot;
         if (skillEffectivenessTagObjects[index] == null)
         {
-            Image effectivenessChip = EnsureChildImage(root, "EffectivenessTag");
-            skillEffectivenessTagObjects[index] = effectivenessChip.gameObject;
-            skillEffectivenessTexts[index] = EnsureChildText(effectivenessChip.transform, "Text", 12, TextAnchor.MiddleCenter);
+            effectivenessRoot = EnsureChildImage(root, "EffectivenessTag");
+            skillEffectivenessTagObjects[index] = effectivenessRoot.gameObject;
         }
-        ConfigureSkillTag(
-            skillEffectivenessTagObjects[index],
-            skillEffectivenessTexts[index],
-            new Vector2(0.815f, 0.125f),
-            new Vector2(0.985f, 0.440f));
-        skillEffectivenessTexts[index].fontStyle = FontStyle.Bold;
+        else
+        {
+            effectivenessRoot = skillEffectivenessTagObjects[index].GetComponent<Image>();
+        }
+
+        if (skillEffectivenessIcons[index] == null)
+            skillEffectivenessIcons[index] = EnsureChildImage(skillEffectivenessTagObjects[index].transform, "Triangle");
+        if (skillEffectivenessTexts[index] == null)
+            skillEffectivenessTexts[index] = EnsureChildText(skillEffectivenessTagObjects[index].transform, "Text", 1, TextAnchor.MiddleCenter);
+
+        PositionEffectivenessIndicator(index);
+        ConfigureTransparentImage(effectivenessRoot);
+
+        SetStretchRect(skillEffectivenessIcons[index].rectTransform, Vector2.zero, Vector2.one);
+        skillEffectivenessIcons[index].type = Image.Type.Simple;
+        skillEffectivenessIcons[index].preserveAspect = true;
+        skillEffectivenessIcons[index].raycastTarget = false;
+
+        skillEffectivenessTexts[index].gameObject.SetActive(false);
         ApplySkillEffectiveness(index);
 
-        // Keyboard hint: faint slot number in the top-right corner; pressing the
-        // matching 1-4 key clicks the slot (HandleSkillHotkeys).
-        skillHotkeyTexts[index] = EnsureChildText(root, "HotkeyText", 12, TextAnchor.MiddleCenter);
-        SetStretchRect(skillHotkeyTexts[index].rectTransform, new Vector2(0.880f, 0.560f), new Vector2(0.980f, 0.870f));
+        // Keyboard hint: small bordered square on the top-right edge; pressing
+        // the matching 1-4 key clicks the slot (HandleSkillHotkeys).
+        Image hotkeyChip = EnsureChildImage(root, "HotkeyChip");
+        SetStretchRect(hotkeyChip.rectTransform, new Vector2(0.935f, 0.675f), new Vector2(0.985f, 0.930f));
+        ConfigureChromeChip(hotkeyChip, 2.6f);
+        skillHotkeyTexts[index] = EnsureChildText(hotkeyChip.transform, "Text", 11, TextAnchor.MiddleCenter);
         skillHotkeyTexts[index].text = (index + 1).ToString();
         skillHotkeyTexts[index].font = ReadableHudFont();
         skillHotkeyTexts[index].fontStyle = FontStyle.Bold;
         skillHotkeyTexts[index].color = HotkeyHintColor;
         skillHotkeyTexts[index].raycastTarget = false;
-        EnsureShadow(skillHotkeyTexts[index].gameObject, new Color(0f, 0f, 0f, 0.6f), new Vector2(1f, -1f));
         if (skillCPTagObjects[index] != null)
         {
             switchElementChipIcons[index] = EnsureChildImage(skillCPTagObjects[index].transform, "SwitchElementIcon");
@@ -2006,8 +2090,8 @@ public class BattleHudController : MonoBehaviour
             : null;
         if (nameRect != null)
         {
-            float nameLeft = hasPanelBackdrop ? 0.205f : 0.145f;
-            float nameRight = hasPanelBackdrop ? 0.735f : 0.515f;
+            float nameLeft = hasPanelBackdrop ? 0.225f : 0.145f;
+            float nameRight = hasPanelBackdrop ? 0.680f : 0.515f;
             float nameBottom = hasPanelBackdrop ? 0.500f : 0.10f;
             float nameTop = hasPanelBackdrop ? 0.890f : 0.90f;
             SetStretchRect(nameRect, new Vector2(nameLeft, nameBottom), new Vector2(nameRight, nameTop));
@@ -2071,7 +2155,7 @@ public class BattleHudController : MonoBehaviour
         if (!IndexInRange(index))
             return;
 
-        float x = 0.205f;
+        float x = 0.225f;
         const float y0 = 0.125f;
         const float y1 = 0.440f;
         const float gap = 0.025f;
@@ -2080,17 +2164,17 @@ public class BattleHudController : MonoBehaviour
         if (showCP)
             PositionSkillTag(skillCPTagObjects[index], ref x, defaultWidth, gap, y0, y1);
         else
-            PositionSkillTag(skillCPTagObjects[index], new Vector2(0.205f, y0), new Vector2(0.370f, y1));
+            PositionSkillTag(skillCPTagObjects[index], new Vector2(0.225f, y0), new Vector2(0.390f, y1));
 
         if (showPower)
             PositionSkillTag(skillPowerTagObjects[index], ref x, 0.185f, gap, y0, y1);
         else
-            PositionSkillTag(skillPowerTagObjects[index], new Vector2(0.395f, y0), new Vector2(0.585f, y1));
+            PositionSkillTag(skillPowerTagObjects[index], new Vector2(0.415f, y0), new Vector2(0.605f, y1));
 
         if (showCounter)
             PositionSkillTag(skillCounterTagObjects[index], ref x, 0.175f, gap, y0, y1);
         else
-            PositionSkillTag(skillCounterTagObjects[index], new Vector2(0.610f, y0), new Vector2(0.805f, y1));
+            PositionSkillTag(skillCounterTagObjects[index], new Vector2(0.630f, y0), new Vector2(0.805f, y1));
     }
 
     private void LayoutSwitchTags(int index)
@@ -2206,7 +2290,7 @@ public class BattleHudController : MonoBehaviour
             skillElementBadges[index].gameObject.SetActive(visible);
         if (skillElementIconImages[index] != null)
             skillElementIconImages[index].gameObject.SetActive(false);
-        SetTypeStrip(index, visible, visible ? skill.elementType : ElementType.Normal);
+        SetTypeStrip(index, visible, visible ? InstructionStripColor(skill.instructionType) : Color.white);
 
         if (!visible)
             return;
@@ -2259,7 +2343,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
-    private void SetTypeStrip(int index, bool visible, ElementType elementType)
+    private void SetTypeStrip(int index, bool visible, Color strip)
     {
         if (!IndexInRange(index) || skillTypeStrips[index] == null)
             return;
@@ -2268,14 +2352,13 @@ public class BattleHudController : MonoBehaviour
         if (!visible)
             return;
 
-        Color strip = ElementBadgeColor(elementType);
         strip.a = 0.95f;
         skillTypeStrips[index].color = strip;
     }
 
     /// <summary>
-    /// Tells the HUD which element the current opponent has so each damaging
-    /// skill slot can preview its matchup (STRONG x1.5 / WEAK x0.75 chip).
+    /// Tells the HUD which element the current opponent has so skill and switch
+    /// slots can preview strong / weak matchups.
     /// BattleManager calls this from RefreshHud, so enemy switches re-evaluate.
     /// </summary>
     public void SetOpposingElement(ElementType elementType)
@@ -2292,11 +2375,13 @@ public class BattleHudController : MonoBehaviour
             return;
 
         GameObject tagObject = skillEffectivenessTagObjects[index];
-        Text label = skillEffectivenessTexts[index];
-        if (tagObject == null || label == null)
+        Image icon = skillEffectivenessIcons[index];
+        if (tagObject == null || icon == null)
             return;
 
-        if (!opposingElementKnown || !skillSlotDealsDamage[index])
+        PositionEffectivenessIndicator(index);
+
+        if (!opposingElementKnown || !skillSlotShowsMatchup[index])
         {
             tagObject.SetActive(false);
             return;
@@ -2311,8 +2396,27 @@ public class BattleHudController : MonoBehaviour
 
         bool strong = multiplier > 1f;
         tagObject.SetActive(true);
-        label.text = strong ? "STRONG" : "WEAK";
-        label.color = strong ? EffectivenessStrongColor : EffectivenessWeakColor;
+        icon.sprite = EffectivenessTriangleSprite(strong);
+        icon.color = strong ? EffectivenessStrongColor : EffectivenessWeakColor;
+        icon.preserveAspect = true;
+
+        if (skillEffectivenessTexts[index] != null)
+            skillEffectivenessTexts[index].gameObject.SetActive(false);
+    }
+
+    private void PositionEffectivenessIndicator(int index)
+    {
+        if (!IndexInRange(index) || skillEffectivenessTagObjects[index] == null)
+            return;
+
+        RectTransform rect = skillEffectivenessTagObjects[index].GetComponent<RectTransform>();
+        if (rect == null)
+            return;
+
+        if (skillSlotIsSwitch[index])
+            SetStretchRect(rect, new Vector2(0.865f, 0.555f), new Vector2(0.915f, 0.815f));
+        else
+            SetStretchRect(rect, new Vector2(0.815f, 0.575f), new Vector2(0.875f, 0.845f));
     }
 
     /// <summary>
@@ -2330,7 +2434,19 @@ public class BattleHudController : MonoBehaviour
 
             bool shortfall = skillCPCosts[i] > currentCP;
             skillCPTexts[i].color = shortfall ? CPShortfallColor : SkillTagTextColor;
+            TintSkillTag(skillCPTagObjects[i], shortfall ? ChipHarmBorder : SkillTagCPBorder);
         }
+    }
+
+    private static void TintSkillTag(GameObject tagObject, Color borderTint)
+    {
+        Image image = tagObject != null ? tagObject.GetComponent<Image>() : null;
+        if (image == null)
+            return;
+
+        image.sprite = ChipFrameSprite();
+        image.type = Image.Type.Sliced;
+        image.color = borderTint;
     }
 
     private void HandleSkillHotkeys()
@@ -2368,11 +2484,6 @@ public class BattleHudController : MonoBehaviour
 
     private Sprite InstructionIconSprite(InstructionType instructionType)
     {
-        // The old status glyph reads as an abstract swirl at combat scale; use
-        // the clearer FX text fallback for status skills instead.
-        if (instructionType == InstructionType.Status)
-            return null;
-
         int index = (int)instructionType;
         if (index < 0 || index >= instructionIconSprites.Length)
             return null;
@@ -2395,7 +2506,7 @@ public class BattleHudController : MonoBehaviour
         {
             case InstructionType.Attack:  return "A";
             case InstructionType.Defense: return "D";
-            case InstructionType.Status:  return "FX";
+            case InstructionType.Status:  return "S";
             default:                      return "?";
         }
     }
@@ -2404,9 +2515,20 @@ public class BattleHudController : MonoBehaviour
     {
         switch (instructionType)
         {
-            case InstructionType.Attack:  return new Color(1.00f, 0.23f, 0.53f, 1f);
-            case InstructionType.Defense: return new Color(0.55f, 1.00f, 0.94f, 1f);
-            case InstructionType.Status:  return new Color(0.58f, 0.48f, 1.00f, 1f);
+            case InstructionType.Attack:  return new Color(1.00f, 0.36f, 0.30f, 1f);
+            case InstructionType.Defense: return new Color(0.38f, 0.86f, 1.00f, 1f);
+            case InstructionType.Status:  return new Color(0.45f, 1.00f, 0.55f, 1f);
+            default:                      return Color.white;
+        }
+    }
+
+    private static Color InstructionStripColor(InstructionType instructionType)
+    {
+        switch (instructionType)
+        {
+            case InstructionType.Attack:  return new Color(1.00f, 0.18f, 0.12f, 1f);
+            case InstructionType.Defense: return new Color(0.18f, 0.64f, 1.00f, 1f);
+            case InstructionType.Status:  return new Color(0.28f, 0.95f, 0.38f, 1f);
             default:                      return Color.white;
         }
     }
@@ -2546,9 +2668,25 @@ public class BattleHudController : MonoBehaviour
     /// </summary>
     private static Sprite HudPanelSprite()
     {
-        if (hudPanelSprite != null)
-            return hudPanelSprite;
+        if (hudPanelSprite == null)
+            hudPanelSprite = BuildChamferedPanelSprite(HudPanelFill, (Color)HudPanelBorder, "HudPanelChrome");
+        return hudPanelSprite;
+    }
 
+    /// <summary>
+    /// White-bordered sibling of the panel chrome for tintable chips: the
+    /// Image colour multiplies through, so the border takes the tone colour
+    /// while the dark fill stays dark. Drawn in code — no art asset needed.
+    /// </summary>
+    private static Sprite ChipFrameSprite()
+    {
+        if (chipFrameSprite == null)
+            chipFrameSprite = BuildChamferedPanelSprite(new Color(0.16f, 0.20f, 0.24f, 0.94f), Color.white, "HudChipFrame");
+        return chipFrameSprite;
+    }
+
+    private static Sprite BuildChamferedPanelSprite(Color fill, Color edge, string spriteName)
+    {
         const int size = 28;
         const int chamfer = 5; // diagonal corner cut, in pixels
         const int border = 2;  // straight + diagonal edge thickness
@@ -2560,8 +2698,6 @@ public class BattleHudController : MonoBehaviour
             wrapMode = TextureWrapMode.Clamp,
         };
 
-        Color fill = HudPanelFill;
-        Color edge = (Color)HudPanelBorder;
         Color clear = new Color(0f, 0f, 0f, 0f);
 
         for (int y = 0; y < size; y++)
@@ -2592,7 +2728,7 @@ public class BattleHudController : MonoBehaviour
         }
 
         texture.Apply();
-        hudPanelSprite = Sprite.Create(
+        Sprite sprite = Sprite.Create(
             texture,
             new Rect(0, 0, size, size),
             new Vector2(0.5f, 0.5f),
@@ -2600,8 +2736,8 @@ public class BattleHudController : MonoBehaviour
             0,
             SpriteMeshType.FullRect,
             new Vector4(slice, slice, slice, slice));
-        hudPanelSprite.name = "HudPanelChrome";
-        return hudPanelSprite;
+        sprite.name = spriteName;
+        return sprite;
     }
 
     /// <summary>
@@ -2936,8 +3072,221 @@ public class BattleHudController : MonoBehaviour
             refs.CPDots = FindCPDots(cpRow);
 
         EnsureBatteryFeedbackLayers(ref refs);
+        EnsureCombatantElementIcon(ref refs);
+        EnsureStatusChipPool(ref refs);
         ConfigureCombatantTextHierarchy(refs);
         return refs;
+    }
+
+    /// <summary>
+    /// Builds the pooled status chips that replace the long status text:
+    /// short tone-coloured labels (READY / FW +2 / BRN ...) laid out after the
+    /// "Status" prefix. All runtime-built with the procedural chip frame.
+    /// </summary>
+    private void EnsureStatusChipPool(ref CombatantRefs refs)
+    {
+        if (refs.StatusText == null)
+            return;
+
+        Transform row = refs.StatusText.transform.parent;
+        if (row == null)
+            return;
+
+        refs.StatusChips = new Image[MaxStatusChips];
+        refs.StatusChipTexts = new Text[MaxStatusChips];
+        for (int i = 0; i < MaxStatusChips; i++)
+        {
+            Image chip = EnsureChildImage(row, $"StatusChip_{i + 1}");
+            chip.sprite = ChipFrameSprite();
+            chip.type = Image.Type.Sliced;
+            chip.pixelsPerUnitMultiplier = 2.2f;
+            chip.raycastTarget = false;
+
+            RectTransform chipRect = chip.rectTransform;
+            chipRect.anchorMin = new Vector2(0f, 0.04f);
+            chipRect.anchorMax = new Vector2(0f, 0.96f);
+            chipRect.pivot = new Vector2(0f, 0.5f);
+            chipRect.anchoredPosition = Vector2.zero;
+            chipRect.sizeDelta = new Vector2(34f, 0f);
+
+            Text label = EnsureChildText(chip.transform, "Text", 12, TextAnchor.MiddleCenter);
+            label.font = ReadableHudFont();
+            label.fontStyle = FontStyle.Bold;
+            label.resizeTextMinSize = 8;
+            label.raycastTarget = false;
+            EnsureShadow(label.gameObject, new Color(0f, 0f, 0f, 0.6f), new Vector2(1f, -1f));
+
+            chip.gameObject.SetActive(false);
+            refs.StatusChips[i] = chip;
+            refs.StatusChipTexts[i] = label;
+        }
+    }
+
+    /// <summary>
+    /// Renders the combatant's status as short colour-coded chips after the
+    /// "Status" label. Order is caller-defined; chips beyond the pool (or the
+    /// row width) collapse into a gray "+n" overflow chip.
+    /// </summary>
+    public void SetStatusChips(Side side, IReadOnlyList<StatusChip> chips)
+    {
+        ref CombatantRefs refs = ref RefsFor(side);
+        if (refs.StatusChips == null || refs.StatusText == null)
+            return;
+
+        refs.StatusText.text = "Status";
+
+        RectTransform rowRect = refs.StatusText.transform.parent as RectTransform;
+        float rowWidth = rowRect != null && rowRect.rect.width > 1f ? rowRect.rect.width : 240f;
+        float x = MeasureTextWidth(refs.StatusText) + 9f;
+
+        int count = chips != null ? chips.Count : 0;
+        int next = 0;
+        for (int i = 0; i < count && next < MaxStatusChips; i++)
+        {
+            string label = chips[i].Label;
+            if (string.IsNullOrWhiteSpace(label))
+                continue;
+
+            StatusChipTone tone = chips[i].Tone;
+            int remainingAfter = CountValidChips(chips, i + 1);
+            bool overflow = next == MaxStatusChips - 1 && remainingAfter > 0;
+            if (overflow)
+            {
+                label = $"+{remainingAfter + 1}";
+                tone = StatusChipTone.Info;
+            }
+
+            float width = ApplyStatusChip(refs.StatusChips[next], refs.StatusChipTexts[next], label, tone, x);
+            if (x + width > rowWidth && next > 0)
+            {
+                refs.StatusChips[next].gameObject.SetActive(false);
+                break;
+            }
+
+            x += width + 4f;
+            next++;
+            if (overflow)
+                break;
+        }
+
+        for (int i = next; i < MaxStatusChips; i++)
+        {
+            if (refs.StatusChips[i] != null)
+                refs.StatusChips[i].gameObject.SetActive(false);
+        }
+    }
+
+    private static int CountValidChips(IReadOnlyList<StatusChip> chips, int startIndex)
+    {
+        int valid = 0;
+        for (int i = startIndex; i < chips.Count; i++)
+        {
+            if (!string.IsNullOrWhiteSpace(chips[i].Label))
+                valid++;
+        }
+        return valid;
+    }
+
+    private float ApplyStatusChip(Image chip, Text label, string text, StatusChipTone tone, float x)
+    {
+        if (chip == null || label == null)
+            return 0f;
+
+        label.text = text;
+        label.color = ChipTextColor(tone);
+        chip.color = ChipBorderColor(tone);
+
+        float width = Mathf.Max(26f, MeasureTextWidth(label) + 14f);
+        RectTransform rect = chip.rectTransform;
+        rect.anchoredPosition = new Vector2(x, 0f);
+        rect.sizeDelta = new Vector2(width, 0f);
+        chip.gameObject.SetActive(true);
+        return width;
+    }
+
+    private static Color ChipBorderColor(StatusChipTone tone)
+    {
+        switch (tone)
+        {
+            case StatusChipTone.Ready: return ChipReadyBorder;
+            case StatusChipTone.Buff:  return ChipBuffBorder;
+            case StatusChipTone.Harm:  return ChipHarmBorder;
+            default:                   return ChipInfoBorder;
+        }
+    }
+
+    private static Color ChipTextColor(StatusChipTone tone)
+    {
+        switch (tone)
+        {
+            case StatusChipTone.Ready: return ChipReadyText;
+            case StatusChipTone.Buff:  return ChipBuffText;
+            case StatusChipTone.Harm:  return ChipHarmText;
+            default:                   return ChipInfoText;
+        }
+    }
+
+    private void EnsureCombatantElementIcon(ref CombatantRefs refs)
+    {
+        if (refs.NameText == null)
+            return;
+
+        refs.ElementIcon = EnsureChildImage(refs.NameText.transform, "ElementChip");
+        refs.ElementIcon.type = Image.Type.Simple;
+        refs.ElementIcon.preserveAspect = true;
+        refs.ElementIcon.raycastTarget = false;
+        refs.ElementIcon.color = Color.white;
+        refs.ElementIcon.gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// Shows the active AlgoMon's element icon just after its name on the
+    /// status card. Placement measures the rendered name width, so it hugs
+    /// short names and clamps inside the band for long ones.
+    /// </summary>
+    public void SetCombatantElement(Side side, ElementType elementType)
+    {
+        ref CombatantRefs refs = ref RefsFor(side);
+        if (refs.ElementIcon == null)
+            return;
+
+        Sprite icon = ElementIconSprite(elementType);
+        refs.ElementIcon.sprite = icon;
+        refs.ElementIcon.gameObject.SetActive(icon != null);
+        if (icon == null)
+            return;
+
+        RectTransform nameRect = refs.NameText.rectTransform;
+        float bandWidth = Mathf.Max(0f, nameRect.rect.width);
+        float bandHeight = nameRect.rect.height;
+        float iconSize = Mathf.Clamp(bandHeight * 0.78f, 14f, 30f);
+        float nameWidth = MeasureTextWidth(refs.NameText);
+        float x = Mathf.Min(nameWidth + 7f, Mathf.Max(0f, bandWidth - iconSize));
+
+        RectTransform iconRect = refs.ElementIcon.rectTransform;
+        iconRect.anchorMin = new Vector2(0f, 0.5f);
+        iconRect.anchorMax = new Vector2(0f, 0.5f);
+        iconRect.pivot = new Vector2(0f, 0.5f);
+        iconRect.sizeDelta = new Vector2(iconSize, iconSize);
+        iconRect.anchoredPosition = new Vector2(x, 0f);
+    }
+
+    /// <summary>
+    /// Unconstrained preferred width of the text at its maximum font size.
+    /// Best-fit may render long strings smaller than measured; callers clamp,
+    /// so an overestimate only pins the icon to the band's right edge.
+    /// </summary>
+    private static float MeasureTextWidth(Text text)
+    {
+        if (text == null || string.IsNullOrEmpty(text.text) || text.font == null)
+            return 0f;
+
+        TextGenerationSettings settings = text.GetGenerationSettings(Vector2.zero);
+        settings.scaleFactor = 1f;
+        settings.resizeTextForBestFit = false;
+        settings.fontSize = text.resizeTextForBestFit ? text.resizeTextMaxSize : text.fontSize;
+        settings.horizontalOverflow = HorizontalWrapMode.Overflow;
+        return text.cachedTextGeneratorForLayout.GetPreferredWidth(text.text, settings);
     }
 
     /// <summary>
@@ -2976,6 +3325,23 @@ public class BattleHudController : MonoBehaviour
             wash.SetSiblingIndex(fillRect.GetSiblingIndex());
         else if (wash.GetSiblingIndex() > fillRect.GetSiblingIndex() + 1)
             wash.SetSiblingIndex(fillRect.GetSiblingIndex() + 1);
+
+        // Quarter ticks: children of the fill (its Filled clipping does not
+        // affect children), so they line up with the bar at any inset.
+        for (int i = 1; i <= 3; i++)
+        {
+            Image tick = EnsureChildImage(fillRect.transform, $"Tick_{i}");
+            RectTransform tickRect = tick.rectTransform;
+            float fraction = i * 0.25f;
+            tickRect.anchorMin = new Vector2(fraction, 0f);
+            tickRect.anchorMax = new Vector2(fraction, 1f);
+            tickRect.pivot = new Vector2(0.5f, 0.5f);
+            tickRect.anchoredPosition = Vector2.zero;
+            tickRect.sizeDelta = new Vector2(2f, -3f);
+            tick.sprite = WhitePixelSprite();
+            tick.color = BatteryTickColor;
+            tick.raycastTarget = false;
+        }
     }
 
     private static void ConfigureBatteryLayer(
@@ -3024,6 +3390,44 @@ public class BattleHudController : MonoBehaviour
         whitePixelSprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 100f);
         whitePixelSprite.name = "HudWhitePixel";
         return whitePixelSprite;
+    }
+
+    private static Sprite EffectivenessTriangleSprite(bool up)
+    {
+        Sprite cached = up ? triangleUpSprite : triangleDownSprite;
+        if (cached != null)
+            return cached;
+
+        const int size = 24;
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+        };
+
+        Color clear = new Color(0f, 0f, 0f, 0f);
+        float center = (size - 1) * 0.5f;
+        for (int y = 0; y < size; y++)
+        {
+            float t = up
+                ? 1f - (float)y / (size - 1)
+                : (float)y / (size - 1);
+            float halfWidth = Mathf.Lerp(1f, center, t);
+            for (int x = 0; x < size; x++)
+            {
+                bool inside = Mathf.Abs(x - center) <= halfWidth;
+                texture.SetPixel(x, y, inside ? Color.white : clear);
+            }
+        }
+
+        texture.Apply();
+        Sprite sprite = Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
+        sprite.name = up ? "EffectivenessTriangleUp" : "EffectivenessTriangleDown";
+        if (up)
+            triangleUpSprite = sprite;
+        else
+            triangleDownSprite = sprite;
+        return sprite;
     }
 
     private void ConfigureCombatantTextHierarchy(CombatantRefs refs)

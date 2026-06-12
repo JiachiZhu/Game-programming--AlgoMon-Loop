@@ -382,6 +382,13 @@ public sealed class BattleStatusSet
         return expired;
     }
 
+    // Read-only views of the timed modifiers so the HUD can render them as
+    // status chips. Mirrors what BuildSummary prints; no activity-window logic.
+    public int CPDiscountAmount => cpDiscount.Amount;
+    public float FirewallShredAmount => firewallShred.Amount;
+    public int NextPriorityBonusAmount => nextPriorityBonus.Amount;
+    public int NextBasePowerBonusAmount => nextBasePowerBonus.Amount;
+
     public string BuildSummary()
     {
         var builder = new StringBuilder();
