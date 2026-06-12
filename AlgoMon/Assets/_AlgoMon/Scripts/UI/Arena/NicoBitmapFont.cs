@@ -40,6 +40,22 @@ public sealed class NicoBitmapFontReference
         return TryGetFont(atlas, metrics, out font);
     }
 
+    public bool TryGetCatalogFont(string rootAssetPath, out NicoBitmapFont font)
+    {
+        font = null;
+        if (string.IsNullOrWhiteSpace(fontName) || string.IsNullOrWhiteSpace(rootAssetPath))
+            return false;
+
+        string folder = $"{rootAssetPath.TrimEnd('/')}/{fontName}";
+        Texture2D catalogAtlas = RuntimeUiAssetCatalog.FindTexture($"{folder}/{fontName}.png");
+        TextAsset catalogMetrics =
+            RuntimeUiAssetCatalog.FindText($"{folder}/{fontName}.txt") ??
+            RuntimeUiAssetCatalog.FindText($"{folder}/{fontName}.fnt") ??
+            RuntimeUiAssetCatalog.FindText($"{folder}/{fontName}.lua");
+
+        return TryGetFont(catalogAtlas, catalogMetrics, out font);
+    }
+
 #if UNITY_EDITOR
     public bool TryGetEditorAutoFont(string rootAssetPath, out NicoBitmapFont font)
     {

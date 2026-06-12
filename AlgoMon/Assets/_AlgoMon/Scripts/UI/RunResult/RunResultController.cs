@@ -826,7 +826,7 @@ public class RunResultController : MonoBehaviour
 
         BattleAnimationProfile profile = species.battleAnimationProfile;
         if (profile == null)
-            profile = BattleAnimationProfileLoader.TryLoadEditorProfile(species.codeName, "Base");
+            profile = BattleAnimationProfileLoader.TryLoadProfile(species.codeName, "Base");
 
         Sprite sprite = FirstSprite(profile != null ? profile.idle : null);
         if (sprite != null)

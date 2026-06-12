@@ -1,11 +1,11 @@
 /*
 Script Audit:
-- Purpose: Loads editor-time battle animation profiles from sprite folders and optional manifest files.
-- Attached GameObject: None; this is a static editor helper used by BattlePresentationController.
+- Purpose: Loads battle animation profiles — built live from sprite folders in the editor, resolved from the baked BattleAnimationProfileCatalog in standalone builds.
+- Attached GameObject: None; this is a static helper used by battle and menu controllers.
 - Main responsibilities: Find species/form sprite folders, create a runtime BattleAnimationProfile, apply manifest timing, load clip frames, and fix sprite import settings.
-- Important variables: SpriteRoot, ManifestName, TryLoadEditorProfile.
+- Important variables: SpriteRoot, ManifestName, TryLoadProfile, BuildProfileFromSpriteFolders.
 - Inputs: AlgoMon codeName, formName, sprite folders, and battle_animation_manifest.json files.
-- Outputs or effects: Returns an editor-only BattleAnimationProfile for preview/play mode animation.
+- Outputs or effects: Returns a BattleAnimationProfile for play mode and standalone builds.
 - AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
 - Testing notes: Add frames under Assets/_AlgoMon/Sprites/SPECIES/Form and confirm the profile auto-loads in the editor.
 */
@@ -22,9 +22,19 @@ public static class BattleAnimationProfileLoader
     private const string SpriteRoot = "Assets/_AlgoMon/Sprites";
     private const string ManifestName = "battle_animation_manifest.json";
 
-    public static BattleAnimationProfile TryLoadEditorProfile(string codeName, string formName)
+    public static BattleAnimationProfile TryLoadProfile(string codeName, string formName)
     {
 #if UNITY_EDITOR
+        BattleAnimationProfile editorProfile = BuildProfileFromSpriteFolders(codeName, formName);
+        if (editorProfile != null)
+            return editorProfile;
+#endif
+        return BattleAnimationProfileCatalog.Find(codeName, formName);
+    }
+
+#if UNITY_EDITOR
+    public static BattleAnimationProfile BuildProfileFromSpriteFolders(string codeName, string formName)
+    {
         if (string.IsNullOrWhiteSpace(codeName))
             return null;
 
@@ -47,12 +57,8 @@ public static class BattleAnimationProfileLoader
         LoadClipFrames(profile.faint, root, "Faint");
 
         return HasAnyFrames(profile) ? profile : null;
-#else
-        return null;
-#endif
     }
 
-#if UNITY_EDITOR
     private static bool HasAnyFrames(BattleAnimationProfile profile)
     {
         return profile != null &&

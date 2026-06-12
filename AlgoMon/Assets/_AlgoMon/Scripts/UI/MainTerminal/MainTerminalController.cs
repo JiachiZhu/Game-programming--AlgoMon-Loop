@@ -2725,13 +2725,13 @@ public class MainTerminalController : MonoBehaviour
     {
         if (mon == null)
             return null;
-#if UNITY_EDITOR
+
         string code = mon.SpeciesCodeName;
         string form = mon.IsEvolvedForm ? "Evolved" : "Base";
-        BattleAnimationProfile editorProfile = BattleAnimationProfileLoader.TryLoadEditorProfile(code, form);
-        if (editorProfile != null)
-            return editorProfile;
-#endif
+        BattleAnimationProfile loadedProfile = BattleAnimationProfileLoader.TryLoadProfile(code, form);
+        if (loadedProfile != null)
+            return loadedProfile;
+
         return mon.data != null ? mon.data.battleAnimationProfile : null;
     }
 
@@ -4190,7 +4190,23 @@ public class MainTerminalController : MonoBehaviour
         }
 #endif
 
+        Sprite catalogSprite = ResolvePayloadSpriteFromCatalog(mon);
+        if (catalogSprite != null)
+            return catalogSprite;
+
         return mon.data.portrait;
+    }
+
+    private static Sprite ResolvePayloadSpriteFromCatalog(AlgoMonInstance mon)
+    {
+        string codeName = PayloadSpriteName(mon.data.codeName);
+        if (string.IsNullOrEmpty(codeName))
+            return null;
+
+        string folder = codeName.ToUpperInvariant();
+        string form = mon.IsEvolvedForm ? "Evolved" : "Base";
+        return RuntimeUiAssetCatalog.FindSprite($"Assets/_AlgoMon/Sprites/{folder}/{codeName}_{form}.png") ??
+               RuntimeUiAssetCatalog.FindSprite($"Assets/_AlgoMon/Sprites/{folder}/{codeName}_Base.png");
     }
 
     private static string PayloadSpriteName(string codeName)
@@ -5240,9 +5256,9 @@ public class MainTerminalController : MonoBehaviour
             sfxVolumeValueText.text = Mathf.RoundToInt(value * 100f) + "%";
     }
 
-    private static Sprite ResolveSliderTrackSprite() => LoadEditorUiSprite(SliderTrackSpritePath, ref cachedSliderTrackSprite);
-    private static Sprite ResolveSliderFillSprite() => LoadEditorUiSprite(SliderFillSpritePath, ref cachedSliderFillSprite);
-    private static Sprite ResolveSliderHandleSprite() => LoadEditorUiSprite(SliderHandleSpritePath, ref cachedSliderHandleSprite);
+    private static Sprite ResolveSliderTrackSprite() => LoadUiSprite(SliderTrackSpritePath, ref cachedSliderTrackSprite);
+    private static Sprite ResolveSliderFillSprite() => LoadUiSprite(SliderFillSpritePath, ref cachedSliderFillSprite);
+    private static Sprite ResolveSliderHandleSprite() => LoadUiSprite(SliderHandleSpritePath, ref cachedSliderHandleSprite);
 
     private void EnsurePayloadPageNav(Transform parent)
     {
@@ -5865,7 +5881,7 @@ public class MainTerminalController : MonoBehaviour
     {
         secondsPerFrame = 1f / BossRouteFallbackIdleFps;
 
-        BattleAnimationProfile profile = BattleAnimationProfileLoader.TryLoadEditorProfile(speciesCodeName, "Evolved");
+        BattleAnimationProfile profile = BattleAnimationProfileLoader.TryLoadProfile(speciesCodeName, "Evolved");
         if (profile == null || profile.idle == null || !profile.idle.HasFrames)
             return Array.Empty<Sprite>();
 
@@ -5883,6 +5899,12 @@ public class MainTerminalController : MonoBehaviour
             AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Grid/White/SelectorThick_Focus.png") ??
             AssetDatabase.LoadAssetAtPath<Sprite>("Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Selectors/Square_Select.png");
 #endif
+        if (bossRouteSelectionBarSprite == null)
+        {
+            bossRouteSelectionBarSprite =
+                RuntimeUiAssetCatalog.FindSprite("Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Grid/White/SelectorThick_Focus.png") ??
+                RuntimeUiAssetCatalog.FindSprite("Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Selectors/Square_Select.png");
+        }
         return bossRouteSelectionBarSprite;
     }
 
@@ -5894,6 +5916,8 @@ public class MainTerminalController : MonoBehaviour
 #if UNITY_EDITOR
         bossRouteSelectionPanelSprite = AssetDatabase.LoadAssetAtPath<Sprite>(BossRouteSelectionPanelSpritePath);
 #endif
+        if (bossRouteSelectionPanelSprite == null)
+            bossRouteSelectionPanelSprite = RuntimeUiAssetCatalog.FindSprite(BossRouteSelectionPanelSpritePath);
         return bossRouteSelectionPanelSprite;
     }
 
@@ -7192,41 +7216,41 @@ public class MainTerminalController : MonoBehaviour
     {
         return payloadInspectorPanelSprite != null
             ? payloadInspectorPanelSprite
-            : LoadEditorUiSprite(PayloadInspectorPanelSpritePath, ref cachedPayloadInspectorPanelSprite);
+            : LoadUiSprite(PayloadInspectorPanelSpritePath, ref cachedPayloadInspectorPanelSprite);
     }
 
     private Sprite ResolveSquadPanelBackgroundSprite()
     {
         return squadPanelBackgroundSprite != null
             ? squadPanelBackgroundSprite
-            : LoadEditorUiSprite(SquadPanelFrameSpritePath, ref cachedSquadPanelBackgroundSprite);
+            : LoadUiSprite(SquadPanelFrameSpritePath, ref cachedSquadPanelBackgroundSprite);
     }
 
     private Sprite ResolveMonsterDisplayPanelSprite()
     {
         return monsterDisplayPanelSprite != null
             ? monsterDisplayPanelSprite
-            : LoadEditorUiSprite(MonsterDisplayPanelSpritePath, ref cachedMonsterDisplayPanelSprite);
+            : LoadUiSprite(MonsterDisplayPanelSpritePath, ref cachedMonsterDisplayPanelSprite);
     }
 
     private static Sprite ResolveInspectorExpBarFillSprite()
     {
-        return LoadEditorUiSprite(InspectorExpBarFillSpritePath, ref cachedInspectorExpBarFillSprite);
+        return LoadUiSprite(InspectorExpBarFillSpritePath, ref cachedInspectorExpBarFillSprite);
     }
 
     private static Sprite ResolveInspectorExpBarUnderSprite()
     {
-        return LoadEditorUiSprite(InspectorExpBarUnderSpritePath, ref cachedInspectorExpBarUnderSprite);
+        return LoadUiSprite(InspectorExpBarUnderSpritePath, ref cachedInspectorExpBarUnderSprite);
     }
 
     private static Sprite ResolveTerminalToggleSprite(bool enabled)
     {
         return enabled
-            ? LoadEditorUiSprite(TerminalToggleOnSpritePath, ref cachedTerminalToggleOnSprite)
-            : LoadEditorUiSprite(TerminalToggleOffSpritePath, ref cachedTerminalToggleOffSprite);
+            ? LoadUiSprite(TerminalToggleOnSpritePath, ref cachedTerminalToggleOnSprite)
+            : LoadUiSprite(TerminalToggleOffSpritePath, ref cachedTerminalToggleOffSprite);
     }
 
-    private static Sprite LoadEditorUiSprite(string assetPath, ref Sprite cache)
+    private static Sprite LoadUiSprite(string assetPath, ref Sprite cache)
     {
         if (cache != null)
             return cache;
@@ -7234,6 +7258,8 @@ public class MainTerminalController : MonoBehaviour
 #if UNITY_EDITOR
         cache = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
 #endif
+        if (cache == null)
+            cache = RuntimeUiAssetCatalog.FindSprite(assetPath);
         return cache;
     }
 
@@ -7290,35 +7316,40 @@ public class MainTerminalController : MonoBehaviour
     {
         return panelButtonNormalSprite != null
             ? panelButtonNormalSprite
-            : LoadEditorPanelButtonSprite(PanelButtonNormalSpritePath, ref cachedPanelButtonNormalSprite);
+            : LoadPanelButtonSprite(PanelButtonNormalSpritePath, ref cachedPanelButtonNormalSprite);
     }
 
     private Sprite ResolvePanelButtonHighlightedSprite()
     {
         return panelButtonHighlightedSprite != null
             ? panelButtonHighlightedSprite
-            : LoadEditorPanelButtonSprite(PanelButtonHighlightedSpritePath, ref cachedPanelButtonHighlightedSprite);
+            : LoadPanelButtonSprite(PanelButtonHighlightedSpritePath, ref cachedPanelButtonHighlightedSprite);
     }
 
     private Sprite ResolvePanelButtonPressedSprite()
     {
         return panelButtonPressedSprite != null
             ? panelButtonPressedSprite
-            : LoadEditorPanelButtonSprite(PanelButtonPressedSpritePath, ref cachedPanelButtonPressedSprite);
+            : LoadPanelButtonSprite(PanelButtonPressedSpritePath, ref cachedPanelButtonPressedSprite);
     }
 
     private static Sprite ResolvePanelButtonHoverGlowSprite()
     {
-        return LoadEditorPanelButtonSprite(PanelButtonHoverGlowSpritePath, ref cachedPanelButtonHoverGlowSprite);
+        return LoadPanelButtonSprite(PanelButtonHoverGlowSpritePath, ref cachedPanelButtonHoverGlowSprite);
     }
 
-    private static Sprite LoadEditorPanelButtonSprite(string assetPath, ref Sprite cache)
+    private static Sprite LoadPanelButtonSprite(string assetPath, ref Sprite cache)
     {
         if (cache != null)
             return cache;
 
 #if UNITY_EDITOR
         Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath);
+#else
+        Texture2D texture = null;
+#endif
+        if (texture == null)
+            texture = RuntimeUiAssetCatalog.FindTexture(assetPath);
         if (texture != null)
         {
             cache = Sprite.Create(
@@ -7330,7 +7361,6 @@ public class MainTerminalController : MonoBehaviour
                 SpriteMeshType.FullRect);
             cache.name = texture.name;
         }
-#endif
         return cache;
     }
 

@@ -2676,7 +2676,7 @@ public class BattleManager : MonoBehaviour
             return data.portrait;
         }
 
-        BattleAnimationProfile profile = BattleAnimationProfileLoader.TryLoadEditorProfile(data.codeName, instance.battleFormName);
+        BattleAnimationProfile profile = BattleAnimationProfileLoader.TryLoadProfile(data.codeName, instance.battleFormName);
         if (profile == null)
             profile = data.battleAnimationProfile;
 

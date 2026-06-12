@@ -148,6 +148,9 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         SyncFromSourceText();
     }
 
+#if UNITY_EDITOR
+    // Graphic.OnValidate only exists in the editor assembly; the override
+    // must be compiled out of player builds.
     protected override void OnValidate()
     {
         base.OnValidate();
@@ -157,6 +160,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         SetMaterialDirty();
         SetVerticesDirty();
     }
+#endif
 
     protected override void OnPopulateMesh(VertexHelper vertexHelper)
     {

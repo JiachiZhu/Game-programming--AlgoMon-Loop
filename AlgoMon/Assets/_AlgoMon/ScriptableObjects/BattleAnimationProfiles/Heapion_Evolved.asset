@@ -1,0 +1,201 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb23f3a5fef0468ea629a2e8b05f7c53, type: 3}
+  m_Name: Heapion_Evolved
+  m_EditorClassIdentifier: 
+  profileId: Heapion_Evolved
+  mirrorX: 0
+  visualScaleMultiplier: 1
+  entry:
+    frames:
+    - {fileID: 21300000, guid: e217a6bfcaf002746917ec4492795ac4, type: 3}
+    - {fileID: 21300000, guid: 9c87539fe7e8c12459f32fc0c8b52d9e, type: 3}
+    - {fileID: 21300000, guid: 100cacb96ffb20e4e822be424376319d, type: 3}
+    - {fileID: 21300000, guid: 04c205fdc3d67e3469b2b5949a392e4d, type: 3}
+    - {fileID: 21300000, guid: 7e2080c673f12f74ea0ca59ed94927fd, type: 3}
+    - {fileID: 21300000, guid: c8b412a0a5d77f04a8bee4cdd28da7fa, type: 3}
+    - {fileID: 21300000, guid: 9af7b4c6a1d9f5d488c70746a8a9c3c9, type: 3}
+    - {fileID: 21300000, guid: 46954d168148e334e9e2bb86b5454ec5, type: 3}
+    - {fileID: 21300000, guid: ebfbe350bc68eac4da5dd6d7d0c59c6a, type: 3}
+    - {fileID: 21300000, guid: 0fcdf7029b8a2c146949ee26e8d630e5, type: 3}
+    - {fileID: 21300000, guid: 74d3964b811ea2b4cacc4f3b86618d44, type: 3}
+    - {fileID: 21300000, guid: 171e278e9b91e28408bde17e79ad25f4, type: 3}
+    - {fileID: 21300000, guid: 903b25f6e03caaf4fb71b3eae0f3f408, type: 3}
+    - {fileID: 21300000, guid: abe4bf8d2e97e934fb5c38b1c1654142, type: 3}
+    - {fileID: 21300000, guid: daa1354f76f889e4589403bac28adb26, type: 3}
+    - {fileID: 21300000, guid: da40376ec24497f43b93ed7a39f12b3f, type: 3}
+    fps: 8
+    loop: 0
+    startFrame: 1
+    actionFrame: -1
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  idle:
+    frames:
+    - {fileID: 21300000, guid: 2eb3060721cc41db8796861921119d1c, type: 3}
+    - {fileID: 21300000, guid: d60c58cdb33c4dc6b5fd27a437b440db, type: 3}
+    - {fileID: 21300000, guid: 74aae20f06944401bd29286f077c4378, type: 3}
+    - {fileID: 21300000, guid: cf227a1a6d8845fba941b394983c792a, type: 3}
+    - {fileID: 21300000, guid: e20f1f69b95b47f88e3bbf54ee62d986, type: 3}
+    - {fileID: 21300000, guid: 3a2fa27f020a40c692c7526ddefde380, type: 3}
+    - {fileID: 21300000, guid: 7b97f749cbaf4766b2b227a2957990fa, type: 3}
+    - {fileID: 21300000, guid: 99f8d38179be4b56bc2a70553703e3e7, type: 3}
+    - {fileID: 21300000, guid: 728a64ef2e20429ca0abc174157a16c3, type: 3}
+    - {fileID: 21300000, guid: 83e861af7e3d42c7a044dcad87fa9551, type: 3}
+    - {fileID: 21300000, guid: 89a8768743bb47569c7265228b38934c, type: 3}
+    fps: 8
+    loop: 1
+    startFrame: 1
+    actionFrame: -1
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  attack:
+    frames:
+    - {fileID: 21300000, guid: 3ac3affb66de40b895b4151c89556277, type: 3}
+    - {fileID: 21300000, guid: 73f24833021f448d8a552c91cc2d3a41, type: 3}
+    - {fileID: 21300000, guid: 7aef67f9b2954780a450bb70f8e18082, type: 3}
+    - {fileID: 21300000, guid: 0a4c2896f4264578b29974a9ab1c63d4, type: 3}
+    - {fileID: 21300000, guid: 8d99ef6b7ac5480688334838f51c4565, type: 3}
+    - {fileID: 21300000, guid: 038288ef9b0a4153a72e4da322813bb4, type: 3}
+    - {fileID: 21300000, guid: 8cf050f4fa65454f9879f9944dc5fe45, type: 3}
+    - {fileID: 21300000, guid: 7bd498d4fe4c4cdab8b7d5b13df7542a, type: 3}
+    - {fileID: 21300000, guid: 65c6edb11c2c4a34bd26b579e0f64d65, type: 3}
+    - {fileID: 21300000, guid: 134c7a55d1c44a668a12a1f08818c401, type: 3}
+    - {fileID: 21300000, guid: 3e85f7e586ab4676b0700becb39a9d71, type: 3}
+    - {fileID: 21300000, guid: cf8cbeba8df14da0b4eec7f3e58781f3, type: 3}
+    - {fileID: 21300000, guid: c28da334b9224787a1dcb72693bad1b5, type: 3}
+    - {fileID: 21300000, guid: 58323c675d904328850b8d681c842aeb, type: 3}
+    - {fileID: 21300000, guid: 7b14c6012bc549d0a16464101241ce3b, type: 3}
+    - {fileID: 21300000, guid: 522fce0fca634bd4b1f530ba9b8b94de, type: 3}
+    - {fileID: 21300000, guid: e1727578f8ab40c6bf7041a55facaa98, type: 3}
+    - {fileID: 21300000, guid: efbe5e9f28604347a066623b49f87d19, type: 3}
+    - {fileID: 21300000, guid: 0b018aa8b74346dcb059777a7c2f2104, type: 3}
+    - {fileID: 21300000, guid: 509748e0d5ff4c609fdb8cf4afd7b917, type: 3}
+    fps: 10
+    loop: 0
+    startFrame: 1
+    actionFrame: 9
+    contactFrame: 6
+    returnFrame: 18
+    smoothContactMovement: 1
+    smoothReturnMovement: 1
+    contactDistanceFromTarget: 1.05
+    contactOffset: {x: -0.18, y: 0}
+    holdLastFrame: 0
+  defense:
+    frames:
+    - {fileID: 21300000, guid: 99d1cd10089d4bd6a96fad567415b92f, type: 3}
+    - {fileID: 21300000, guid: 17da8d28b8124229b5fff759e63030f6, type: 3}
+    - {fileID: 21300000, guid: 98b46aa197e14d7a89d641bc83583bc9, type: 3}
+    - {fileID: 21300000, guid: 8ba1c1a4e2514b0a84174612aca7010f, type: 3}
+    - {fileID: 21300000, guid: b50964bfb4574afc80b57c58d9074a15, type: 3}
+    - {fileID: 21300000, guid: e479cd0fc1394ae688ec36a6319e7c09, type: 3}
+    - {fileID: 21300000, guid: 34295d27fb8d4961b9b15dd70a17b3d2, type: 3}
+    - {fileID: 21300000, guid: 1dfe7ad7bb37405dbd18bfa286e9d985, type: 3}
+    - {fileID: 21300000, guid: 8267b19c923141a8afa55e7092b25843, type: 3}
+    - {fileID: 21300000, guid: b71b5aa500434802a0efddbe193a898b, type: 3}
+    - {fileID: 21300000, guid: 63620d2f4159432ca650c978e7ae0265, type: 3}
+    - {fileID: 21300000, guid: d23be89e3e654512ba498f943c7631d6, type: 3}
+    - {fileID: 21300000, guid: 159af98d247d4f9b8a33082bce171988, type: 3}
+    - {fileID: 21300000, guid: b053440302da46c0a4999b7358da9e35, type: 3}
+    - {fileID: 21300000, guid: 0599731321984d45a7a8a01eb6aef6c6, type: 3}
+    - {fileID: 21300000, guid: b9ff7df9cc0e43bbb1dce53a102f2106, type: 3}
+    - {fileID: 21300000, guid: fb029dcdb71d4c9593f550fd59f2f13c, type: 3}
+    fps: 10
+    loop: 0
+    startFrame: 1
+    actionFrame: 13
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  status:
+    frames:
+    - {fileID: 21300000, guid: f65ce94cb2f64b48ad66901bedbf3c7a, type: 3}
+    - {fileID: 21300000, guid: 4f2959a3b29746489d2711d681a92268, type: 3}
+    - {fileID: 21300000, guid: 9dcb8e8bdc0b4f73a0baf23f448ab29e, type: 3}
+    - {fileID: 21300000, guid: 6f0a73fadfd04e32acc7fdd27c886437, type: 3}
+    - {fileID: 21300000, guid: 4afbad3769f2460caad44f0d48a36ee4, type: 3}
+    - {fileID: 21300000, guid: 7465b1fcf2ff4aacb4e37d0ceb386e6f, type: 3}
+    - {fileID: 21300000, guid: 1b405249da784210a9bb338be57782da, type: 3}
+    - {fileID: 21300000, guid: 91f13f3628d046b98fbad65f50b389c5, type: 3}
+    - {fileID: 21300000, guid: 8af77414d21a42a9a4ca772e77e5b5ff, type: 3}
+    - {fileID: 21300000, guid: 40166ee7b97f4e388aa45231978d6b57, type: 3}
+    - {fileID: 21300000, guid: 3e068136b3844195a4b84dbcc1e55f26, type: 3}
+    fps: 10
+    loop: 0
+    startFrame: 1
+    actionFrame: 8
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  hit:
+    frames:
+    - {fileID: 21300000, guid: 42ea461ba6514ea1bda37f28dc89387d, type: 3}
+    - {fileID: 21300000, guid: 25f5d10596294ea8a18ff974ebc75a41, type: 3}
+    - {fileID: 21300000, guid: 9a3254ea72a1410f8a0dc3abf099e060, type: 3}
+    - {fileID: 21300000, guid: 2d5cf69459fc469e9757de5716e5f7ec, type: 3}
+    - {fileID: 21300000, guid: 5bc445fac85c48ecbfc9a9a0b0e0f25f, type: 3}
+    - {fileID: 21300000, guid: 1e6211dba7d446c987a30e3f98ea13f5, type: 3}
+    - {fileID: 21300000, guid: bc8d59f398914e718f245af5c1f83a36, type: 3}
+    - {fileID: 21300000, guid: 11cc17e291a14246b86ab7fa25bcca7a, type: 3}
+    - {fileID: 21300000, guid: 3094dc7fcc384f8cb8c66733b22ee7c0, type: 3}
+    fps: 12
+    loop: 0
+    startFrame: 1
+    actionFrame: -1
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 0
+  faint:
+    frames:
+    - {fileID: 21300000, guid: 775935b59f6a4a40b7ad44f7904e1ddd, type: 3}
+    - {fileID: 21300000, guid: 2ab177b5a5894c028777b5a169cf06cb, type: 3}
+    - {fileID: 21300000, guid: ba00af0bd25243e7866b9853a009d136, type: 3}
+    - {fileID: 21300000, guid: 5e8dc162074349efb963c04ed1b0e82d, type: 3}
+    - {fileID: 21300000, guid: 64278febe9414cab9703a9480e5acc18, type: 3}
+    - {fileID: 21300000, guid: fa57b9bbc9194070b987274fda9d8f97, type: 3}
+    - {fileID: 21300000, guid: 68f7349554f4478c816cad40aaf59bf5, type: 3}
+    - {fileID: 21300000, guid: a75d96002e7c4a9da237a67b6c3b3b0e, type: 3}
+    - {fileID: 21300000, guid: 2f671630878a426f9493cec8617d25f7, type: 3}
+    fps: 8
+    loop: 0
+    startFrame: 1
+    actionFrame: -1
+    contactFrame: -1
+    returnFrame: -1
+    smoothContactMovement: 0
+    smoothReturnMovement: 0
+    contactDistanceFromTarget: 0.65
+    contactOffset: {x: 0, y: 0}
+    holdLastFrame: 1
