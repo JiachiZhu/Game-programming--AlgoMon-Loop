@@ -90,17 +90,15 @@ public sealed class BattleLinkTransition : MonoBehaviour
     private IEnumerator TransitionRoutine(Action prepareBattle, Action loadArena)
     {
         bool prepared = false;
-        bool loaded = false;
         float startTime = Time.unscaledTime;
-        float loadAt = WarmupSeconds + LockSeconds;
-        float preLoadTotal = loadAt + HandoffSeconds;
+        float preLoadTotal = WarmupSeconds + LockSeconds + HandoffSeconds;
 
         while (Time.unscaledTime - startTime < preLoadTotal)
         {
             float elapsed = Time.unscaledTime - startTime;
             float cover = Smooth01(Mathf.Clamp01(elapsed / WarmupSeconds));
             float lockProgress = Mathf.Clamp01((elapsed - WarmupSeconds * 0.40f) / LockSeconds);
-            float displayedProgress = Mathf.Clamp01(elapsed / preLoadTotal) * 0.94f;
+            float displayedProgress = Mathf.Clamp01(elapsed / preLoadTotal);
 
             canvasGroup.alpha = cover;
             UpdateVisuals(elapsed, lockProgress, displayedProgress, false);
@@ -112,16 +110,19 @@ public sealed class BattleLinkTransition : MonoBehaviour
                 InvokeSafely(prepareBattle, "Battle encounter preparation failed.");
             }
 
-            if (!loaded && elapsed >= loadAt)
-            {
-                loaded = true;
-                SetStatus("ARENA HANDOFF ACCEPTED");
-                InvokeSafely(loadArena, "Arena scene handoff failed.");
-            }
-
             yield return null;
         }
 
+        // Let the bar visibly reach 100% before the synchronous scene load, so the
+        // load hitch hides behind a completed frame instead of freezing the bar
+        // mid-fill.
+        canvasGroup.alpha = 1f;
+        UpdateVisuals(preLoadTotal, 1f, 1f, false);
+        SetStatus("ARENA HANDOFF ACCEPTED");
+        yield return null;
+        yield return null;
+
+        InvokeSafely(loadArena, "Arena scene handoff failed.");
         yield return null;
 
         float exitStartTime = Time.unscaledTime;

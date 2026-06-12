@@ -113,17 +113,15 @@ public sealed class GridLinkTransition : MonoBehaviour
     private IEnumerator TransitionRoutine(Action prepareRun, Action loadGrid)
     {
         bool prepared = false;
-        bool loaded = false;
         float startTime = Time.unscaledTime;
-        float loadAt = WarmupSeconds + GraphBuildSeconds;
-        float preLoadTotal = loadAt + HandoffSeconds;
+        float preLoadTotal = WarmupSeconds + GraphBuildSeconds + HandoffSeconds;
 
         while (Time.unscaledTime - startTime < preLoadTotal)
         {
             float elapsed = Time.unscaledTime - startTime;
             float cover = Smooth01(Mathf.Clamp01(elapsed / WarmupSeconds));
             float graphProgress = Mathf.Clamp01((elapsed - WarmupSeconds * 0.45f) / GraphBuildSeconds);
-            float displayedProgress = Mathf.Clamp01(elapsed / preLoadTotal) * 0.96f;
+            float displayedProgress = Mathf.Clamp01(elapsed / preLoadTotal);
 
             canvasGroup.alpha = cover;
             UpdateVisuals(elapsed, graphProgress, displayedProgress, false);
@@ -135,16 +133,18 @@ public sealed class GridLinkTransition : MonoBehaviour
                 InvokeSafely(prepareRun, "Grid run preparation failed.");
             }
 
-            if (!loaded && elapsed >= loadAt)
-            {
-                loaded = true;
-                SetStatus("DIGITAL HANDOFF ACCEPTED");
-                InvokeSafely(loadGrid, "Grid scene handoff failed.");
-            }
-
             yield return null;
         }
 
+        // Render the finished 100% bar before the synchronous scene load, so the
+        // hitch hides behind a completed frame instead of freezing the bar mid-fill.
+        canvasGroup.alpha = 1f;
+        UpdateVisuals(preLoadTotal, 1f, 1f, false);
+        SetStatus("DIGITAL HANDOFF ACCEPTED");
+        yield return null;
+        yield return null;
+
+        InvokeSafely(loadGrid, "Grid scene handoff failed.");
         yield return null;
 
         float exitStartTime = Time.unscaledTime;

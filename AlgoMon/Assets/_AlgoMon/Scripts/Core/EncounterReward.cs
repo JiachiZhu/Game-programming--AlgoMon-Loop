@@ -50,14 +50,14 @@ public class EncounterReward
         if (!HasAnyGrant)
             return "REWARD: none.";
 
-        string line = $"REWARD: ALGOMON +{algoMonExp} EXP | COMPUTE +{compute}";
+        string line = $"REWARD: ALGOMON +{algoMonExp} EXP | CREDITS +{compute}";
         if (baseDataGranted)
             line += $" | BASE FORM {FormatQuality(baseDataQuality)}";
         else if (shouldGrantBaseData)
             line += " | BASE FORM SKIPPED";
 
         if (evolutionDataGranted)
-            line += " | LEGACY EVOLUTION DATA +1";
+            line += " | EVOLUTION DATA +1";
 
         return line;
     }
@@ -128,11 +128,11 @@ public class RunRewardSummary
     public string ToCompactDisplay()
     {
         string baseLine = highQualityBaseDataCount > 0
-            ? $"BASE FORM +{baseDataCount} (HQ {highQualityBaseDataCount})"
+            ? $"BASE FORM +{baseDataCount} (HIGH {highQualityBaseDataCount})"
             : $"BASE FORM +{baseDataCount}";
 
         return $"ALGOMON EXP +{algoMonExp}\n" +
-               $"COMPUTE +{compute} | {baseLine}";
+               $"CREDITS +{compute} | {baseLine}";
     }
 }
 

@@ -40,6 +40,12 @@ public class BattlePresentationController : MonoBehaviour
         [System.NonSerialized] public Sprite[] cachedFrames;
     }
 
+    private enum FeedbackBitmapFontMode
+    {
+        Unified,
+        Elemental
+    }
+
     [Header("Combatants")]
     // Sprint 2 uses the fixed TheArena matchup. Party switching should replace
     // these static ids with runtime combatant registration.
@@ -77,10 +83,21 @@ public class BattlePresentationController : MonoBehaviour
     [SerializeField, Min(0f)] private float playerFeedbackLeftPadding = 0.45f;
     [SerializeField] private float playerFeedbackVerticalOffset = -0.28f;
 
-    [Header("Element Feedback Bitmap Fonts")]
+    [Header("Battle Feedback Bitmap Fonts")]
     [SerializeField] private bool useElementBitmapFeedbackFonts = true;
     [SerializeField] private bool autoLoadBitmapFeedbackFontsInEditor = true;
+    [SerializeField] private FeedbackBitmapFontMode feedbackBitmapFontMode = FeedbackBitmapFontMode.Unified;
+    [SerializeField] private bool tintBitmapFeedbackByEventColor = true;
+    [SerializeField] private bool useBitmapFeedbackEdgeStyle = true;
+    [SerializeField, Range(0f, 1f)] private float bitmapFeedbackColorSaturation = 0.90f;
+    [SerializeField] private Color bitmapFeedbackOutlineColor = new Color(0.01f, 0.035f, 0.050f, 0.88f);
+    [SerializeField] private Color bitmapFeedbackShadowColor = new Color(0f, 0f, 0f, 0.82f);
+    [SerializeField] private Color bitmapFeedbackHighlightColor = new Color(0.62f, 0.96f, 1f, 0.34f);
+    [SerializeField, Min(0f)] private float bitmapFeedbackOutlineOffset = 0.018f;
+    [SerializeField] private Vector2 bitmapFeedbackShadowOffset = new Vector2(0.040f, -0.045f);
+    [SerializeField] private Vector2 bitmapFeedbackHighlightOffset = new Vector2(-0.012f, 0.014f);
     [SerializeField] private string bitmapFeedbackFontAssetRoot = "Assets/_AlgoMon/Fonts/NicoBitmap";
+    // Unified mode uses this as the shared readable battle-feedback face.
     [SerializeField] private NicoBitmapFontReference normalBitmapFont =
         new NicoBitmapFontReference("BoldBasic", Color.white);
     [SerializeField] private NicoBitmapFontReference waterBitmapFont =
@@ -97,6 +114,15 @@ public class BattlePresentationController : MonoBehaviour
         new NicoBitmapFontReference("IceCream", Color.white);
     [SerializeField] private NicoBitmapFontReference utilityBitmapFont =
         new NicoBitmapFontReference("BoldTwilight", Color.white);
+
+    [Header("Battle Feedback Element Colors")]
+    [SerializeField] private Color normalFeedbackColor = new Color(0.96f, 0.98f, 1.00f, 1f);
+    [SerializeField] private Color waterFeedbackColor = new Color(0.05f, 0.22f, 0.82f, 1f);
+    [SerializeField] private Color fireFeedbackColor = new Color(1.00f, 0.20f, 0.15f, 1f);
+    [SerializeField] private Color grassFeedbackColor = new Color(0.34f, 1.00f, 0.44f, 1f);
+    [SerializeField] private Color iceFeedbackColor = new Color(0.18f, 0.88f, 1.00f, 1f);
+    [SerializeField] private Color electricFeedbackColor = new Color(1.00f, 0.86f, 0.16f, 1f);
+    [SerializeField] private Color groundFeedbackColor = new Color(0.40f, 0.23f, 0.10f, 1f);
 
     [Header("Counter Clash")]
     [Tooltip("Safety window for suppressing the real damage event's lunge after the counter clash already played it.")]
@@ -387,6 +413,26 @@ public class BattlePresentationController : MonoBehaviour
                 0f,
                 1.3f),
             CreateActionEffect(
+                "Overflux",
+                "Base",
+                InstructionType.Defense,
+                "Effects/OverfluxDefenseEffect13",
+                24f,
+                2.25f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Overflux",
+                "Evolved",
+                InstructionType.Defense,
+                "Effects/OverfluxDefenseEffect13",
+                24f,
+                2.55f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
                 "Nullbyte",
                 "Base",
                 InstructionType.Attack,
@@ -408,6 +454,30 @@ public class BattlePresentationController : MonoBehaviour
                 22,
                 0f,
                 1.6f),
+            CreateActionEffect(
+                "Nullbyte",
+                "Base",
+                InstructionType.Defense,
+                "Effects/NullbyteDefenseEffect19",
+                18f,
+                2.15f,
+                new Vector3(0f, -0.72f, 0f),
+                Color.white,
+                22,
+                0f,
+                0.52f),
+            CreateActionEffect(
+                "Nullbyte",
+                "Evolved",
+                InstructionType.Defense,
+                "Effects/NullbyteDefenseEffect19",
+                18f,
+                2.45f,
+                new Vector3(0f, -0.78f, 0f),
+                Color.white,
+                22,
+                0f,
+                0.52f),
             // Nullbyte status: a few small water bubbles appear-and-pop above its head.
             // Staggered start delays + offsets scatter them. Tune the Y offset if they
             // sit too high/low over the sprite.
@@ -454,6 +524,54 @@ public class BattlePresentationController : MonoBehaviour
                 0f,
                 1.5f),
             CreateActionEffect(
+                "Cachelon",
+                "Base",
+                InstructionType.Defense,
+                "Effects/CachelonGuardStatusEffect30",
+                24f,
+                2.15f,
+                Vector3.zero,
+                Color.white,
+                22,
+                0f,
+                1.15f),
+            CreateActionEffect(
+                "Cachelon",
+                "Base",
+                InstructionType.Status,
+                "Effects/CachelonGuardStatusEffect30",
+                24f,
+                2.15f,
+                Vector3.zero,
+                new Color(0.74f, 0.94f, 1f, 1f),
+                22,
+                0f,
+                1.15f),
+            CreateActionEffect(
+                "Cachelon",
+                "Evolved",
+                InstructionType.Defense,
+                "Effects/CachelonGuardStatusEffect30",
+                24f,
+                2.45f,
+                Vector3.zero,
+                Color.white,
+                22,
+                0f,
+                1.15f),
+            CreateActionEffect(
+                "Cachelon",
+                "Evolved",
+                InstructionType.Status,
+                "Effects/CachelonGuardStatusEffect30",
+                24f,
+                2.45f,
+                Vector3.zero,
+                new Color(0.74f, 0.94f, 1f, 1f),
+                22,
+                0f,
+                1.15f),
+            CreateActionEffect(
                 "Recursix",
                 "Base",
                 InstructionType.Attack,
@@ -473,6 +591,50 @@ public class BattlePresentationController : MonoBehaviour
                 Vector3.zero,
                 Color.white,
                 22),
+            CreateActionEffect(
+                "Recursix",
+                "Base",
+                InstructionType.Defense,
+                "Effects/RecursixEvolvedMagicSwirlLargeGreen",
+                24f,
+                1.7f,
+                Vector3.zero,
+                new Color(0.78f, 1f, 0.62f, 0.95f),
+                22),
+            CreateActionEffect(
+                "Recursix",
+                "Base",
+                InstructionType.Status,
+                "Effects/RecursixBaseFireBurstLargeGreen",
+                18f,
+                1.45f,
+                new Vector3(0f, 0.35f, 0f),
+                new Color(0.72f, 1f, 0.58f, 0.9f),
+                22,
+                0f,
+                0.85f),
+            CreateActionEffect(
+                "Recursix",
+                "Evolved",
+                InstructionType.Defense,
+                "Effects/RecursixEvolvedMagicSwirlLargeGreen",
+                30f,
+                2.05f,
+                Vector3.zero,
+                Color.white,
+                22),
+            CreateActionEffect(
+                "Recursix",
+                "Evolved",
+                InstructionType.Status,
+                "Effects/RecursixBaseFireBurstLargeGreen",
+                20f,
+                1.75f,
+                new Vector3(0f, 0.42f, 0f),
+                new Color(0.72f, 1f, 0.58f, 0.92f),
+                22,
+                0f,
+                0.85f),
             CreateActionEffect(
                 "Heapion",
                 "Base",
@@ -503,6 +665,54 @@ public class BattlePresentationController : MonoBehaviour
                 new Vector3(0f, -0.6f, 0f),
                 Color.white,
                 22),
+            CreateActionEffect(
+                "Heapion",
+                "Base",
+                InstructionType.Defense,
+                "Effects/HeapionImpactShockLargeBrown",
+                20f,
+                2.65f,
+                new Vector3(0f, -0.72f, 0f),
+                new Color(1f, 0.9f, 0.64f, 1f),
+                22,
+                0f,
+                0.5f),
+            CreateActionEffect(
+                "Heapion",
+                "Base",
+                InstructionType.Status,
+                "Effects/HeapionBaseCombatEffect1",
+                14f,
+                1.7f,
+                new Vector3(0f, -0.1f, 0f),
+                new Color(1f, 0.82f, 0.38f, 0.95f),
+                22,
+                0f,
+                0.9f),
+            CreateActionEffect(
+                "Heapion",
+                "Evolved",
+                InstructionType.Defense,
+                "Effects/HeapionImpactShockLargeBrown",
+                22f,
+                3.05f,
+                new Vector3(0f, -0.78f, 0f),
+                Color.white,
+                22,
+                0f,
+                0.52f),
+            CreateActionEffect(
+                "Heapion",
+                "Evolved",
+                InstructionType.Status,
+                "Effects/HeapionBaseCombatEffect1",
+                16f,
+                2.05f,
+                new Vector3(0f, -0.05f, 0f),
+                new Color(1f, 0.82f, 0.38f, 0.96f),
+                22,
+                0f,
+                0.9f),
             CreateActionEffect(
                 "Sortex",
                 "Base",
@@ -600,6 +810,7 @@ public class BattlePresentationController : MonoBehaviour
             ResolveProfile(enemyAnimationProfileOverride, enemyProfile, enemyCodeName, enemyId, enemyFormName);
 
         ApplyCombatantProfile(
+            true,
             ref playerView,
             ref playerAnimator,
             playerId,
@@ -608,6 +819,7 @@ public class BattlePresentationController : MonoBehaviour
             playerFormName,
             autoLoadAnimationProfilesInEditor);
         ApplyCombatantProfile(
+            false,
             ref enemyView,
             ref enemyAnimator,
             enemyId,
@@ -639,7 +851,7 @@ public class BattlePresentationController : MonoBehaviour
             BattleAnimationProfile resolved =
                 ResolveProfile(playerAnimationProfileOverride, profile, codeName, playerId, formName);
             ApplyCombatantProfile(
-                ref playerView, ref playerAnimator, playerId, resolved, codeName, formName, autoLoadAnimationProfilesInEditor);
+                true, ref playerView, ref playerAnimator, playerId, resolved, codeName, formName, autoLoadAnimationProfilesInEditor);
         }
         else
         {
@@ -650,11 +862,12 @@ public class BattlePresentationController : MonoBehaviour
             BattleAnimationProfile resolved =
                 ResolveProfile(enemyAnimationProfileOverride, profile, codeName, enemyId, formName);
             ApplyCombatantProfile(
-                ref enemyView, ref enemyAnimator, enemyId, resolved, codeName, formName, autoLoadAnimationProfilesInEditor);
+                false, ref enemyView, ref enemyAnimator, enemyId, resolved, codeName, formName, autoLoadAnimationProfilesInEditor);
         }
     }
 
     private static void ApplyCombatantProfile(
+        bool playerSide,
         ref BattleAlgoMonView view,
         ref BattleSpriteAnimator animator,
         string combatantId,
@@ -670,11 +883,16 @@ public class BattlePresentationController : MonoBehaviour
         {
             view.ApplyCombatant(combatantId, profile, codeName, formName, allowViewFallback);
             animator = view.Animator;
+            if (animator != null)
+                animator.SetBattleSideFacing(playerSide);
             return;
         }
 
         if (animator != null)
+        {
+            animator.SetBattleSideFacing(playerSide);
             animator.SetAnimationProfile(profile);
+        }
     }
 
     public IEnumerator PlaySwitchReveal(string combatantId)
@@ -693,9 +911,10 @@ public class BattlePresentationController : MonoBehaviour
         BattleSpriteAnimator actor,
         BattleSpriteAnimator target)
     {
-        List<BattleActionEffectBinding> bindings = ActionEffectsForCombatant(actorId, instructionType);
-        if (bindings == null || bindings.Count == 0 || actor == null)
+        if (actor == null)
             yield break;
+
+        List<BattleActionEffectBinding> bindings = ActionEffectsForCombatant(actorId, instructionType);
 
         float delay = 0f;
         BattleAnimationState state = StateForInstruction(instructionType);
@@ -703,6 +922,23 @@ public class BattlePresentationController : MonoBehaviour
             delay = markerDelay;
         if (delay > 0f)
             yield return new WaitForSeconds(delay);
+
+        // Attack/Defense SFX fire on the same action frame as the VFX — and even
+        // for species that have no VFX bindings yet.
+        if (instructionType == InstructionType.Attack)
+        {
+            bool isPlayer = actorId == playerId || actorId == "Player";
+            AudioManager.Instance?.PlayAttackSfx(
+                isPlayer ? registeredPlayerCodeName : registeredEnemyCodeName,
+                isPlayer ? registeredPlayerFormName : registeredEnemyFormName);
+        }
+        else if (instructionType == InstructionType.Defense)
+        {
+            AudioManager.Instance?.PlayDefenseSfx();
+        }
+
+        if (bindings == null || bindings.Count == 0)
+            yield break;
 
         for (int i = 0; i < bindings.Count; i++)
             StartCoroutine(SpawnAndPlayActionEffect(bindings[i], instructionType, actor, target));
@@ -936,10 +1172,26 @@ public class BattlePresentationController : MonoBehaviour
         BattleSpriteAnimator target = AnimatorFor(evt.TargetId);
         if (actor == null)
             return;
-        if (ConsumeSuppressedCounterAction(evt.ActorId))
+        // The counter cut-in already presents the winner's and loser's actions, so
+        // their follow-up BattleActionEvents (WonCounter / WasCountered) must be
+        // suppressed. A PLAIN action carries neither flag and must NEVER be eaten —
+        // otherwise a counter suppression that went unconsumed (e.g. a winning
+        // Defense that emits no action event) leaks for counterActionSuppressSeconds
+        // and silently swallows the unit's next real attack (no lunge, no VFX).
+        if (evt.WonCounter || evt.WasCountered)
         {
-            actionMarkerFeedbackTimes.Remove(evt.ActorId);
-            return;
+            if (ConsumeSuppressedCounterAction(evt.ActorId))
+            {
+                actionMarkerFeedbackTimes.Remove(evt.ActorId);
+                return;
+            }
+        }
+        else
+        {
+            // A normal action proves the counter sequence is over — drop any stale
+            // suppression so it can't mis-fire on a later counter event either.
+            counterActionSuppressCounts.Remove(evt.ActorId);
+            counterActionSuppressUntil.Remove(evt.ActorId);
         }
 
         Vector3 targetPosition = target != null ? target.ContactWorldPosition : actor.ContactWorldPosition;
@@ -983,7 +1235,7 @@ public class BattlePresentationController : MonoBehaviour
         SpawnFeedback(
             target,
             DamageLabel(evt),
-            DamageColor(evt.ElementMultiplier),
+            DamageColor(evt.SkillElement),
             evt.SkillElement,
             false,
             ShouldUseEnemyDamageSidePosition(target));
@@ -1216,7 +1468,7 @@ public class BattlePresentationController : MonoBehaviour
 
     private void SpawnUtilityFeedback(BattleSpriteAnimator target, string label, Color color)
     {
-        SpawnFeedback(target, label, color, null, true);
+        SpawnFeedback(target, label, color, null, true, ShouldUseEnemyDamageSidePosition(target));
     }
 
     private void SpawnFeedback(BattleSpriteAnimator target, string label, Color color, ElementType? skillElement)
@@ -1254,11 +1506,7 @@ public class BattlePresentationController : MonoBehaviour
             useEnemyDamageSidePosition,
             usePlayerLeftPosition);
 
-        NicoBitmapFontReference bitmapSource = null;
-        if (skillElement.HasValue)
-            bitmapSource = BitmapFontForElement(skillElement.Value);
-        else if (useUtilityBitmapFont)
-            bitmapSource = utilityBitmapFont;
+        NicoBitmapFontReference bitmapSource = BitmapFontForFeedback(skillElement, useUtilityBitmapFont);
 
         int effectiveSortingOrder = feedbackSortingOrder;
         if (target != null)
@@ -1267,7 +1515,7 @@ public class BattlePresentationController : MonoBehaviour
                 target.MaxBodySortingOrder + FeedbackSortingBoostAboveBody);
 
         if (bitmapSource != null &&
-            TryCreateBitmapFeedback(go.transform, label, bitmapSource, effectiveSortingOrder, out List<SpriteRenderer> glyphRenderers))
+            TryCreateBitmapFeedback(go.transform, label, bitmapSource, effectiveSortingOrder, color, out List<SpriteRenderer> glyphRenderers))
         {
             StartCoroutine(FloatAndFade(go, glyphRenderers));
             return;
@@ -1346,11 +1594,23 @@ public class BattlePresentationController : MonoBehaviour
         return target.FeedbackWorldPosition;
     }
 
+    private NicoBitmapFontReference BitmapFontForFeedback(ElementType? skillElement, bool useUtilityBitmapFont)
+    {
+        if (feedbackBitmapFontMode == FeedbackBitmapFontMode.Unified)
+            return normalBitmapFont;
+
+        if (skillElement.HasValue)
+            return BitmapFontForElement(skillElement.Value);
+
+        return useUtilityBitmapFont ? utilityBitmapFont : null;
+    }
+
     private bool TryCreateBitmapFeedback(
         Transform root,
         string label,
         NicoBitmapFontReference source,
         int sortingOrder,
+        Color feedbackColor,
         out List<SpriteRenderer> glyphRenderers)
     {
         glyphRenderers = null;
@@ -1362,8 +1622,83 @@ public class BattlePresentationController : MonoBehaviour
 
         glyphRenderers = font.CreateRenderers(root, label, sortingOrder);
         if (glyphRenderers.Count > 0)
+        {
             root.localScale = Vector3.one * bitmapFeedbackScale;
+            StyleBitmapFeedbackRenderers(glyphRenderers, feedbackColor, sortingOrder);
+        }
         return glyphRenderers.Count > 0;
+    }
+
+    private void StyleBitmapFeedbackRenderers(List<SpriteRenderer> glyphRenderers, Color feedbackColor, int sortingOrder)
+    {
+        if (glyphRenderers == null)
+            return;
+
+        Color coreColor = AdjustedBitmapFeedbackColor(feedbackColor);
+        int originalCount = glyphRenderers.Count;
+
+        for (int i = 0; i < originalCount; i++)
+        {
+            if (glyphRenderers[i] != null)
+                glyphRenderers[i].color = tintBitmapFeedbackByEventColor ? coreColor : glyphRenderers[i].color;
+        }
+
+        if (!useBitmapFeedbackEdgeStyle)
+            return;
+
+        Vector2[] outlineOffsets =
+        {
+            new Vector2(-bitmapFeedbackOutlineOffset, 0f),
+            new Vector2( bitmapFeedbackOutlineOffset, 0f),
+            new Vector2(0f, -bitmapFeedbackOutlineOffset),
+            new Vector2(0f,  bitmapFeedbackOutlineOffset)
+        };
+
+        for (int i = 0; i < originalCount; i++)
+        {
+            SpriteRenderer glyph = glyphRenderers[i];
+            if (glyph == null)
+                continue;
+
+            AddBitmapLayerRenderer(glyph, glyphRenderers, "_Shadow", bitmapFeedbackShadowOffset, bitmapFeedbackShadowColor, sortingOrder - 2);
+            for (int offset = 0; offset < outlineOffsets.Length; offset++)
+                AddBitmapLayerRenderer(glyph, glyphRenderers, "_Outline", outlineOffsets[offset], bitmapFeedbackOutlineColor, sortingOrder - 1);
+            AddBitmapLayerRenderer(glyph, glyphRenderers, "_Highlight", bitmapFeedbackHighlightOffset, bitmapFeedbackHighlightColor, sortingOrder + 1);
+        }
+    }
+
+    private Color AdjustedBitmapFeedbackColor(Color feedbackColor)
+    {
+        Color.RGBToHSV(feedbackColor, out float h, out float s, out float v);
+        Color adjusted = Color.HSVToRGB(h, Mathf.Clamp01(s * bitmapFeedbackColorSaturation), v);
+        adjusted.a = feedbackColor.a;
+        return adjusted;
+    }
+
+    private static void AddBitmapLayerRenderer(
+        SpriteRenderer source,
+        List<SpriteRenderer> allRenderers,
+        string suffix,
+        Vector2 offset,
+        Color color,
+        int sortingOrder)
+    {
+        if (source == null || source.sprite == null || allRenderers == null)
+            return;
+
+        GameObject layer = new GameObject(source.gameObject.name + suffix);
+        Transform sourceTransform = source.transform;
+        layer.transform.SetParent(sourceTransform.parent, false);
+        layer.transform.localPosition = sourceTransform.localPosition + new Vector3(offset.x, offset.y, 0f);
+        layer.transform.localRotation = sourceTransform.localRotation;
+        layer.transform.localScale = sourceTransform.localScale;
+
+        SpriteRenderer renderer = layer.AddComponent<SpriteRenderer>();
+        renderer.sprite = source.sprite;
+        renderer.color = color;
+        renderer.sortingLayerID = source.sortingLayerID;
+        renderer.sortingOrder = sortingOrder;
+        allRenderers.Add(renderer);
     }
 
     private bool TryGetBitmapFont(NicoBitmapFontReference source, out NicoBitmapFont font)
@@ -1635,13 +1970,26 @@ public class BattlePresentationController : MonoBehaviour
         return $"-{evt.Amount}";
     }
 
-    private static Color DamageColor(float elementMultiplier)
+    private Color DamageColor(ElementType skillElement)
     {
-        if (elementMultiplier > 1.01f)
-            return new Color(1f, 0.82f, 0.24f);
-        if (elementMultiplier < 0.99f)
-            return new Color(0.42f, 0.78f, 1f);
-        return new Color(1f, 0.36f, 0.32f);
+        switch (skillElement)
+        {
+            case ElementType.Water:
+                return waterFeedbackColor;
+            case ElementType.Fire:
+                return fireFeedbackColor;
+            case ElementType.Grass:
+                return grassFeedbackColor;
+            case ElementType.Ice:
+                return iceFeedbackColor;
+            case ElementType.Electric:
+                return electricFeedbackColor;
+            case ElementType.Ground:
+                return groundFeedbackColor;
+            case ElementType.Normal:
+            default:
+                return normalFeedbackColor;
+        }
     }
 
     private Vector3 NextFeedbackOffset(
@@ -1692,7 +2040,9 @@ public class BattlePresentationController : MonoBehaviour
         Vector3 start = go.transform.position;
         Vector3 end = start + Vector3.up * feedbackRise;
         float elapsed = 0f;
-        float startAlpha = renderers.Count > 0 && renderers[0] != null ? renderers[0].color.a : 1f;
+        List<float> startAlphas = new List<float>(renderers.Count);
+        for (int i = 0; i < renderers.Count; i++)
+            startAlphas.Add(renderers[i] != null ? renderers[i].color.a : 0f);
 
         while (elapsed < feedbackLifetime && go != null)
         {
@@ -1706,7 +2056,7 @@ public class BattlePresentationController : MonoBehaviour
                     continue;
 
                 Color color = renderers[i].color;
-                color.a = startAlpha * (1f - p);
+                color.a = startAlphas[i] * (1f - p);
                 renderers[i].color = color;
             }
 

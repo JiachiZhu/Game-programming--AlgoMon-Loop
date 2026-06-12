@@ -548,7 +548,7 @@ public static class MainTerminalComponentSheetBuilder
         RectTransform reward = CreateRect("RewardSummary", body);
         SetRect(reward, new Vector2(205f, -86f), new Vector2(250f, 48f));
         AddSlicedImage(reward.gameObject, ThinFrameSprite(), Color.white, Image.Type.Sliced, false);
-        AddText(reward, "RewardText", "REWARDS\nALGOMON EXP / CMP / DATA", 8, FontStyle.Bold, TextAnchor.MiddleLeft, Reward, new Vector2(6f, 0f), new Vector2(202f, 28f));
+        AddText(reward, "RewardText", "REWARDS\nALGOMON EXP / CR / FORM DATA", 8, FontStyle.Bold, TextAnchor.MiddleLeft, Reward, new Vector2(6f, 0f), new Vector2(202f, 28f));
 
         AddAccentRail(root.transform, "BottomRail", new Vector2(0f, -188f), new Vector2(760f, 4f), Primary);
         return root;

@@ -48,6 +48,9 @@ public class MainTerminalController : MonoBehaviour
     private const string InspectorExpBarUnderSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/health_bar_under.png";
     private const string TerminalToggleOnSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/toggle_on.png";
     private const string TerminalToggleOffSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/toggle_off.png";
+    private const string SliderTrackSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/slider_track_bg.png";
+    private const string SliderFillSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/slider_fill_highlight.png";
+    private const string SliderHandleSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/slider_handle.png";
     private const float PanelButtonPixelsPerUnit = 100f;
     private const float TerminalZoomFitPadding = 0.985f;
     private const string TerminalZoomPlayerPrefsKey = "AlgoMon.MainTerminal.TerminalZoomMode";
@@ -243,6 +246,11 @@ public class MainTerminalController : MonoBehaviour
     private Button terminalZoomToggleButton;
     private Image terminalZoomToggleImage;
     private Text terminalZoomStatusText;
+    private Slider musicVolumeSlider;
+    private Text musicVolumeValueText;
+    private Slider sfxVolumeSlider;
+    private Text sfxVolumeValueText;
+    private Text menuTrackNameText;
     private RectTransform terminalZoomBlackoutRoot;
     private Image terminalZoomBlackoutImage;
     private bool terminalZoomModeEnabled;
@@ -314,6 +322,9 @@ public class MainTerminalController : MonoBehaviour
     private static Sprite cachedInspectorExpBarUnderSprite;
     private static Sprite cachedTerminalToggleOnSprite;
     private static Sprite cachedTerminalToggleOffSprite;
+    private static Sprite cachedSliderTrackSprite;
+    private static Sprite cachedSliderFillSprite;
+    private static Sprite cachedSliderHandleSprite;
     private UnityEngine.Events.UnityAction[] depthTierButtonActions;
     private Image depthTierAvatarImage;
     private Text depthTierSelectedSummaryText;
@@ -499,6 +510,10 @@ public class MainTerminalController : MonoBehaviour
         EnsureStarterParty(manager, fallbackStarter);
         RefreshRunOverview();
         SetModule("ENTER_GRID", "LINK STATE:", "DIGITAL HANDSHAKE", "Route graph handshake active. Loading grid node map...");
+        // Silence the menu music so the grid-link impact lands clean; the grid
+        // track fades in on scene load.
+        AudioManager.Instance?.FadeOutMusic();
+        AudioManager.Instance?.PlayUiSfx(UiSfx.Impact);
         GridLinkTransition.Play(
             () =>
             {
@@ -522,15 +537,21 @@ public class MainTerminalController : MonoBehaviour
         EnsureThreatTierAccess(manager);
         if (manager.IsRunActive)
         {
+            AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
             SetModule("ENTER_GRID", "RUN ACTIVE:", "DEPTH TIER LOCKED", BuildDepthTierDetail(manager));
             RefreshRunOverview();
             return;
         }
 
         if (manager.TrySetSelectedThreatTier(tier))
+        {
             SetModule("ENTER_GRID", "DEPTH TIER:", $"DEPTH {tier}F ROUTE SELECTED", BuildDepthTierDetail(manager));
+        }
         else
+        {
+            AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
             SetModule("ENTER_GRID", "LOCKED:", $"DEPTH {tier}F UNAVAILABLE", BuildDepthTierDetail(manager));
+        }
 
         RefreshRunOverview();
     }
@@ -543,6 +564,7 @@ public class MainTerminalController : MonoBehaviour
 
         if (manager.IsRunActive)
         {
+            AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
             SetModule("BOSS_TARGET", "RUN ACTIVE:", "BOSS TARGET LOCKED", BuildBossTargetDetail(manager));
             RefreshRunOverview();
             return;
@@ -552,6 +574,12 @@ public class MainTerminalController : MonoBehaviour
         {
             string selected = manager.SelectedBossSpeciesCodeName.ToUpperInvariant();
             SetModule("BOSS_TARGET", "TARGET:", $"{selected} PRIME CONFIRMED", BuildBossTargetDetail(manager));
+        }
+        else
+        {
+            // Previously failed with no feedback at all (silent UX bug).
+            AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
+            SetModule("BOSS_TARGET", "REJECTED:", "UNKNOWN BOSS SPECIES", BuildBossTargetDetail(manager));
         }
 
         RefreshRunOverview();
@@ -776,6 +804,7 @@ public class MainTerminalController : MonoBehaviour
         AlgoMonInstance selected = SelectedPayloadMon(manager);
         if (!manager.CanFusePayload(selectedPayloadIndex, geneLabFusionSecondIndex, out string message))
         {
+            AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
             geneLabActionMessage = message;
             RefreshGeneLabModule();
             return;
@@ -799,7 +828,8 @@ public class MainTerminalController : MonoBehaviour
         if (manager == null)
             return;
 
-        manager.TryEvolvePayload(selectedPayloadIndex, out string message);
+        if (!manager.TryEvolvePayload(selectedPayloadIndex, out string message))
+            AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
         geneLabActionMessage = message;
         geneLabSkillMessage = string.Empty;
         geneLabFusionSecondIndex = -1;
@@ -904,7 +934,7 @@ public class MainTerminalController : MonoBehaviour
             string runStatus = manager.IsRunActive ? "ACTV" : "STBY";
             statsText.text =
                 $"RUN// {runStatus} DEPTH {manager.SelectedThreatTierNumber:00}F\n" +
-                $"COMPUTE// {manager.computeBalance:0000}\n" +
+                $"CREDITS// {manager.computeBalance:0000}\n" +
                 $"PAYLOAD// {payloadCount:00}\n" +
                 $"GENE// {evolvableCount:00}\n" +
                 $"BOSS// {manager.SelectedBossSpeciesCodeName.ToUpperInvariant()}\n" +
@@ -2138,6 +2168,7 @@ public class MainTerminalController : MonoBehaviour
         terminalZoomModeEnabled = !terminalZoomModeEnabled;
         PlayerPrefs.SetInt(TerminalZoomPlayerPrefsKey, terminalZoomModeEnabled ? 1 : 0);
         PlayerPrefs.Save();
+        AudioManager.Instance?.PlayUiSfx(terminalZoomModeEnabled ? UiSfx.ZoomEnable : UiSfx.ZoomDisable);
         ApplyTerminalZoomMode();
         RenderSettingsPanel();
         SetModule(
@@ -2149,6 +2180,10 @@ public class MainTerminalController : MonoBehaviour
 
     private void ApplyTerminalZoomMode()
     {
+        // Keyboard ambience follows the typing character: it animates when zoom is
+        // off, and is hidden in zoom mode. Drive the loop before any early-out below.
+        AudioManager.Instance?.SetKeyboardLoopActive(!terminalZoomModeEnabled);
+
         Transform zoomTarget = sourceLayoutVisual != null
             ? sourceLayoutVisual
             : FindSourceLayoutTrialVisual();
@@ -2350,6 +2385,28 @@ public class MainTerminalController : MonoBehaviour
             terminalZoomStatusText.color = terminalZoomModeEnabled
                 ? new Color(0.70f, 1f, 0.90f, 1f)
                 : new Color(0.64f, 0.82f, 0.86f, 0.92f);
+        }
+
+        AudioManager audio = AudioManager.Instance;
+        if (musicVolumeSlider != null)
+        {
+            float musicVol = audio != null ? audio.MusicVolume : musicVolumeSlider.value;
+            musicVolumeSlider.SetValueWithoutNotify(musicVol);
+            if (musicVolumeValueText != null)
+                musicVolumeValueText.text = Mathf.RoundToInt(musicVol * 100f) + "%";
+        }
+        if (sfxVolumeSlider != null)
+        {
+            float sfxVol = audio != null ? audio.SfxVolume : sfxVolumeSlider.value;
+            sfxVolumeSlider.SetValueWithoutNotify(sfxVol);
+            if (sfxVolumeValueText != null)
+                sfxVolumeValueText.text = Mathf.RoundToInt(sfxVol * 100f) + "%";
+        }
+        if (menuTrackNameText != null)
+        {
+            menuTrackNameText.text = audio != null && audio.MenuTrackCount > 0
+                ? audio.GetMenuTrackName(audio.SelectedMenuTrackIndex).ToUpperInvariant()
+                : "NO TRACKS";
         }
     }
 
@@ -4205,7 +4262,7 @@ public class MainTerminalController : MonoBehaviour
         }
 
         settingsPanelRoot = CreateRect("SettingsPanel", parent);
-        SetAnchors(settingsPanelRoot, new Vector2(0.180f, 0.180f), new Vector2(0.820f, 0.700f));
+        SetAnchors(settingsPanelRoot, new Vector2(0.180f, 0.080f), new Vector2(0.820f, 0.800f));
 
         Image background = settingsPanelRoot.gameObject.AddComponent<Image>();
         ApplyPanelFrameBackground(
@@ -4216,8 +4273,30 @@ public class MainTerminalController : MonoBehaviour
 
         Text title = CreateText("SettingsPanelTitle", settingsPanelRoot, 25, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.82f, 1f, 1f, 1f));
         ApplyCrispCyberText(title, new Color(0f, 0.12f, 0.18f, 0.95f));
-        SetAnchors(title.rectTransform, new Vector2(0.070f, 0.740f), new Vector2(0.920f, 0.900f));
-        title.text = "DISPLAY SETTINGS";
+        SetAnchors(title.rectTransform, new Vector2(0.070f, 0.910f), new Vector2(0.920f, 0.985f));
+        title.text = "SETTINGS";
+
+        BuildVolumeSliderRow(
+            "MusicVolume",
+            "MUSIC",
+            new Vector2(0.070f, 0.785f),
+            new Vector2(0.930f, 0.895f),
+            AudioManager.Instance != null ? AudioManager.Instance.MusicVolume : 0.7f,
+            OnMusicVolumeSliderChanged,
+            out musicVolumeSlider,
+            out musicVolumeValueText);
+
+        BuildVolumeSliderRow(
+            "SfxVolume",
+            "SFX",
+            new Vector2(0.070f, 0.660f),
+            new Vector2(0.930f, 0.770f),
+            AudioManager.Instance != null ? AudioManager.Instance.SfxVolume : 0.8f,
+            OnSfxVolumeSliderChanged,
+            out sfxVolumeSlider,
+            out sfxVolumeValueText);
+
+        BuildMenuTrackRow(new Vector2(0.070f, 0.535f), new Vector2(0.930f, 0.645f));
 
         RectTransform zoomRow = CreateCyberPanel(
             "TerminalZoomRow",
@@ -4227,7 +4306,7 @@ public class MainTerminalController : MonoBehaviour
             new Color(0.88f, 0.34f, 0.76f, 0.58f),
             12f,
             true);
-        SetAnchors(zoomRow, new Vector2(0.070f, 0.405f), new Vector2(0.930f, 0.675f));
+        SetAnchors(zoomRow, new Vector2(0.070f, 0.345f), new Vector2(0.930f, 0.510f));
 
         Text zoomLabel = CreateText("TerminalZoomLabel", zoomRow, 19, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.84f, 1f, 0.98f, 1f));
         ApplyCrispCyberText(zoomLabel, new Color(0f, 0.12f, 0.18f, 0.95f));
@@ -4250,6 +4329,8 @@ public class MainTerminalController : MonoBehaviour
         terminalZoomToggleImage.raycastTarget = true;
 
         terminalZoomToggleButton = toggleRect.gameObject.AddComponent<Button>();
+        // The toggle plays its own ZoomEnable/ZoomDisable pair — skip the generic click.
+        toggleRect.gameObject.AddComponent<SuppressUiClickSfx>();
         terminalZoomToggleButton.targetGraphic = terminalZoomToggleImage;
         terminalZoomToggleButton.transition = Selectable.Transition.ColorTint;
         ColorBlock toggleColors = terminalZoomToggleButton.colors;
@@ -4264,14 +4345,170 @@ public class MainTerminalController : MonoBehaviour
         ApplyCrispCyberText(terminalZoomStatusText, new Color(0f, 0.12f, 0.18f, 0.95f));
         SetAnchors(terminalZoomStatusText.rectTransform, new Vector2(0.575f, 0.040f), new Vector2(0.930f, 0.220f));
 
-        Text note = CreateText("SettingsPanelNote", settingsPanelRoot, 14, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.70f, 0.92f, 0.96f, 0.88f));
+        Text note = CreateText("SettingsPanelNote", settingsPanelRoot, 13, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.70f, 0.92f, 0.96f, 0.88f));
         note.lineSpacing = 0.95f;
         ApplyCrispCyberText(note, new Color(0f, 0.10f, 0.14f, 0.92f));
-        SetAnchors(note.rectTransform, new Vector2(0.075f, 0.170f), new Vector2(0.920f, 0.335f));
-        note.text = "Zoom is a display-only editor aid. It blacks out the surroundings and fits the terminal to the screen.";
+        SetAnchors(note.rectTransform, new Vector2(0.075f, 0.060f), new Vector2(0.920f, 0.285f));
+        note.text = "Volume and track choices save automatically. Zoom is a display-only editor aid that fits the terminal to the screen.";
 
         RenderSettingsPanel();
     }
+
+    private void BuildVolumeSliderRow(
+        string idPrefix,
+        string label,
+        Vector2 rowAnchorMin,
+        Vector2 rowAnchorMax,
+        float value,
+        UnityEngine.Events.UnityAction<float> onChanged,
+        out Slider slider,
+        out Text valueText)
+    {
+        RectTransform row = CreateCyberPanel(
+            idPrefix + "Row",
+            settingsPanelRoot,
+            new Color(0.010f, 0.038f, 0.052f, 0.76f),
+            new Color(0.18f, 0.90f, 0.88f, 0.78f),
+            new Color(0.88f, 0.34f, 0.76f, 0.58f),
+            12f,
+            true);
+        SetAnchors(row, rowAnchorMin, rowAnchorMax);
+
+        Text rowLabel = CreateText(idPrefix + "Label", row, 18, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.84f, 1f, 0.98f, 1f));
+        ApplyCrispCyberText(rowLabel, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(rowLabel.rectTransform, new Vector2(0.045f, 0.20f), new Vector2(0.270f, 0.80f));
+        rowLabel.text = label;
+
+        slider = CreateCyberSlider(
+            idPrefix + "Slider",
+            row,
+            new Vector2(0.285f, 0.285f),
+            new Vector2(0.820f, 0.715f),
+            value,
+            onChanged);
+
+        valueText = CreateText(idPrefix + "Value", row, 15, FontStyle.Bold, TextAnchor.MiddleRight, new Color(0.70f, 1f, 0.90f, 1f));
+        ApplyCrispCyberText(valueText, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(valueText.rectTransform, new Vector2(0.835f, 0.20f), new Vector2(0.965f, 0.80f));
+        valueText.text = Mathf.RoundToInt(Mathf.Clamp01(value) * 100f) + "%";
+    }
+
+    private Slider CreateCyberSlider(
+        string objectName,
+        RectTransform parent,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        float value,
+        UnityEngine.Events.UnityAction<float> onChanged)
+    {
+        RectTransform root = CreateRect(objectName, parent);
+        SetAnchors(root, anchorMin, anchorMax);
+
+        Image trackImage = root.gameObject.AddComponent<Image>();
+        trackImage.sprite = ResolveSliderTrackSprite();
+        trackImage.type = Image.Type.Simple;
+        trackImage.color = new Color(0.40f, 0.78f, 0.84f, 0.70f);
+        trackImage.raycastTarget = true;
+
+        Slider slider = root.gameObject.AddComponent<Slider>();
+        slider.transition = Selectable.Transition.None;
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+
+        RectTransform fillArea = CreateRect("Fill Area", root);
+        SetAnchors(fillArea, new Vector2(0f, 0f), new Vector2(1f, 1f));
+        RectTransform fill = CreateRect("Fill", fillArea);
+        SetAnchors(fill, new Vector2(0f, 0f), new Vector2(1f, 1f));
+        Image fillImage = fill.gameObject.AddComponent<Image>();
+        fillImage.sprite = ResolveSliderFillSprite();
+        fillImage.type = Image.Type.Filled;
+        fillImage.fillMethod = Image.FillMethod.Horizontal;
+        fillImage.fillOrigin = (int)Image.OriginHorizontal.Left;
+        fillImage.color = new Color(0.42f, 1f, 0.92f, 0.95f);
+        fillImage.raycastTarget = false;
+        slider.fillRect = fill;
+
+        const float handleHalfWidth = 10f;
+        RectTransform handleArea = CreateRect("Handle Slide Area", root);
+        SetAnchors(handleArea, new Vector2(0f, 0f), new Vector2(1f, 1f));
+        handleArea.offsetMin = new Vector2(handleHalfWidth, 0f);
+        handleArea.offsetMax = new Vector2(-handleHalfWidth, 0f);
+        RectTransform handle = CreateRect("Handle", handleArea);
+        handle.sizeDelta = new Vector2(handleHalfWidth * 2f, 0f);
+        Image handleImage = handle.gameObject.AddComponent<Image>();
+        handleImage.sprite = ResolveSliderHandleSprite();
+        handleImage.type = Image.Type.Simple;
+        handleImage.preserveAspect = true;
+        handleImage.color = Color.white;
+        handleImage.raycastTarget = true;
+        slider.handleRect = handle;
+        slider.targetGraphic = handleImage;
+
+        slider.SetValueWithoutNotify(Mathf.Clamp01(value));
+        if (onChanged != null)
+            slider.onValueChanged.AddListener(onChanged);
+        return slider;
+    }
+
+    private void BuildMenuTrackRow(Vector2 rowAnchorMin, Vector2 rowAnchorMax)
+    {
+        RectTransform row = CreateCyberPanel(
+            "MenuTrackRow",
+            settingsPanelRoot,
+            new Color(0.010f, 0.038f, 0.052f, 0.76f),
+            new Color(0.18f, 0.90f, 0.88f, 0.78f),
+            new Color(0.88f, 0.34f, 0.76f, 0.58f),
+            12f,
+            true);
+        SetAnchors(row, rowAnchorMin, rowAnchorMax);
+
+        Text rowLabel = CreateText("MenuTrackLabel", row, 18, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.84f, 1f, 0.98f, 1f));
+        ApplyCrispCyberText(rowLabel, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(rowLabel.rectTransform, new Vector2(0.045f, 0.20f), new Vector2(0.270f, 0.80f));
+        rowLabel.text = "TRACK";
+
+        Button prevButton = FindOrCreatePanelButton("MenuTrackPrevButton", row, "<", new Vector2(0.285f, 0.16f), new Vector2(0.385f, 0.84f));
+        SetPanelButtonLabelSize(prevButton, 20);
+        prevButton.onClick.AddListener(() => StepMenuTrack(-1));
+
+        menuTrackNameText = CreateText("MenuTrackName", row, 15, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.70f, 1f, 0.90f, 1f));
+        ApplyCrispCyberText(menuTrackNameText, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(menuTrackNameText.rectTransform, new Vector2(0.400f, 0.20f), new Vector2(0.820f, 0.80f));
+
+        Button nextButton = FindOrCreatePanelButton("MenuTrackNextButton", row, ">", new Vector2(0.835f, 0.16f), new Vector2(0.935f, 0.84f));
+        SetPanelButtonLabelSize(nextButton, 20);
+        nextButton.onClick.AddListener(() => StepMenuTrack(1));
+    }
+
+    private void StepMenuTrack(int direction)
+    {
+        AudioManager audio = AudioManager.Instance;
+        if (audio == null || audio.MenuTrackCount == 0)
+            return;
+
+        audio.SetMenuTrack(audio.SelectedMenuTrackIndex + direction);
+        RenderSettingsPanel();
+    }
+
+    private void OnMusicVolumeSliderChanged(float value)
+    {
+        AudioManager.Instance?.SetMusicVolume(value);
+        if (musicVolumeValueText != null)
+            musicVolumeValueText.text = Mathf.RoundToInt(value * 100f) + "%";
+    }
+
+    private void OnSfxVolumeSliderChanged(float value)
+    {
+        AudioManager.Instance?.SetSfxVolume(value);
+        if (sfxVolumeValueText != null)
+            sfxVolumeValueText.text = Mathf.RoundToInt(value * 100f) + "%";
+    }
+
+    private static Sprite ResolveSliderTrackSprite() => LoadEditorUiSprite(SliderTrackSpritePath, ref cachedSliderTrackSprite);
+    private static Sprite ResolveSliderFillSprite() => LoadEditorUiSprite(SliderFillSpritePath, ref cachedSliderFillSprite);
+    private static Sprite ResolveSliderHandleSprite() => LoadEditorUiSprite(SliderHandleSpritePath, ref cachedSliderHandleSprite);
 
     private void EnsurePayloadPageNav(Transform parent)
     {
@@ -6538,7 +6775,7 @@ public class MainTerminalController : MonoBehaviour
             depthTierSelectedSummaryText.text = $"SELECTED DEPTH: {selected}F\nROUTE {GridGenerationSettings.TotalLayerRangeLabel(selected)} LAYERS / ENEMY LV {ThreatTierRules.MinLevel(tier):00}-{ThreatTierRules.MaxLevel(tier):00}";
         if (depthTierRewardSummaryText != null)
         {
-            depthTierRewardSummaryText.text = "REWARDS\nALGOMON EXP / COMPUTE / DATA";
+            depthTierRewardSummaryText.text = "REWARDS\nALGOMON EXP / CREDITS / FORM DATA";
         }
 
         if (depthTierButtons == null)

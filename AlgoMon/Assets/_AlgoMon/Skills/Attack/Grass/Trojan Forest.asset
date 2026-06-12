@@ -28,21 +28,36 @@ MonoBehaviour:
   baseStatusDuration: 3
   priority: -1
   canCounter: 0
-  counterSuccessType: 0
-  counterSuccessMultiplier: 1
+  counterNullifies: 0
+  counterDrainOpponentCP: 0
+  counterShredOpponentFirewall: 0
+  counterFirewallShredDurationType: 1
+  counterFirewallShredDuration: 1
+  counterApplyToOpponent: 0
+  counterOpponentStatusStacks: 0
+  counterOpponentStatusDurationType: 2
+  counterOpponentStatusDuration: 1
+  counterForceOpponentLast: 0
   counterBlockPercent: 0
-  counterSelfStatus: 0
-  counterBonusValue: 0
-  counterStatusDurationType: 0
-  counterStatusDuration: 0
-  counterCPDrain: 0
-  counterCPDiscount: 0
-  counterPermanentCPCostReduce: 0
-  cpDrain: 0
-  onHitFirewallShred: 0
+  counterSelfDamageMultiplier: 1
+  counterApplyToSelf: 0
+  counterSelfStatusStacks: 0
+  counterSelfStatusDurationType: 2
+  counterSelfStatusDuration: 1
+  counterRecast: 0
+  counterSelfCPDiscount: 0
+  counterCPDiscountDurationType: 2
+  counterCPDiscountDuration: 2
+  counterPermanentCPReduce: 0
+  counterNextPriorityBonus: 0
+  counterNextBasePowerBonus: 0
+  counterSelfHealPercent: 0
+  counterClearsOwnDebuffs: 0
+  onHitDrainOpponentCP: 0
+  onHitShredOpponentFirewall: 0
   onHitFirewallShredDurationType: 1
   onHitFirewallShredDuration: 1
-  onHitStatus: 0
-  onHitStatusStacks: 0
-  onHitStatusDurationType: 2
-  onHitStatusDuration: 0
+  onHitApplyToOpponent: 0
+  onHitOpponentStatusStacks: 0
+  onHitOpponentStatusDurationType: 2
+  onHitOpponentStatusDuration: 1

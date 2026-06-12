@@ -1160,10 +1160,13 @@ public class GridMapController : MonoBehaviour
         bool wasVisited = manager.IsNodeVisited(node.id);
         if (!manager.TrySelectRunNode(node.id))
         {
+            AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
             SetHint($"{node.id} is locked from the current node.");
             RefreshNodeStates();
             return;
         }
+
+        AudioManager.Instance?.PlayUiSfx(UiSfx.Impact);
 
         bool returnedToStart = previousNode != null &&
                                previousNode.nodeType == NodeType.Reboot &&
@@ -1256,7 +1259,7 @@ public class GridMapController : MonoBehaviour
         shopTitleText.rectTransform.anchorMax = new Vector2(0.62f, 0.98f);
         shopTitleText.rectTransform.offsetMin = Vector2.zero;
         shopTitleText.rectTransform.offsetMax = Vector2.zero;
-        shopTitleText.text = "Compute Shop";
+        shopTitleText.text = "Credit Shop";
 
         shopBalanceText = GetOrCreateText("Balance", shopPanel, 13, FontStyle.Bold, TextAnchor.MiddleRight);
         shopBalanceText.rectTransform.anchorMin = new Vector2(0.50f, 0.88f);
@@ -1322,9 +1325,9 @@ public class GridMapController : MonoBehaviour
             manager.EnsureShopOffersForNode(activeShopNode.id);
 
         if (shopTitleText != null)
-            shopTitleText.text = activeShopNode != null ? "Compute Shop" : "Shop Offline";
+            shopTitleText.text = activeShopNode != null ? "Credit Shop" : "Shop Offline";
         if (shopBalanceText != null)
-            shopBalanceText.text = $"CMP {manager.computeBalance:000} | REROLL {manager.CurrentShopRefreshCost}";
+            shopBalanceText.text = $"CR {manager.computeBalance:000} | REROLL {manager.CurrentShopRefreshCost}";
         if (shopBodyText != null)
             shopBodyText.text = BuildShopBody();
 
@@ -1344,7 +1347,7 @@ public class GridMapController : MonoBehaviour
             string reason;
             bool canPurchase = manager.CanPurchaseShopOffer(offer, out reason);
             button.interactable = canPurchase;
-            SetButtonText(button, $"{offer.ShortLabel}  {offer.ComputeCost} CMP");
+            SetButtonText(button, $"{offer.ShortLabel}  {offer.ComputeCost} CR");
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(() => TryPurchaseShopOffer(offer));
         }
@@ -1354,7 +1357,7 @@ public class GridMapController : MonoBehaviour
             string reason;
             bool canRefresh = manager.CanRefreshShopOffers(out reason);
             shopRefreshButton.interactable = canRefresh;
-            SetButtonText(shopRefreshButton, $"REFRESH {manager.CurrentShopRefreshCost} CMP");
+            SetButtonText(shopRefreshButton, $"REFRESH {manager.CurrentShopRefreshCost} CR");
         }
     }
 
@@ -1384,12 +1387,12 @@ public class GridMapController : MonoBehaviour
                 state = " [HIGH RISK]";
             }
 
-            builder.AppendLine($"{offer.DisplayName} - {offer.ComputeCost} CMP{state}");
+            builder.AppendLine($"{offer.DisplayName} - {offer.ComputeCost} CR{state}");
             builder.AppendLine(offer.Description);
         }
 
         if (manager != null)
-            builder.AppendLine($"Refresh: {manager.CurrentShopRefreshCost} CMP now; next refresh doubles.");
+            builder.AppendLine($"Refresh: {manager.CurrentShopRefreshCost} CR now; next refresh doubles.");
 
         return builder.ToString();
     }
@@ -1402,9 +1405,15 @@ public class GridMapController : MonoBehaviour
 
         string message;
         if (manager.TryPurchaseShopOffer(offer, out message))
-            SetHint($"> {message} Remaining compute: {manager.computeBalance:000}.");
+        {
+            AudioManager.Instance?.PlayPurchaseSfx();
+            SetHint($"> {message} Remaining credits: {manager.computeBalance:000}.");
+        }
         else
+        {
+            AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
             SetHint($"> Purchase rejected: {message}");
+        }
 
         RefreshShopPanel();
         RefreshNodeStates();
@@ -1418,9 +1427,14 @@ public class GridMapController : MonoBehaviour
 
         string message;
         if (manager.TryRefreshShopOffers(out message))
-            SetHint($"> {message} Remaining compute: {manager.computeBalance:000}.");
+        {
+            SetHint($"> {message} Remaining credits: {manager.computeBalance:000}.");
+        }
         else
+        {
+            AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
             SetHint($"> Refresh rejected: {message}");
+        }
 
         RefreshShopPanel();
         RefreshNodeStates();
@@ -1431,7 +1445,7 @@ public class GridMapController : MonoBehaviour
         if (manager == null)
             return "> Shop node online.";
 
-        return "> Shop node online. Three offers loaded; refresh costs compute and doubles each time.";
+        return "> Shop node online. Three offers loaded; refresh costs credits and doubles each time.";
     }
 
     private static void SetButtonText(Button button, string label)
@@ -1902,7 +1916,7 @@ public class GridMapController : MonoBehaviour
         if (frame == null)
             return;
 
-        computeBankValueText = CreateTopStatusModule(frame, "StatusComputeBank", "COMPUTE BANK", 0.610f, 0.720f);
+        computeBankValueText = CreateTopStatusModule(frame, "StatusComputeBank", "CREDITS", 0.610f, 0.720f);
         payloadBufferValueText = CreateTopStatusModule(frame, "StatusPayloadBuffer", "PAYLOAD BUFFER", 0.735f, 0.845f);
         depthValueText = CreateTopStatusModule(frame, "StatusDepth", "DEPTH", 0.860f, 0.955f);
         UpdateTopStatusModules(manager != null ? manager.currentRunGraph : null);
@@ -2764,7 +2778,7 @@ public class GridMapController : MonoBehaviour
 
     private string BuildTerminalStatus(GridGraph graph)
     {
-        return "COMPUTE BANK        PAYLOAD BUFFER        CURRENT DEPTH";
+        return "CREDITS             PAYLOAD BUFFER        CURRENT DEPTH";
     }
 
     private string BuildDepthStatus(GridGraph graph)
@@ -2799,7 +2813,7 @@ public class GridMapController : MonoBehaviour
             if (selectedNode.nodeType == NodeType.Reboot)
                 return "> REBOOT | Route reset node. Choose a forward route or return to terminal entry.";
             if (selectedNode.nodeType == NodeType.Shop)
-                return "> SHOP | Spend compute on current-run buffs. Rewards: damage, CP, shield, AlgoMon EXP, or high-risk trade-off offers.";
+                return "> SHOP | Spend credits on current-run buffs. Rewards: damage, CP, shield, AlgoMon EXP, or high-risk trade-off offers.";
 
             return BuildSelectedNodeDetail(selectedNode);
         }
@@ -3094,15 +3108,15 @@ public class GridMapController : MonoBehaviour
         switch (nodeType)
         {
             case NodeType.Combat:
-                return "small AlgoMon EXP and compute";
+                return "small AlgoMon EXP and credits";
             case NodeType.Hacker:
-                return "higher AlgoMon EXP and compute, no Payload capture";
+                return "higher AlgoMon EXP and credits, no Payload capture";
             case NodeType.Elite:
-                return "above-average AlgoMon EXP and compute";
+                return "above-average AlgoMon EXP and credits";
             case NodeType.Boss:
                 return "high AlgoMon EXP, high-quality data, evolution data";
             case NodeType.Shop:
-                return "spend compute for run buffs";
+                return "spend credits for run buffs";
             case NodeType.Reboot:
                 return "route flexibility, no combat reward";
             case NodeType.Start:
