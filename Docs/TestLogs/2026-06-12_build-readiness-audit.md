@@ -31,6 +31,8 @@ Added two Resources catalogs (`BattleAnimationProfileCatalog`, `RuntimeUiAssetCa
 | Script compilation | Pass | 0 errors after refactor |
 | Catalog lookups at runtime API level | Pass | slider sprite, panel button texture, font metrics, Heapion Evolved profile (idle+attack frames), `Evolve` alias, payload still — all resolve |
 | Editor play soak, MainTerminal boot | Pass | 12 s in play mode, 0 console errors |
+| Player compile (StandaloneWindows64) | Fail, then pass | First attempt: 4 × CS0115 — `OnValidate` overrides in the three Cyber*Graphic components only compile in the editor assembly. Wrapped in `UNITY_EDITOR`; rebuild succeeded in 28.7 s with 0 errors |
+| Standalone boot smoke | Pass | AlgoMon.exe ran windowed for 20 s, process stable at ~284 MB, Player.log contains no exceptions |
 
 ## Follow-ups
 

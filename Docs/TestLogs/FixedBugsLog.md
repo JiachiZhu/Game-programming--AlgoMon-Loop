@@ -4,6 +4,7 @@ Notable bugs found through testing, their root causes, and what changed. Newest 
 
 | Date | Bug | Root cause | Fix | Refs |
 |---|---|---|---|---|
+| 2026-06-12 | First packaging attempt failed with 4 compile errors (editor compile was clean) | Three custom Graphic components (CyberFrame/CyberScanline/CyberBitmapText) override `Graphic.OnValidate`, which only exists in the editor assembly | Wrapped the overrides in `#if UNITY_EDITOR`; player build then compiled in 28.7 s with 0 errors | TestLogs 2026-06-12 |
 | 2026-06-12 | First standalone build would have lost all battle animations and styled menus | Animation profiles and many UI sprites were loaded through editor-only AssetDatabase calls; no runtime assets existed | Baked runtime catalogs in Resources + editor rebuild command; loaders fall back to catalogs in builds | branch `build/standalone-asset-loading`, TestLogs 2026-06-12 |
 | 2026-06-12 | Counter-recast strike dealt damage with no attack animation/VFX/SFX | The `counterRecast` block resolved damage without publishing a `BattleActionEvent`, so the presentation layer never fired | Recast now publishes a fresh action event before damage resolve | BattleManager |
 | 2026-06-12 | A counter could "eat" the presentation of a later normal attack | Counter suppression flag leaked when an action carried neither counter flag | Suppression is only consumed on actual counter events; plain actions clear stale suppression | BattlePresentationController |

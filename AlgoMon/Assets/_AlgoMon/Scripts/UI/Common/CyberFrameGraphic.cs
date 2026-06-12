@@ -69,6 +69,9 @@ public sealed class CyberFrameGraphic : MaskableGraphic
         }
     }
 
+#if UNITY_EDITOR
+    // Graphic.OnValidate only exists in the editor assembly; the override
+    // must be compiled out of player builds.
     protected override void OnValidate()
     {
         base.OnValidate();
@@ -78,6 +81,7 @@ public sealed class CyberFrameGraphic : MaskableGraphic
         cornerAccentThickness = Mathf.Max(0f, cornerAccentThickness);
         SetVerticesDirty();
     }
+#endif
 
     protected override void OnPopulateMesh(VertexHelper vertexHelper)
     {
