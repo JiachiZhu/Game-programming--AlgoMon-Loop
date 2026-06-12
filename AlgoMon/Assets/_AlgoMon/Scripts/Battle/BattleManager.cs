@@ -2814,9 +2814,17 @@ public class BattleManager : MonoBehaviour
         if (unit == null)
             return chips;
 
-        chips.Add(StateChip(unit.StatusText));
-
         BattleStatusSet statuses = unit.Statuses;
+
+        // The transient state chip leads, but if the state names a stacking
+        // status that also gets its own count chip below (e.g. "Leech" while 3
+        // stacks are active), skip it so the row doesn't show "LCH" + "LCH 3".
+        bool stateIsTrackedStack =
+            System.Enum.TryParse(unit.StatusText, out StatusType stateStatus) &&
+            statuses.GetStacks(stateStatus) > 0;
+        if (!stateIsTrackedStack)
+            chips.Add(StateChip(unit.StatusText));
+
         AddStackChip(chips, statuses, StatusType.Burn, "BRN", BattleHudController.StatusChipTone.Harm, false);
         AddStackChip(chips, statuses, StatusType.Freeze, "FRZ", BattleHudController.StatusChipTone.Harm, false);
         AddStackChip(chips, statuses, StatusType.Leech, "LCH", BattleHudController.StatusChipTone.Harm, false);
