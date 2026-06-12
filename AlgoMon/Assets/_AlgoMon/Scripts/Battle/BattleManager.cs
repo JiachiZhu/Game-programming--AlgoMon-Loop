@@ -2552,16 +2552,21 @@ public class BattleManager : MonoBehaviour
         hud.SetRoundSandclockActive(phase == BattlePhase.WaitingForPlayer);
 
         hud.SetCombatant(BattleHudController.Side.Player, player.Name, player.DisplayLevel);
+        hud.SetCombatantElement(BattleHudController.Side.Player, UnitElementType(player));
         hud.SetBattery(BattleHudController.Side.Player, player.CurrentBattery, player.MaxBattery);
         hud.SetCP(BattleHudController.Side.Player, player.CurrentCP, MaxCP);
-        hud.SetStatus(BattleHudController.Side.Player, $"Status: {FormatUnitStatus(player)}");
+        hud.SetStatusChips(BattleHudController.Side.Player, BuildStatusChips(player));
 
         hud.SetCombatant(BattleHudController.Side.Enemy, enemy.Name, enemy.DisplayLevel);
+        hud.SetCombatantElement(BattleHudController.Side.Enemy, UnitElementType(enemy));
         hud.SetBattery(BattleHudController.Side.Enemy, enemy.CurrentBattery, enemy.MaxBattery);
         hud.SetCP(BattleHudController.Side.Enemy, enemy.CurrentCP, MaxCP);
-        hud.SetStatus(BattleHudController.Side.Enemy, $"Status: {FormatUnitStatus(enemy)}");
+        hud.SetStatusChips(BattleHudController.Side.Enemy, BuildStatusChips(enemy));
 
         bool canAct = phase == BattlePhase.WaitingForPlayer;
+        // Skill slots preview their element matchup against the active enemy;
+        // runs every refresh so enemy switches re-evaluate the chips.
+        hud.SetOpposingElement(UnitElementType(enemy));
         if (selectingSwitchTarget && canAct)
             RenderSwitchSlots();
         else
@@ -2643,6 +2648,15 @@ public class BattleManager : MonoBehaviour
                 SwitchPortraitFor(unit),
                 available);
         }
+    }
+
+    private static ElementType UnitElementType(BattleUnit unit)
+    {
+        if (unit == null)
+            return ElementType.Normal;
+        return unit.Instance != null && unit.Instance.data != null
+            ? unit.Instance.data.elementType
+            : unit.Config.elementType;
     }
 
     private static Sprite SwitchPortraitFor(BattleUnit unit)
@@ -2787,6 +2801,114 @@ public class BattleManager : MonoBehaviour
         if (unit.StatusText == "Ready")
             return summary;
         return $"{unit.StatusText} | {summary}";
+    }
+
+    /// <summary>
+    /// Structured version of FormatUnitStatus for the HUD's chip row: the
+    /// transient state first (READY / HIT / ...), then one chip per active
+    /// status with its stacks, then the timed modifiers BuildSummary prints.
+    /// </summary>
+    private static List<BattleHudController.StatusChip> BuildStatusChips(BattleUnit unit)
+    {
+        var chips = new List<BattleHudController.StatusChip>(8);
+        if (unit == null)
+            return chips;
+
+        BattleStatusSet statuses = unit.Statuses;
+
+        // The transient state chip leads, but if the state names a stacking
+        // status that also gets its own count chip below (e.g. "Leech" while 3
+        // stacks are active), skip it so the row doesn't show "LCH" + "LCH 3".
+        bool stateIsTrackedStack =
+            System.Enum.TryParse(unit.StatusText, out StatusType stateStatus) &&
+            statuses.GetStacks(stateStatus) > 0;
+        if (!stateIsTrackedStack)
+            chips.Add(StateChip(unit.StatusText));
+
+        AddStackChip(chips, statuses, StatusType.Burn, "BRN", BattleHudController.StatusChipTone.Harm, false);
+        AddStackChip(chips, statuses, StatusType.Freeze, "FRZ", BattleHudController.StatusChipTone.Harm, false);
+        AddStackChip(chips, statuses, StatusType.Leech, "LCH", BattleHudController.StatusChipTone.Harm, false);
+        AddStackChip(chips, statuses, StatusType.Ensnare, "SNR", BattleHudController.StatusChipTone.Harm, false);
+        AddStackChip(chips, statuses, StatusType.Concurrent, "X2", BattleHudController.StatusChipTone.Buff, false);
+        AddStackChip(chips, statuses, StatusType.BufferLoad, "CP -4", BattleHudController.StatusChipTone.Buff, false);
+        AddStackChip(chips, statuses, StatusType.ComputingUp, "CPU", BattleHudController.StatusChipTone.Buff, true);
+        AddStackChip(chips, statuses, StatusType.ThroughputUp, "TP", BattleHudController.StatusChipTone.Buff, true);
+        AddStackChip(chips, statuses, StatusType.FirewallUp, "FW", BattleHudController.StatusChipTone.Buff, true);
+        AddStackChip(chips, statuses, StatusType.EncryptionUp, "ENC", BattleHudController.StatusChipTone.Buff, true);
+        AddStackChip(chips, statuses, StatusType.Overclock, "PRI", BattleHudController.StatusChipTone.Buff, true);
+
+        if (statuses.CPDiscountAmount > 0)
+            chips.Add(new BattleHudController.StatusChip(
+                $"CP -{statuses.CPDiscountAmount}", BattleHudController.StatusChipTone.Buff));
+        if (statuses.FirewallShredAmount > 0f)
+            chips.Add(new BattleHudController.StatusChip(
+                $"FW -{Mathf.RoundToInt(statuses.FirewallShredAmount * 100f)}%", BattleHudController.StatusChipTone.Harm));
+        if (statuses.NextPriorityBonusAmount != 0)
+            chips.Add(SignedChip("PRI", statuses.NextPriorityBonusAmount));
+        if (statuses.NextBasePowerBonusAmount != 0)
+            chips.Add(SignedChip("PWR", statuses.NextBasePowerBonusAmount));
+
+        return chips;
+    }
+
+    private static void AddStackChip(
+        List<BattleHudController.StatusChip> chips,
+        BattleStatusSet statuses,
+        StatusType status,
+        string label,
+        BattleHudController.StatusChipTone tone,
+        bool showSignedStacks)
+    {
+        int stacks = statuses.GetStacks(status);
+        if (stacks <= 0)
+            return;
+
+        string text = showSignedStacks
+            ? $"{label} +{stacks}"
+            : stacks > 1 ? $"{label} {stacks}" : label;
+        chips.Add(new BattleHudController.StatusChip(text, tone));
+    }
+
+    private static BattleHudController.StatusChip SignedChip(string label, int amount)
+    {
+        string text = amount > 0 ? $"{label} +{amount}" : $"{label} {amount}";
+        BattleHudController.StatusChipTone tone = amount > 0
+            ? BattleHudController.StatusChipTone.Buff
+            : BattleHudController.StatusChipTone.Harm;
+        return new BattleHudController.StatusChip(text, tone);
+    }
+
+    /// <summary>
+    /// Maps the transient BattleUnit.StatusText states to a short chip.
+    /// Unknown values (e.g. a freshly applied StatusType name) fall back to a
+    /// gray informational chip with the raw text uppercased.
+    /// </summary>
+    private static BattleHudController.StatusChip StateChip(string state)
+    {
+        string s = string.IsNullOrWhiteSpace(state) ? "Ready" : state.Trim();
+        switch (s)
+        {
+            case "Ready":        return new BattleHudController.StatusChip("READY", BattleHudController.StatusChipTone.Ready);
+            case "Counter":      return new BattleHudController.StatusChip("COUNTER", BattleHudController.StatusChipTone.Ready);
+            case "Hit":          return new BattleHudController.StatusChip("HIT", BattleHudController.StatusChipTone.Harm);
+            case "Delayed":      return new BattleHudController.StatusChip("DELAYED", BattleHudController.StatusChipTone.Harm);
+            case "Nullified":    return new BattleHudController.StatusChip("NULLED", BattleHudController.StatusChipTone.Harm);
+            case "No CP":        return new BattleHudController.StatusChip("NO CP", BattleHudController.StatusChipTone.Harm);
+            case "Offline":      return new BattleHudController.StatusChip("OFFLINE", BattleHudController.StatusChipTone.Harm);
+            case "Burn":         return new BattleHudController.StatusChip("BRN", BattleHudController.StatusChipTone.Harm);
+            case "Leech":        return new BattleHudController.StatusChip("LCH", BattleHudController.StatusChipTone.Harm);
+            case "Freeze":       return new BattleHudController.StatusChip("FRZ", BattleHudController.StatusChipTone.Harm);
+            case "Ensnare":      return new BattleHudController.StatusChip("SNR", BattleHudController.StatusChipTone.Harm);
+            case "Switched in":  return new BattleHudController.StatusChip("SWAP IN", BattleHudController.StatusChipTone.Info);
+            case "Benched":      return new BattleHudController.StatusChip("BENCHED", BattleHudController.StatusChipTone.Info);
+            case "Concurrent":   return new BattleHudController.StatusChip("X2", BattleHudController.StatusChipTone.Buff);
+            case "BufferLoad":   return new BattleHudController.StatusChip("CP -4", BattleHudController.StatusChipTone.Buff);
+            case "ComputingUp":  return new BattleHudController.StatusChip("CPU UP", BattleHudController.StatusChipTone.Buff);
+            case "ThroughputUp": return new BattleHudController.StatusChip("TP UP", BattleHudController.StatusChipTone.Buff);
+            case "FirewallUp":   return new BattleHudController.StatusChip("FW UP", BattleHudController.StatusChipTone.Buff);
+            case "EncryptionUp": return new BattleHudController.StatusChip("ENC UP", BattleHudController.StatusChipTone.Buff);
+            default:             return new BattleHudController.StatusChip(s.ToUpperInvariant(), BattleHudController.StatusChipTone.Info);
+        }
     }
 
     private void SetDetail(string title, string body)

@@ -1342,8 +1342,8 @@ RectTransform:
   - {fileID: 1563840624802523712}
   m_Father: {fileID: 3224877030216376427}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.254, y: 0.205}
-  m_AnchorMax: {x: 0.584, y: 0.455}
+  m_AnchorMin: {x: 0.276, y: 0.205}
+  m_AnchorMax: {x: 0.606, y: 0.455}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -1418,7 +1418,7 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 3224877030216376427}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.126, y: 0.205}
+  m_AnchorMin: {x: 0.07, y: 0.205}
   m_AnchorMax: {x: 0.182, y: 0.455}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
@@ -2231,7 +2231,7 @@ RectTransform:
   m_Children: []
   m_Father: {fileID: 2839807387814783480}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.126, y: 0.205}
+  m_AnchorMin: {x: 0.07, y: 0.205}
   m_AnchorMax: {x: 0.182, y: 0.455}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
@@ -3425,8 +3425,8 @@ RectTransform:
   - {fileID: 1324797198361644827}
   m_Father: {fileID: 2839807387814783480}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.254, y: 0.205}
-  m_AnchorMax: {x: 0.584, y: 0.455}
+  m_AnchorMin: {x: 0.276, y: 0.205}
+  m_AnchorMax: {x: 0.606, y: 0.455}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
@@ -9965,6 +9965,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   batteryLerpSpeed: 8
   cpLerpSpeed: 12
+  batteryGhostHoldSeconds: 0.45
+  batteryGhostDrainSpeed: 2.4
+  lowBatteryWarnRatio: 0.5
+  lowBatteryDangerRatio: 0.25
   roundSandclockImage: {fileID: 8877788468223982434}
   roundSandclockFrames:
   - {fileID: 21300000, guid: 756599cb9e7571a429aaed04c3571ae7, type: 3}
