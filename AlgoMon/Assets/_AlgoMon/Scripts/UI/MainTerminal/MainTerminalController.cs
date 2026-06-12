@@ -164,7 +164,6 @@ public class MainTerminalController : MonoBehaviour
     private string geneLabSkillMessage = string.Empty;
     private string selectedGeneLabSpeciesCode = string.Empty;
     private string payloadSkillMessage = string.Empty;
-    private bool showingPayloadSkillPanel;
     private SkillData pendingPayloadSkillReplacement;
     private Transform sourceLayoutVisual;
     private bool sourceLayoutStaticLabelBitmapsReady;
@@ -182,7 +181,7 @@ public class MainTerminalController : MonoBehaviour
     private Image[] payloadCellFrames;
     private Image[] payloadCellSprites;
     private Text[] payloadCellLabels;
-    private Text[] payloadCellFavoriteMarkers;
+    private Image[] payloadCellFavoriteMarkers;
     private Button[] payloadCellButtons;
     private UnityEngine.Events.UnityAction[] payloadCellActions;
     private int[] payloadCellPayloadIndices;
@@ -273,12 +272,13 @@ public class MainTerminalController : MonoBehaviour
     private static readonly Color GeneLabProjectedTalentColor = new Color(1f, 0.86f, 0.30f, 0.98f);
     private const float RadarMaxStat = 450f;
     private const int GeneLabMiniPayloadCellCount = 8;
-    private const int InspectorSkillRowCount = 6;
+    private const int SkillSwapLearnCount = 6;
     private Button inspectorSquadButton;
     private Text inspectorSquadButtonLabel;
     private Button inspectorViewSquadButton;
     private Button inspectorFavoriteButton;
     private Text inspectorFavoriteButtonLabel;
+    private Image inspectorFavoriteStar;
     private Button inspectorSkillsButton;
     private Text inspectorSkillsButtonLabel;
     private RectTransform squadPanelRoot;
@@ -301,11 +301,52 @@ public class MainTerminalController : MonoBehaviour
     private RectTransform inspectorTalentRoot;
     private Image[] inspectorTalentFills;
     private Text[] inspectorTalentValues;
-    private RectTransform inspectorSkillRoot;
-    private Text inspectorSkillMessageText;
-    private Button[] inspectorSkillButtons;
-    private Text[] inspectorSkillLabels;
-    private LearnsetEntry[] inspectorSkillEntries;
+
+    // Dedicated skill swap/learn popup (built once, opened from the SKILLS button).
+    private RectTransform skillSwapPanelRoot;
+    private Text skillSwapTitle;
+    private Text skillSwapMessageText;
+    private SkillCardRefs[] skillSwapLoadoutCards;
+    private SkillCardRefs[] skillSwapLearnCards;
+    private LearnsetEntry[] skillSwapLearnEntries;
+    private int skillSwapSelectedSlot = -1;
+    private Text skillSwapDetailName;
+    private Image skillSwapDetailBadge;
+    private Image skillSwapDetailBadgeIcon;
+    private Text skillSwapDetailBadgeLetter;
+    private Image skillSwapDetailElementIcon;
+    private Image skillSwapDetailCPChip;
+    private Text skillSwapDetailCPText;
+    private Image skillSwapDetailPowerChip;
+    private Text skillSwapDetailPowerText;
+    private Image skillSwapDetailCounterChip;
+    private Text skillSwapDetailCounterText;
+    private Text skillSwapDetailBody;
+
+    /// <summary>Child references for one battle-style skill card in the swap popup.</summary>
+    private sealed class SkillCardRefs
+    {
+        public RectTransform Root;
+        public Button Button;
+        public Image Frame;
+        public CanvasGroup Group;
+        public Image InstructionBadge;
+        public Image InstructionIcon;
+        public Text InstructionLetter;
+        public Text NameText;
+        public Image ElementIcon;
+        public Image CPChip;
+        public Text CPText;
+        public Image PowerChip;
+        public Text PowerText;
+        public Image CounterChip;
+        public Text CounterText;
+        public Text StateText;
+        public Image SlotChip;
+        public Text SlotChipText;
+        public Image Glow;
+        public Image HoverGlow;
+    }
     private Sprite[] inspectorIdleFrames;
     private float inspectorIdleFps;
     private float inspectorIdleTimer;
@@ -325,6 +366,14 @@ public class MainTerminalController : MonoBehaviour
     private static Sprite cachedSliderTrackSprite;
     private static Sprite cachedSliderFillSprite;
     private static Sprite cachedSliderHandleSprite;
+    private static Sprite cachedFilledStarSprite;
+    private static Sprite cachedHollowStarSprite;
+    private static Sprite cachedSkillCardFrameSprite;
+    private static Sprite cachedSkillSelectFrameSprite;
+    private static Sprite cachedSkillSwapPanelSprite;
+    private static Sprite cachedSkillChipFrameSprite;
+    private readonly Sprite[] skillSwapElementIcons = new Sprite[System.Enum.GetValues(typeof(ElementType)).Length];
+    private readonly Sprite[] skillSwapInstructionIcons = new Sprite[System.Enum.GetValues(typeof(InstructionType)).Length];
     private UnityEngine.Events.UnityAction[] depthTierButtonActions;
     private Image depthTierAvatarImage;
     private Text depthTierSelectedSummaryText;
@@ -1475,132 +1524,755 @@ public class MainTerminalController : MonoBehaviour
         inspectorExpText.color = new Color(0.72f, 1f, 0.92f, 1f);
     }
 
-    private void ToggleInspectorSkillPanel()
-    {
-        showingPayloadSkillPanel = !showingPayloadSkillPanel;
-        manager = manager != null ? manager : GameManager.EnsureInstance();
-        RenderPayloadGrid(manager);
-    }
-
+    // Keeps the SKILLS button enabled only for a real unit, and live-refreshes the
+    // popup if it is already open when the inspector re-renders (selection change).
     private void UpdateInspectorSkillPanel(AlgoMonInstance mon)
     {
-        if (inspectorTalentRoot != null)
-            inspectorTalentRoot.gameObject.SetActive(!showingPayloadSkillPanel);
-        if (inspectorSkillRoot != null)
-            inspectorSkillRoot.gameObject.SetActive(showingPayloadSkillPanel);
+        if (inspectorSkillsButton != null)
+            inspectorSkillsButton.interactable = mon != null;
         if (inspectorSkillsButtonLabel != null)
-            inspectorSkillsButtonLabel.text = showingPayloadSkillPanel ? "TALENT" : "SKILLS";
-
-        if (inspectorSkillButtons == null || inspectorSkillLabels == null || inspectorSkillEntries == null)
-            return;
+            inspectorSkillsButtonLabel.text = "SKILLS";
 
         if (mon == null)
         {
             pendingPayloadSkillReplacement = null;
-            if (inspectorSkillMessageText != null)
-                inspectorSkillMessageText.text = "SELECT A UNIT";
-            for (int i = 0; i < inspectorSkillButtons.Length; i++)
-            {
-                inspectorSkillEntries[i] = default(LearnsetEntry);
-                if (inspectorSkillLabels[i] != null)
-                    inspectorSkillLabels[i].text = string.Empty;
-                if (inspectorSkillButtons[i] != null)
-                    inspectorSkillButtons[i].interactable = false;
-            }
+            skillSwapSelectedSlot = -1;
+            if (skillSwapPanelRoot != null && skillSwapPanelRoot.gameObject.activeSelf)
+                CloseSkillSwapPanel();
             return;
         }
 
-        mon.EnsurePersistentRuntimeState();
-        if (mon.knownSkills == null)
-            mon.knownSkills = new List<SkillData>();
-
-        if (inspectorSkillMessageText != null)
-        {
-            string loadout = $"{KnownSkillCount(mon)}/{AlgoMonInstance.MaxSkillSlots}";
-            string message = string.IsNullOrWhiteSpace(payloadSkillMessage)
-                ? "CLICK SKILL TO LOAD"
-                : payloadSkillMessage.Trim();
-            inspectorSkillMessageText.text = $"{loadout}\n{message}";
-        }
-
-        LearnsetEntry[] learnset = mon.data != null ? mon.data.learnset : null;
-        int learnsetIndex = 0;
-        for (int row = 0; row < inspectorSkillButtons.Length; row++)
-        {
-            LearnsetEntry entry = NextValidLearnsetEntry(learnset, ref learnsetIndex);
-            inspectorSkillEntries[row] = entry;
-            SkillData skill = entry.skill;
-            bool hasSkill = skill != null;
-            bool known = hasSkill && mon.knownSkills.Contains(skill);
-            bool locked = hasSkill && entry.unlockLevel > mon.level;
-            bool pending = hasSkill && pendingPayloadSkillReplacement == skill;
-
-            if (inspectorSkillLabels[row] != null)
-            {
-                inspectorSkillLabels[row].text = hasSkill
-                    ? $"{SkillLearnState(mon, entry)} L{entry.unlockLevel:00} {FormatSkillCompact(skill)}"
-                    : string.Empty;
-                inspectorSkillLabels[row].color = !hasSkill
-                    ? new Color(1f, 1f, 1f, 0.18f)
-                    : pending
-                        ? new Color(1f, 0.88f, 0.42f, 1f)
-                        : known
-                            ? new Color(0.50f, 1f, 0.92f, 1f)
-                            : locked
-                                ? new Color(0.54f, 0.64f, 0.70f, 0.78f)
-                                : new Color(0.86f, 1f, 0.96f, 1f);
-            }
-
-            if (inspectorSkillButtons[row] != null)
-                inspectorSkillButtons[row].interactable = hasSkill;
-        }
+        if (skillSwapPanelRoot != null && skillSwapPanelRoot.gameObject.activeSelf)
+            RenderSkillSwapPanel();
     }
 
-    private void OnInspectorSkillClicked(int rowIndex)
+    private void OpenSkillSwapPanel()
     {
-        if (inspectorSkillEntries == null || rowIndex < 0 || rowIndex >= inspectorSkillEntries.Length)
+        if (skillSwapPanelRoot == null)
+            return;
+        if (!EnsureSkillSwapPanelBuilt())
+            return;
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        pendingPayloadSkillReplacement = null;
+        skillSwapSelectedSlot = -1;
+        payloadSkillMessage = string.Empty;
+        skillSwapPanelRoot.gameObject.SetActive(true);
+        skillSwapPanelRoot.SetAsLastSibling();
+        RenderSkillSwapPanel();
+
+        // Prime the data board with the first loaded skill until something is hovered.
+        AlgoMonInstance mon = SelectedPayloadMon(manager);
+        SkillData first = mon != null && mon.knownSkills != null && mon.knownSkills.Count > 0 ? mon.knownSkills[0] : null;
+        ShowSkillSwapDetail(first, first != null ? UnlockLevelFor(mon, first) : 0);
+    }
+
+    private void CloseSkillSwapPanel()
+    {
+        pendingPayloadSkillReplacement = null;
+        skillSwapSelectedSlot = -1;
+        payloadSkillMessage = string.Empty;
+        if (skillSwapPanelRoot != null)
+            skillSwapPanelRoot.gameObject.SetActive(false);
+    }
+
+    private bool EnsureSkillSwapPanelBuilt()
+    {
+        if (skillSwapPanelRoot == null)
+            return false;
+        if (skillSwapLoadoutCards != null && skillSwapLearnCards != null && skillSwapLearnEntries != null)
+            return true;
+
+        Transform parent = skillSwapPanelRoot.parent;
+        if (Application.isPlaying)
+            Destroy(skillSwapPanelRoot.gameObject);
+        else
+            DestroyImmediate(skillSwapPanelRoot.gameObject);
+
+        skillSwapPanelRoot = null;
+        if (parent == null)
+            return false;
+
+        EnsureSkillSwapPanel(parent);
+        return skillSwapPanelRoot != null && skillSwapLoadoutCards != null && skillSwapLearnCards != null && skillSwapLearnEntries != null;
+    }
+
+    private void EnsureSkillSwapPanel(Transform parent)
+    {
+        skillSwapPanelRoot = CreateRect("SkillSwapPanel", parent);
+        SetAnchors(skillSwapPanelRoot, Vector2.zero, Vector2.one);
+
+        Image backdrop = skillSwapPanelRoot.gameObject.AddComponent<Image>();
+        backdrop.color = new Color(0f, 0f, 0f, 0.72f);
+        backdrop.raycastTarget = true;
+        Button backdropButton = skillSwapPanelRoot.gameObject.AddComponent<Button>();
+        backdropButton.transition = Selectable.Transition.None;
+        backdropButton.onClick.AddListener(CloseSkillSwapPanel);
+
+        // Solid procedural frame: its visible border IS the rect, so the header,
+        // cards and detail panel all sit unambiguously inside the box.
+        RectTransform box = CreateRect("SkillSwapBox", skillSwapPanelRoot);
+        SetAnchors(box, new Vector2(0.10f, 0.07f), new Vector2(0.90f, 0.93f));
+        Image boxBg = box.gameObject.AddComponent<Image>();
+        boxBg.sprite = SkillSwapPanelSprite();
+        boxBg.type = Image.Type.Sliced;
+        boxBg.pixelsPerUnitMultiplier = 0.55f;
+        boxBg.color = Color.white;
+        boxBg.raycastTarget = true;
+
+        skillSwapTitle = CreateText("SkillSwapTitle", box, 22, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.7f, 0.98f, 1f, 1f));
+        ApplyCrispCyberText(skillSwapTitle, new Color(0f, 0.14f, 0.2f, 1f));
+        SetAnchors(skillSwapTitle.rectTransform, new Vector2(0.035f, 0.908f), new Vector2(0.700f, 0.974f));
+        skillSwapTitle.text = "SKILL LOADOUT";
+
+        Button closeButton = FindOrCreatePanelButton("SkillSwapCloseButton", box, "CLOSE", new Vector2(0.836f, 0.906f), new Vector2(0.964f, 0.972f));
+        SetPanelButtonLabelSize(closeButton, 15);
+        closeButton.onClick.AddListener(CloseSkillSwapPanel);
+
+        skillSwapMessageText = CreateText("SkillSwapMessage", box, 14, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.84f, 1f, 0.96f, 1f));
+        ApplyCrispCyberText(skillSwapMessageText, new Color(0f, 0.12f, 0.18f, 0.9f));
+        SetAnchors(skillSwapMessageText.rectTransform, new Vector2(0.035f, 0.848f), new Vector2(0.964f, 0.904f));
+
+        Text loadoutLabel = CreateText("SkillSwapLoadoutLabel", box, 13, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.6f, 0.92f, 1f, 0.92f));
+        ApplyCrispCyberText(loadoutLabel, new Color(0f, 0.1f, 0.16f, 0.9f));
+        SetAnchors(loadoutLabel.rectTransform, new Vector2(0.035f, 0.798f), new Vector2(0.964f, 0.846f));
+        loadoutLabel.text = "ACTIVE LOADOUT";
+
+        skillSwapLoadoutCards = new SkillCardRefs[AlgoMonInstance.MaxSkillSlots];
+        int slots = AlgoMonInstance.MaxSkillSlots;
+        const float loadoutLeft = 0.035f;
+        const float loadoutRight = 0.964f;
+        const float loadoutGap = 0.011f;
+        float loadoutSpan = (loadoutRight - loadoutLeft) / slots;
+        for (int i = 0; i < slots; i++)
+        {
+            float x0 = loadoutLeft + i * loadoutSpan + loadoutGap * 0.5f;
+            float x1 = loadoutLeft + (i + 1) * loadoutSpan - loadoutGap * 0.5f;
+            int captured = i;
+            SkillCardRefs card = BuildSkillCard("SkillSwapLoadout_" + i, box, new Vector2(x0, 0.624f), new Vector2(x1, 0.794f), true, captured);
+            card.Button.onClick.AddListener(() => OnSkillSwapLoadoutClicked(captured));
+            skillSwapLoadoutCards[i] = card;
+        }
+
+        Text learnLabel = CreateText("SkillSwapLearnLabel", box, 13, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.6f, 0.92f, 1f, 0.92f));
+        ApplyCrispCyberText(learnLabel, new Color(0f, 0.1f, 0.16f, 0.9f));
+        SetAnchors(learnLabel.rectTransform, new Vector2(0.035f, 0.570f), new Vector2(0.575f, 0.618f));
+        learnLabel.text = "LEARNABLE SKILLS";
+
+        // Left column: learnable list. Right column: skill data panel fed by hover.
+        skillSwapLearnCards = new SkillCardRefs[SkillSwapLearnCount];
+        skillSwapLearnEntries = new LearnsetEntry[SkillSwapLearnCount];
+        const float learnTop = 0.560f;
+        const float learnBottom = 0.035f;
+        float rowSpan = (learnTop - learnBottom) / SkillSwapLearnCount;
+        for (int i = 0; i < SkillSwapLearnCount; i++)
+        {
+            float yMax = learnTop - i * rowSpan;
+            float yMin = learnTop - (i + 1) * rowSpan;
+            int captured = i;
+            SkillCardRefs card = BuildSkillCard("SkillSwapLearn_" + i, box, new Vector2(0.035f, yMin + 0.005f), new Vector2(0.575f, yMax - 0.005f), false, captured);
+            card.Button.onClick.AddListener(() => OnSkillSwapLearnClicked(captured));
+            skillSwapLearnCards[i] = card;
+        }
+
+        BuildSkillSwapDetailPanel(box);
+
+        skillSwapPanelRoot.gameObject.SetActive(false);
+    }
+
+    /// <summary>
+    /// Battle-style skill card. compact = loadout tile (slot chip, centred name);
+    /// otherwise a wide learnable row (state badge right). Hover drives the same
+    /// scale/glow feedback as battle skill slots and feeds the detail panel.
+    /// </summary>
+    private SkillCardRefs BuildSkillCard(string objectName, Transform parent, Vector2 anchorMin, Vector2 anchorMax, bool compact, int hoverIndex)
+    {
+        RectTransform root = CreateRect(objectName, parent);
+        SetAnchors(root, anchorMin, anchorMax);
+
+        Image frame = root.gameObject.AddComponent<Image>();
+        frame.sprite = SkillCardFrameSprite();
+        frame.type = Image.Type.Sliced;
+        frame.pixelsPerUnitMultiplier = 1.25f;
+        frame.color = Color.white;
+        frame.raycastTarget = true;
+
+        Button button = root.gameObject.AddComponent<Button>();
+        button.targetGraphic = frame;
+
+        CanvasGroup group = root.gameObject.AddComponent<CanvasGroup>();
+
+        // Gold selection ring (armed slot / staged replace) — separate from hover.
+        Image glow = CreateImage("Glow", root, new Color(1f, 0.86f, 0.36f, 0f));
+        glow.sprite = SkillSwapSelectFrameSprite();
+        glow.type = glow.sprite != null && glow.sprite.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
+        glow.raycastTarget = false;
+        SetAnchors(glow.rectTransform, new Vector2(-0.020f, -0.045f), new Vector2(1.020f, 1.045f));
+        glow.gameObject.SetActive(false);
+
+        Image badge = CreateImage("InstrBadge", root, Color.white);
+        badge.sprite = SkillCardFrameSprite();
+        badge.type = Image.Type.Sliced;
+        badge.pixelsPerUnitMultiplier = 2.4f;
+        badge.raycastTarget = false;
+
+        Image instrIcon = CreateImage("InstrIcon", badge.transform, Color.white);
+        instrIcon.preserveAspect = true;
+        instrIcon.raycastTarget = false;
+        SetAnchors(instrIcon.rectTransform, new Vector2(0.16f, 0.16f), new Vector2(0.84f, 0.84f));
+
+        Text instrLetter = CreateText("InstrLetter", badge.transform, 18, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+        ApplyCyberText(instrLetter, new Color(0f, 0f, 0f, 0.75f), new Vector2(1f, -1f));
+        SetAnchors(instrLetter.rectTransform, Vector2.zero, Vector2.one);
+
+        Text nameText = CreateText("Name", root, compact ? 15 : 17, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.9f, 1f, 0.98f, 1f));
+        ApplyCrispCyberText(nameText, new Color(0f, 0.12f, 0.18f, 0.95f));
+        nameText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        nameText.verticalOverflow = VerticalWrapMode.Truncate;
+        nameText.resizeTextForBestFit = true;
+        nameText.resizeTextMinSize = 8;
+        nameText.resizeTextMaxSize = compact ? 15 : 17;
+
+        Image elementIcon = CreateImage("ElementIcon", root, Color.white);
+        elementIcon.preserveAspect = true;
+        elementIcon.raycastTarget = false;
+
+        Image cpChip = CreateSkillTagChip(root, "CPChip", SkillTagCPTint, out Text cpText);
+        Image powerChip = CreateSkillTagChip(root, "PowerChip", SkillTagPowerTint, out Text powerText);
+        Image counterChip = CreateSkillTagChip(root, "CounterChip", SkillTagCounterTint, out Text counterText);
+
+        Text state = CreateText("State", root, compact ? 11 : 13, FontStyle.Bold, compact ? TextAnchor.MiddleCenter : TextAnchor.MiddleRight, new Color(0.64f, 0.84f, 0.90f, 0.94f));
+        ApplyCrispCyberText(state, new Color(0f, 0.12f, 0.18f, 0.9f));
+
+        Image slotChip = null;
+        Text slotChipText = null;
+        if (compact)
+        {
+            // Slot number wears the same corner chip as battle hotkeys.
+            slotChip = CreateSkillTagChip(root, "SlotChip", new Color(0.62f, 0.93f, 1f, 1f), out slotChipText);
+            SetAnchors(slotChip.rectTransform, new Vector2(0.815f, 0.700f), new Vector2(0.952f, 0.930f));
+        }
+
+        if (compact)
+        {
+            SetAnchors(badge.rectTransform, new Vector2(0.048f, 0.585f), new Vector2(0.220f, 0.935f));
+            SetAnchors(elementIcon.rectTransform, new Vector2(0.255f, 0.610f), new Vector2(0.385f, 0.915f));
+            nameText.alignment = TextAnchor.MiddleCenter;
+            SetAnchors(nameText.rectTransform, new Vector2(0.050f, 0.310f), new Vector2(0.950f, 0.560f));
+            SetAnchors(cpChip.rectTransform, new Vector2(0.085f, 0.065f), new Vector2(0.330f, 0.270f));
+            SetAnchors(powerChip.rectTransform, new Vector2(0.365f, 0.065f), new Vector2(0.610f, 0.270f));
+            SetAnchors(counterChip.rectTransform, new Vector2(0.645f, 0.065f), new Vector2(0.800f, 0.270f));
+            state.gameObject.SetActive(false);
+        }
+        else
+        {
+            SetAnchors(badge.rectTransform, new Vector2(0.014f, 0.150f), new Vector2(0.066f, 0.850f));
+            // Short name band: best-fit shrinks long names onto a single line
+            // instead of wrapping (same trick as the battle skill slots).
+            SetAnchors(nameText.rectTransform, new Vector2(0.082f, 0.300f), new Vector2(0.390f, 0.700f));
+            SetAnchors(elementIcon.rectTransform, new Vector2(0.398f, 0.180f), new Vector2(0.446f, 0.820f));
+            SetAnchors(cpChip.rectTransform, new Vector2(0.464f, 0.180f), new Vector2(0.560f, 0.820f));
+            SetAnchors(powerChip.rectTransform, new Vector2(0.576f, 0.180f), new Vector2(0.672f, 0.820f));
+            SetAnchors(counterChip.rectTransform, new Vector2(0.688f, 0.180f), new Vector2(0.752f, 0.820f));
+            SetAnchors(state.rectTransform, new Vector2(0.764f, 0.100f), new Vector2(0.985f, 0.900f));
+        }
+
+        // Cyan hover ring driven by the shared battle feedback component.
+        Image hoverGlow = CreateImage("HoverGlow", root, new Color(0.45f, 0.95f, 1f, 0f));
+        hoverGlow.sprite = SkillSwapSelectFrameSprite();
+        hoverGlow.type = hoverGlow.sprite != null && hoverGlow.sprite.border.sqrMagnitude > 0f ? Image.Type.Sliced : Image.Type.Simple;
+        hoverGlow.raycastTarget = false;
+        SetAnchors(hoverGlow.rectTransform, new Vector2(-0.012f, -0.030f), new Vector2(1.012f, 1.030f));
+
+        glow.transform.SetAsLastSibling();
+        hoverGlow.transform.SetAsLastSibling();
+
+        BattleHudButtonFeedback feedback = root.gameObject.AddComponent<BattleHudButtonFeedback>();
+        feedback.Configure(button, compact ? 1.035f : 1.015f, 0.965f);
+        feedback.SetOverlay(hoverGlow, new Color(0.45f, 0.95f, 1f, 1f), 0.42f, 0.72f, 0.58f);
+
+        bool isLoadout = compact;
+        EventTrigger trigger = root.gameObject.AddComponent<EventTrigger>();
+        trigger.triggers = new List<EventTrigger.Entry>();
+        var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        enter.callback.AddListener(_ => OnSkillSwapCardHover(isLoadout, hoverIndex));
+        trigger.triggers.Add(enter);
+
+        return new SkillCardRefs
+        {
+            Root = root,
+            Button = button,
+            Frame = frame,
+            Group = group,
+            InstructionBadge = badge,
+            InstructionIcon = instrIcon,
+            InstructionLetter = instrLetter,
+            NameText = nameText,
+            ElementIcon = elementIcon,
+            CPChip = cpChip,
+            CPText = cpText,
+            PowerChip = powerChip,
+            PowerText = powerText,
+            CounterChip = counterChip,
+            CounterText = counterText,
+            StateText = state,
+            SlotChip = slotChip,
+            SlotChipText = slotChipText,
+            Glow = glow,
+            HoverGlow = hoverGlow
+        };
+    }
+
+    private Image CreateSkillTagChip(Transform parent, string objectName, Color tint, out Text text)
+    {
+        Image chip = CreateImage(objectName, parent, tint);
+        chip.sprite = SkillChipFrameSprite();
+        chip.type = Image.Type.Sliced;
+        chip.pixelsPerUnitMultiplier = 2.4f;
+        chip.raycastTarget = false;
+
+        text = CreateText("Text", chip.transform, 12, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+        ApplyCyberText(text, new Color(0f, 0f, 0f, 0.7f), new Vector2(1f, -1f));
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = 8;
+        text.resizeTextMaxSize = 14;
+        SetAnchors(text.rectTransform, new Vector2(0.04f, 0.02f), new Vector2(0.96f, 0.98f));
+        return chip;
+    }
+
+    /// <summary>Right-hand skill data board, fed by hovering any card (battle detail-panel style).</summary>
+    private void BuildSkillSwapDetailPanel(Transform box)
+    {
+        Text caption = CreateText("SkillSwapDetailLabel", box, 13, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.6f, 0.92f, 1f, 0.92f));
+        ApplyCrispCyberText(caption, new Color(0f, 0.1f, 0.16f, 0.9f));
+        SetAnchors(caption.rectTransform, new Vector2(0.595f, 0.570f), new Vector2(0.964f, 0.618f));
+        caption.text = "SKILL DATA";
+
+        RectTransform detail = CreateRect("SkillSwapDetail", box);
+        SetAnchors(detail, new Vector2(0.595f, 0.035f), new Vector2(0.964f, 0.560f));
+        Image bg = detail.gameObject.AddComponent<Image>();
+        bg.sprite = SkillCardFrameSprite();
+        bg.type = Image.Type.Sliced;
+        bg.pixelsPerUnitMultiplier = 1.1f;
+        bg.color = Color.white;
+        bg.raycastTarget = false;
+
+        skillSwapDetailName = CreateText("DetailName", detail, 19, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+        ApplyCrispCyberText(skillSwapDetailName, new Color(0f, 0.12f, 0.18f, 0.95f));
+        skillSwapDetailName.resizeTextForBestFit = true;
+        skillSwapDetailName.resizeTextMinSize = 10;
+        skillSwapDetailName.resizeTextMaxSize = 19;
+        SetAnchors(skillSwapDetailName.rectTransform, new Vector2(0.055f, 0.866f), new Vector2(0.945f, 0.972f));
+        skillSwapDetailName.text = "SKILL DATA";
+
+        skillSwapDetailBadge = CreateImage("DetailInstrBadge", detail, Color.white);
+        skillSwapDetailBadge.sprite = SkillCardFrameSprite();
+        skillSwapDetailBadge.type = Image.Type.Sliced;
+        skillSwapDetailBadge.pixelsPerUnitMultiplier = 2.4f;
+        skillSwapDetailBadge.raycastTarget = false;
+        SetAnchors(skillSwapDetailBadge.rectTransform, new Vector2(0.055f, 0.738f), new Vector2(0.160f, 0.852f));
+
+        skillSwapDetailBadgeIcon = CreateImage("DetailInstrIcon", skillSwapDetailBadge.transform, Color.white);
+        skillSwapDetailBadgeIcon.preserveAspect = true;
+        skillSwapDetailBadgeIcon.raycastTarget = false;
+        SetAnchors(skillSwapDetailBadgeIcon.rectTransform, new Vector2(0.16f, 0.16f), new Vector2(0.84f, 0.84f));
+
+        skillSwapDetailBadgeLetter = CreateText("DetailInstrLetter", skillSwapDetailBadge.transform, 16, FontStyle.Bold, TextAnchor.MiddleCenter, Color.white);
+        ApplyCyberText(skillSwapDetailBadgeLetter, new Color(0f, 0f, 0f, 0.75f), new Vector2(1f, -1f));
+        SetAnchors(skillSwapDetailBadgeLetter.rectTransform, Vector2.zero, Vector2.one);
+
+        skillSwapDetailElementIcon = CreateImage("DetailElementIcon", detail, Color.white);
+        skillSwapDetailElementIcon.preserveAspect = true;
+        skillSwapDetailElementIcon.raycastTarget = false;
+        SetAnchors(skillSwapDetailElementIcon.rectTransform, new Vector2(0.185f, 0.745f), new Vector2(0.275f, 0.845f));
+
+        skillSwapDetailCPChip = CreateSkillTagChip(detail, "DetailCPChip", SkillTagCPTint, out skillSwapDetailCPText);
+        SetAnchors(skillSwapDetailCPChip.rectTransform, new Vector2(0.305f, 0.738f), new Vector2(0.460f, 0.852f));
+        skillSwapDetailPowerChip = CreateSkillTagChip(detail, "DetailPowerChip", SkillTagPowerTint, out skillSwapDetailPowerText);
+        SetAnchors(skillSwapDetailPowerChip.rectTransform, new Vector2(0.480f, 0.738f), new Vector2(0.635f, 0.852f));
+        skillSwapDetailCounterChip = CreateSkillTagChip(detail, "DetailCounterChip", SkillTagCounterTint, out skillSwapDetailCounterText);
+        SetAnchors(skillSwapDetailCounterChip.rectTransform, new Vector2(0.655f, 0.738f), new Vector2(0.790f, 0.852f));
+
+        skillSwapDetailBody = CreateText("DetailBody", detail, 14, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.86f, 0.97f, 1f, 0.96f));
+        ApplyCrispCyberText(skillSwapDetailBody, new Color(0f, 0.12f, 0.18f, 0.9f));
+        skillSwapDetailBody.horizontalOverflow = HorizontalWrapMode.Wrap;
+        skillSwapDetailBody.verticalOverflow = VerticalWrapMode.Truncate;
+        skillSwapDetailBody.lineSpacing = 1.02f;
+        SetAnchors(skillSwapDetailBody.rectTransform, new Vector2(0.055f, 0.045f), new Vector2(0.945f, 0.715f));
+
+        ShowSkillSwapDetail(null, 0);
+    }
+
+    /// <summary>Fills the data board with rich-text detail (same formatter as the battle HUD).</summary>
+    private void ShowSkillSwapDetail(SkillData skill, int unlockLevel)
+    {
+        if (skillSwapDetailName == null)
             return;
 
+        bool has = skill != null;
+        if (skillSwapDetailBadge != null) skillSwapDetailBadge.gameObject.SetActive(has);
+        if (skillSwapDetailElementIcon != null) skillSwapDetailElementIcon.gameObject.SetActive(has);
+        if (skillSwapDetailCPChip != null) skillSwapDetailCPChip.gameObject.SetActive(has);
+        if (skillSwapDetailPowerChip != null) skillSwapDetailPowerChip.gameObject.SetActive(has && skill.basePower > 0);
+        if (skillSwapDetailCounterChip != null) skillSwapDetailCounterChip.gameObject.SetActive(has && skill.canCounter);
+
+        if (!has)
+        {
+            skillSwapDetailName.text = "SKILL DATA";
+            if (skillSwapDetailBody != null)
+                skillSwapDetailBody.text = "HOVER A SKILL TO VIEW ITS DATA.";
+            return;
+        }
+
+        skillSwapDetailName.text = SkillDisplayName(skill).ToUpperInvariant();
+
+        InstructionType instruction = skill.instructionType;
+        Color accent = InstructionAccentColor(instruction);
+        Sprite instructionIcon = SkillSwapInstructionIcon(instruction);
+        if (skillSwapDetailBadgeIcon != null)
+        {
+            skillSwapDetailBadgeIcon.sprite = instructionIcon;
+            skillSwapDetailBadgeIcon.enabled = instructionIcon != null;
+            skillSwapDetailBadgeIcon.color = instructionIcon != null ? Color.Lerp(Color.white, accent, 0.40f) : Color.clear;
+        }
+        if (skillSwapDetailBadgeLetter != null)
+        {
+            skillSwapDetailBadgeLetter.text = InstructionLetterFor(instruction);
+            skillSwapDetailBadgeLetter.color = accent;
+            skillSwapDetailBadgeLetter.enabled = instructionIcon == null;
+        }
+        Sprite elementIcon = SkillSwapElementIcon(skill.elementType);
+        if (skillSwapDetailElementIcon != null)
+        {
+            skillSwapDetailElementIcon.sprite = elementIcon;
+            skillSwapDetailElementIcon.enabled = elementIcon != null;
+        }
+        if (skillSwapDetailCPText != null) skillSwapDetailCPText.text = $"CP {Mathf.Max(0, skill.cpCost)}";
+        if (skillSwapDetailPowerText != null) skillSwapDetailPowerText.text = $"BP {skill.basePower}";
+        if (skillSwapDetailCounterText != null) skillSwapDetailCounterText.text = "CNT";
+
+        var meta = new StringBuilder();
+        meta.Append(skill.instructionType);
+        meta.Append(" | ");
+        meta.Append(skill.elementType);
+        if (unlockLevel > 1)
+            meta.Append($" | Unlock L{unlockLevel:00}");
+
+        if (skillSwapDetailBody != null)
+            skillSwapDetailBody.text = SkillDetailTextFormatter.BuildBody(
+                meta.ToString(),
+                SkillDetailTextFormatter.BuildCounterSummary(skill),
+                SkillDetailTextFormatter.BuildReadableDescription(skill));
+    }
+
+    private void OnSkillSwapCardHover(bool isLoadout, int index)
+    {
         manager = manager != null ? manager : GameManager.EnsureInstance();
         AlgoMonInstance mon = SelectedPayloadMon(manager);
         if (mon == null)
             return;
 
-        LearnsetEntry entry = inspectorSkillEntries[rowIndex];
+        if (isLoadout)
+        {
+            SkillData skill = mon.knownSkills != null && index >= 0 && index < mon.knownSkills.Count
+                ? mon.knownSkills[index]
+                : null;
+            if (skill != null)
+                ShowSkillSwapDetail(skill, UnlockLevelFor(mon, skill));
+        }
+        else if (skillSwapLearnEntries != null && index >= 0 && index < skillSwapLearnEntries.Length)
+        {
+            LearnsetEntry entry = skillSwapLearnEntries[index];
+            if (entry.skill != null)
+                ShowSkillSwapDetail(entry.skill, entry.unlockLevel);
+        }
+    }
+
+    private static int UnlockLevelFor(AlgoMonInstance mon, SkillData skill)
+    {
+        if (mon == null || mon.data == null || mon.data.learnset == null || skill == null)
+            return 0;
+
+        foreach (LearnsetEntry entry in mon.data.learnset)
+        {
+            if (entry.skill == skill)
+                return entry.unlockLevel;
+        }
+        return 0;
+    }
+
+    private void RenderSkillSwapPanel()
+    {
+        if (skillSwapPanelRoot == null)
+            return;
+        if (!EnsureSkillSwapPanelBuilt())
+            return;
+
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        AlgoMonInstance mon = SelectedPayloadMon(manager);
+        if (mon != null)
+            EnsureKnownSkillList(mon);
+
+        if (skillSwapTitle != null)
+            skillSwapTitle.text = mon != null
+                ? $"SKILL LOADOUT  ·  {DisplayNameFor(mon).ToUpperInvariant()}  L{mon.level:00}"
+                : "SKILL LOADOUT";
+
+        if (skillSwapMessageText != null)
+        {
+            if (mon == null)
+            {
+                skillSwapMessageText.text = "SELECT A UNIT";
+                skillSwapMessageText.color = new Color(0.72f, 0.90f, 0.96f, 0.88f);
+            }
+            else
+            {
+                string loadout = $"{KnownSkillCount(mon)}/{AlgoMonInstance.MaxSkillSlots} LOADED";
+                bool hasPrompt = !string.IsNullOrWhiteSpace(payloadSkillMessage);
+                string msg = hasPrompt
+                    ? payloadSkillMessage.Trim()
+                    : skillSwapSelectedSlot >= 0
+                        ? $"SLOT {skillSwapSelectedSlot + 1} ARMED - CHOOSE A SKILL"
+                        : pendingPayloadSkillReplacement != null
+                            ? $"{SkillDisplayName(pendingPayloadSkillReplacement).ToUpperInvariant()} ARMED - CHOOSE A SLOT"
+                            : "CHOOSE A SKILL OR ARM A SLOT";
+                bool armed = skillSwapSelectedSlot >= 0 || pendingPayloadSkillReplacement != null;
+                skillSwapMessageText.color = armed || hasPrompt
+                    ? new Color(1f, 0.82f, 0.34f, 1f)
+                    : new Color(0.72f, 0.90f, 0.96f, 0.90f);
+                skillSwapMessageText.text = $"{loadout}   ·   {msg}";
+            }
+        }
+
+        for (int i = 0; i < skillSwapLoadoutCards.Length; i++)
+        {
+            SkillData skill = (mon != null && mon.knownSkills != null && i < mon.knownSkills.Count)
+                ? mon.knownSkills[i]
+                : null;
+            ApplyLoadoutCard(skillSwapLoadoutCards[i], i, skill, skillSwapSelectedSlot == i);
+        }
+
+        LearnsetEntry[] learnset = mon != null && mon.data != null ? mon.data.learnset : null;
+        int learnsetIndex = 0;
+        for (int row = 0; row < skillSwapLearnCards.Length; row++)
+        {
+            LearnsetEntry entry = NextValidLearnsetEntry(learnset, ref learnsetIndex);
+            skillSwapLearnEntries[row] = entry;
+            ApplyLearnCard(skillSwapLearnCards[row], mon, entry);
+        }
+    }
+
+    private void ApplyLoadoutCard(SkillCardRefs card, int slotIndex, SkillData skill, bool armed)
+    {
+        if (card == null)
+            return;
+
+        card.Root.gameObject.SetActive(true);
+        card.Button.interactable = true;
+        bool filled = skill != null;
+        if (card.Group != null)
+            card.Group.alpha = filled ? 1f : 0.62f;
+
+        if (card.SlotChipText != null)
+            card.SlotChipText.text = (slotIndex + 1).ToString();
+        if (card.SlotChip != null)
+            card.SlotChip.color = armed ? new Color(1f, 0.86f, 0.36f, 1f) : new Color(0.62f, 0.93f, 1f, 1f);
+
+        if (filled)
+            FillSkillCardContent(card, skill);
+        else
+            ClearSkillCardContent(card, "EMPTY");
+
+        if (card.Glow != null)
+        {
+            card.Glow.gameObject.SetActive(armed);
+            card.Glow.color = new Color(1f, 0.86f, 0.36f, armed ? 0.9f : 0f);
+        }
+        if (card.Frame != null)
+            card.Frame.color = armed ? new Color(1f, 0.92f, 0.66f, 1f) : Color.white;
+    }
+
+    private void ApplyLearnCard(SkillCardRefs card, AlgoMonInstance mon, LearnsetEntry entry)
+    {
+        if (card == null)
+            return;
+
+        SkillData skill = entry.skill;
+        if (skill == null || mon == null)
+        {
+            card.Root.gameObject.SetActive(false);
+            return;
+        }
+
+        bool known = mon.knownSkills != null && mon.knownSkills.Contains(skill);
+        bool locked = entry.unlockLevel > mon.level;
+        bool pending = pendingPayloadSkillReplacement == skill;
+
+        card.Root.gameObject.SetActive(true);
+        card.Button.interactable = !locked;
+
+        FillSkillCardContent(card, skill);
+
+        if (card.StateText != null)
+        {
+            card.StateText.text = pending
+                ? "ARMED"
+                : skillSwapSelectedSlot >= 0 && !known && !locked
+                    ? $"TO SLOT {skillSwapSelectedSlot + 1}"
+                    : known
+                        ? $"LOADED L{entry.unlockLevel:00}"
+                        : locked
+                            ? $"LOCKED L{entry.unlockLevel:00}"
+                            : $"{SkillLearnState(mon, entry).Trim()} L{entry.unlockLevel:00}";
+            card.StateText.color = pending
+                ? new Color(1f, 0.82f, 0.34f, 1f)
+                : skillSwapSelectedSlot >= 0 && !known && !locked
+                    ? new Color(0.55f, 1f, 0.62f, 1f)
+                    : known
+                        ? new Color(0.52f, 0.74f, 0.78f, 0.82f)
+                        : locked
+                            ? new Color(0.54f, 0.50f, 0.56f, 0.78f)
+                            : new Color(0.55f, 1f, 0.62f, 1f);
+        }
+
+        if (card.Group != null)
+            card.Group.alpha = locked ? 0.34f : known ? 0.58f : 1f;
+
+        if (card.Glow != null)
+        {
+            card.Glow.gameObject.SetActive(pending);
+            card.Glow.color = pending
+                ? new Color(1f, 0.86f, 0.36f, 0.9f)
+                : new Color(0f, 0f, 0f, 0f);
+        }
+        if (card.Frame != null)
+            card.Frame.color = pending
+                ? new Color(1f, 0.92f, 0.66f, 1f)
+                : known
+                    ? new Color(0.54f, 0.74f, 0.78f, 0.72f)
+                    : locked
+                        ? new Color(0.48f, 0.45f, 0.52f, 0.62f)
+                        : Color.white;
+    }
+
+    private void FillSkillCardContent(SkillCardRefs card, SkillData skill)
+    {
+        InstructionType instruction = skill.instructionType;
+        Color accent = InstructionAccentColor(instruction);
+        Sprite instructionIcon = SkillSwapInstructionIcon(instruction);
+
+        if (card.InstructionBadge != null)
+            card.InstructionBadge.gameObject.SetActive(true);
+        if (card.InstructionIcon != null)
+        {
+            card.InstructionIcon.sprite = instructionIcon;
+            card.InstructionIcon.enabled = instructionIcon != null;
+            card.InstructionIcon.color = instructionIcon != null ? Color.Lerp(Color.white, accent, 0.40f) : Color.clear;
+        }
+        if (card.InstructionLetter != null)
+        {
+            card.InstructionLetter.text = InstructionLetterFor(instruction);
+            card.InstructionLetter.color = accent;
+            card.InstructionLetter.enabled = instructionIcon == null;
+        }
+        if (card.NameText != null)
+        {
+            card.NameText.text = SkillDisplayName(skill).ToUpperInvariant();
+            card.NameText.color = new Color(0.9f, 1f, 0.98f, 1f);
+        }
+        if (card.ElementIcon != null)
+        {
+            Sprite elementIcon = SkillSwapElementIcon(skill.elementType);
+            card.ElementIcon.sprite = elementIcon;
+            card.ElementIcon.enabled = elementIcon != null;
+            card.ElementIcon.color = Color.white;
+        }
+
+        // Battle-style tag chips: CP always, BP only for damaging skills, C for counters.
+        if (card.CPChip != null)
+            card.CPChip.gameObject.SetActive(true);
+        if (card.CPText != null)
+            card.CPText.text = $"CP {Mathf.Max(0, skill.cpCost)}";
+        if (card.PowerChip != null)
+            card.PowerChip.gameObject.SetActive(skill.basePower > 0);
+        if (card.PowerText != null)
+            card.PowerText.text = $"BP {skill.basePower}";
+        if (card.CounterChip != null)
+            card.CounterChip.gameObject.SetActive(skill.canCounter);
+        if (card.CounterText != null)
+            card.CounterText.text = "C";
+    }
+
+    private void ClearSkillCardContent(SkillCardRefs card, string placeholder)
+    {
+        if (card.InstructionBadge != null)
+            card.InstructionBadge.gameObject.SetActive(false);
+        if (card.InstructionIcon != null)
+            card.InstructionIcon.enabled = false;
+        if (card.InstructionLetter != null)
+            card.InstructionLetter.enabled = false;
+        if (card.ElementIcon != null)
+            card.ElementIcon.enabled = false;
+        if (card.CPChip != null)
+            card.CPChip.gameObject.SetActive(false);
+        if (card.PowerChip != null)
+            card.PowerChip.gameObject.SetActive(false);
+        if (card.CounterChip != null)
+            card.CounterChip.gameObject.SetActive(false);
+        if (card.NameText != null)
+        {
+            card.NameText.text = placeholder;
+            card.NameText.color = new Color(0.6f, 0.76f, 0.82f, 0.8f);
+        }
+    }
+
+    // Tap a learnable card: respects the level gate, then fills a free slot, drops
+    // into an armed slot, or stages itself for a replace when the loadout is full.
+    private void OnSkillSwapLearnClicked(int index)
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        AlgoMonInstance mon = SelectedPayloadMon(manager);
+        if (mon == null || skillSwapLearnEntries == null || index < 0 || index >= skillSwapLearnEntries.Length)
+            return;
+
+        LearnsetEntry entry = skillSwapLearnEntries[index];
         SkillData skill = entry.skill;
         if (skill == null)
             return;
 
-        mon.EnsurePersistentRuntimeState();
-        if (mon.knownSkills == null)
-            mon.knownSkills = new List<SkillData>();
-        mon.knownSkills.RemoveAll(knownSkill => knownSkill == null);
-
+        EnsureKnownSkillList(mon);
         string skillName = SkillDisplayName(skill).ToUpperInvariant();
+
+        // Level gate — cannot learn before the unit reaches the unlock level.
         if (entry.unlockLevel > mon.level)
         {
             pendingPayloadSkillReplacement = null;
+            skillSwapSelectedSlot = -1;
             payloadSkillMessage = $"{skillName} UNLOCKS AT L{entry.unlockLevel:00}";
-            RenderPayloadGrid(manager);
+            RenderSkillSwapPanel();
             return;
         }
 
         int knownIndex = mon.knownSkills.IndexOf(skill);
-        if (pendingPayloadSkillReplacement != null && knownIndex >= 0 && pendingPayloadSkillReplacement != skill)
+
+        // A loadout slot is armed → drop this skill into it (swap / fill).
+        if (skillSwapSelectedSlot >= 0)
         {
-            string oldName = SkillDisplayName(skill).ToUpperInvariant();
-            string newName = SkillDisplayName(pendingPayloadSkillReplacement).ToUpperInvariant();
-            mon.knownSkills[knownIndex] = pendingPayloadSkillReplacement;
+            if (knownIndex >= 0 && knownIndex != skillSwapSelectedSlot)
+                payloadSkillMessage = $"{skillName} ALREADY LOADED";
+            else
+                ApplySkillToSlot(mon, skillSwapSelectedSlot, skill);
+            skillSwapSelectedSlot = -1;
             pendingPayloadSkillReplacement = null;
-            payloadSkillMessage = $"{oldName} -> {newName}";
+            RenderSkillSwapPanel();
             RenderPayloadGrid(manager);
             return;
         }
 
         if (knownIndex >= 0)
         {
+            pendingPayloadSkillReplacement = null;
             payloadSkillMessage = $"{skillName} ALREADY LOADED";
-            RenderPayloadGrid(manager);
+            RenderSkillSwapPanel();
             return;
         }
 
@@ -1609,13 +2281,81 @@ public class MainTerminalController : MonoBehaviour
             mon.knownSkills.Add(skill);
             pendingPayloadSkillReplacement = null;
             payloadSkillMessage = $"{skillName} LOADED";
+            RenderSkillSwapPanel();
             RenderPayloadGrid(manager);
             return;
         }
 
+        // Loadout full: stage this skill and ask which slot to overwrite.
         pendingPayloadSkillReplacement = skill;
-        payloadSkillMessage = $"CLICK KNOWN SKILL TO REPLACE";
-        RenderPayloadGrid(manager);
+        payloadSkillMessage = "TAP A LOADOUT SLOT TO REPLACE";
+        RenderSkillSwapPanel();
+    }
+
+    // Tap a loadout slot: receives a staged skill, or arms the slot for the next pick.
+    private void OnSkillSwapLoadoutClicked(int slot)
+    {
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        AlgoMonInstance mon = SelectedPayloadMon(manager);
+        if (mon == null || slot < 0 || slot >= AlgoMonInstance.MaxSkillSlots)
+            return;
+
+        EnsureKnownSkillList(mon);
+
+        if (pendingPayloadSkillReplacement != null)
+        {
+            if (mon.knownSkills.Contains(pendingPayloadSkillReplacement))
+                payloadSkillMessage = $"{SkillDisplayName(pendingPayloadSkillReplacement).ToUpperInvariant()} ALREADY LOADED";
+            else
+                ApplySkillToSlot(mon, slot, pendingPayloadSkillReplacement);
+            pendingPayloadSkillReplacement = null;
+            skillSwapSelectedSlot = -1;
+            RenderSkillSwapPanel();
+            RenderPayloadGrid(manager);
+            return;
+        }
+
+        bool filled = slot < mon.knownSkills.Count;
+        if (!filled)
+        {
+            skillSwapSelectedSlot = -1;
+            payloadSkillMessage = "TAP A LEARNABLE SKILL TO LOAD";
+            RenderSkillSwapPanel();
+            return;
+        }
+
+        // Toggle this filled slot as the target for the next learnable pick.
+        skillSwapSelectedSlot = skillSwapSelectedSlot == slot ? -1 : slot;
+        payloadSkillMessage = skillSwapSelectedSlot >= 0
+            ? "TAP A LEARNABLE SKILL FOR THIS SLOT"
+            : string.Empty;
+        RenderSkillSwapPanel();
+    }
+
+    private void ApplySkillToSlot(AlgoMonInstance mon, int slot, SkillData skill)
+    {
+        string newName = SkillDisplayName(skill).ToUpperInvariant();
+        if (slot >= 0 && slot < mon.knownSkills.Count)
+        {
+            SkillData old = mon.knownSkills[slot];
+            mon.knownSkills[slot] = skill;
+            payloadSkillMessage = old != null
+                ? $"{SkillDisplayName(old).ToUpperInvariant()} -> {newName}"
+                : $"{newName} LOADED";
+        }
+        else if (mon.knownSkills.Count < AlgoMonInstance.MaxSkillSlots)
+        {
+            mon.knownSkills.Add(skill);
+            payloadSkillMessage = $"{newName} LOADED";
+        }
+    }
+
+    private static void EnsureKnownSkillList(AlgoMonInstance mon)
+    {
+        mon.EnsurePersistentRuntimeState();
+        if (mon.knownSkills == null)
+            mon.knownSkills = new List<SkillData>();
+        mon.knownSkills.RemoveAll(s => s == null);
     }
 
     private void ToggleSelectedFavorite()
@@ -1912,20 +2652,18 @@ public class MainTerminalController : MonoBehaviour
 
         bool hasMon = mon != null;
         inspectorFavoriteButton.interactable = hasMon;
-        if (inspectorFavoriteButtonLabel == null)
+
+        if (inspectorFavoriteStar == null)
             return;
 
-        if (!hasMon)
-        {
-            inspectorFavoriteButtonLabel.text = "--";
-            inspectorFavoriteButtonLabel.color = new Color(0.56f, 0.68f, 0.72f, 1f);
-            return;
-        }
-
-        inspectorFavoriteButtonLabel.text = mon.isFavorite ? "FAV*" : "FAV";
-        inspectorFavoriteButtonLabel.color = mon.isFavorite
-            ? new Color(1f, 0.82f, 0.32f, 1f)
-            : new Color(0.82f, 1f, 0.94f, 1f);
+        bool favorite = hasMon && mon.isFavorite;
+        // Hollow star = not favorite, filled star = favorite.
+        inspectorFavoriteStar.sprite = StarSprite(favorite);
+        inspectorFavoriteStar.color = !hasMon
+            ? new Color(0.46f, 0.58f, 0.62f, 0.75f)
+            : favorite
+                ? new Color(1f, 0.82f, 0.32f, 1f)
+                : new Color(0.78f, 0.94f, 0.98f, 0.95f);
     }
 
     private void SetInspectorIdle(AlgoMonInstance mon)
@@ -3329,16 +4067,6 @@ public class MainTerminalController : MonoBehaviour
         return KnownSkillCount(mon) >= AlgoMonInstance.MaxSkillSlots ? "FULL " : "READY";
     }
 
-    private static string FormatSkillCompact(SkillData skill)
-    {
-        if (skill == null)
-            return "CORRUPTED";
-
-        string type = skill.instructionType.ToString().ToUpperInvariant();
-        string element = skill.elementType.ToString().ToUpperInvariant();
-        return $"{SkillDisplayName(skill).ToUpperInvariant()} [{ShortElement(type)}/{ShortElement(element)}] P{skill.basePower:00} C{skill.cpCost:00}";
-    }
-
     private static string SkillDisplayName(SkillData skill)
     {
         if (skill == null)
@@ -3709,7 +4437,7 @@ public class MainTerminalController : MonoBehaviour
         payloadCellFrames = new Image[PayloadGridCellCount];
         payloadCellSprites = new Image[PayloadGridCellCount];
         payloadCellLabels = new Text[PayloadGridCellCount];
-        payloadCellFavoriteMarkers = new Text[PayloadGridCellCount];
+        payloadCellFavoriteMarkers = new Image[PayloadGridCellCount];
         payloadCellButtons = new Button[PayloadGridCellCount];
         payloadCellActions = new UnityEngine.Events.UnityAction[PayloadGridCellCount];
         payloadCellPayloadIndices = new int[PayloadGridCellCount];
@@ -3746,10 +4474,15 @@ public class MainTerminalController : MonoBehaviour
             payloadCellLabels[i] = label;
             CreateBitmapTextMirror(label, 0.62f);
 
-            Text favoriteMarker = CreateText("CellFavoriteMarker", cell, 24, FontStyle.Bold, TextAnchor.UpperRight, new Color(1f, 0.86f, 0.28f, 1f));
-            ApplyCrispCyberText(favoriteMarker, new Color(0.18f, 0.08f, 0f, 1f));
-            SetAnchors(favoriteMarker.rectTransform, new Vector2(0.62f, 0.72f), new Vector2(0.92f, 0.94f));
-            favoriteMarker.text = "*";
+            Image favoriteMarker = CreateImage("CellFavoriteMarker", cell, new Color(1f, 0.86f, 0.28f, 1f));
+            favoriteMarker.sprite = StarSprite(true);
+            favoriteMarker.type = Image.Type.Simple;
+            favoriteMarker.preserveAspect = true;
+            favoriteMarker.raycastTarget = false;
+            SetAnchors(favoriteMarker.rectTransform, new Vector2(0.700f, 0.700f), new Vector2(0.940f, 0.950f));
+            Outline favoriteOutline = favoriteMarker.gameObject.AddComponent<Outline>();
+            favoriteOutline.effectColor = new Color(0.12f, 0.06f, 0f, 0.92f);
+            favoriteOutline.effectDistance = new Vector2(1.2f, -1.2f);
             favoriteMarker.gameObject.SetActive(false);
             payloadCellFavoriteMarkers[i] = favoriteMarker;
         }
@@ -3757,6 +4490,7 @@ public class MainTerminalController : MonoBehaviour
         EnsurePayloadPageNav(payloadGridRoot);
         EnsurePayloadDetailStrips(payloadGridRoot);
         EnsureSquadPanel(parent);
+        EnsureSkillSwapPanel(parent);
     }
 
     private void EnsureGeneLabPanel(Transform parent)
@@ -4548,20 +5282,32 @@ public class MainTerminalController : MonoBehaviour
             new Color(0.006f, 0.012f, 0.026f, 0.72f));
         backing.raycastTarget = false;
 
-        Text header = CreateText("DetailHeader", detailArea, 20, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.62f, 0.95f, 1f, 1f));
+        Text header = CreateText("DetailHeader", detailArea, 18, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.62f, 0.95f, 1f, 1f));
         ApplyCrispCyberText(header, new Color(0f, 0.12f, 0.18f, 0.95f));
-        SetAnchors(header.rectTransform, new Vector2(0.070f, 0.885f), new Vector2(0.305f, 0.945f));
+        header.horizontalOverflow = HorizontalWrapMode.Overflow;
+        header.verticalOverflow = VerticalWrapMode.Overflow;
+        SetAnchors(header.rectTransform, new Vector2(0.070f, 0.872f), new Vector2(0.292f, 0.948f));
         header.text = "INSPECTOR";
 
-        inspectorFavoriteButton = FindOrCreatePanelButton("InspectorFavoriteButton", detailArea, "FAV", new Vector2(0.325f, 0.875f), new Vector2(0.395f, 0.945f));
-        SetPanelButtonLabelSize(inspectorFavoriteButton, 13);
+        // Favorite toggle is now a compact square star icon (hollow = not favorite,
+        // filled = favorite) instead of the old "FAV" / "FAV*" text button.
+        inspectorFavoriteButton = FindOrCreatePanelButton("InspectorFavoriteButton", detailArea, string.Empty, new Vector2(0.300f, 0.872f), new Vector2(0.366f, 0.948f));
         inspectorFavoriteButton.onClick.AddListener(ToggleSelectedFavorite);
         Transform favoriteLabel = inspectorFavoriteButton.transform.Find("Text");
         inspectorFavoriteButtonLabel = favoriteLabel != null ? favoriteLabel.GetComponent<Text>() : null;
+        if (inspectorFavoriteButtonLabel != null)
+            inspectorFavoriteButtonLabel.text = string.Empty;
+        inspectorFavoriteStar = CreateImage("FavoriteStar", inspectorFavoriteButton.transform, new Color(0.82f, 1f, 0.94f, 1f));
+        inspectorFavoriteStar.sprite = StarSprite(false);
+        inspectorFavoriteStar.type = Image.Type.Simple;
+        inspectorFavoriteStar.preserveAspect = true;
+        inspectorFavoriteStar.raycastTarget = false;
+        SetAnchors(inspectorFavoriteStar.rectTransform, new Vector2(0.16f, 0.13f), new Vector2(0.84f, 0.87f));
+        inspectorFavoriteStar.transform.SetAsLastSibling();
 
-        inspectorSkillsButton = FindOrCreatePanelButton("InspectorSkillsButton", detailArea, "SKILLS", new Vector2(0.405f, 0.875f), new Vector2(0.545f, 0.945f));
-        SetPanelButtonLabelSize(inspectorSkillsButton, 13);
-        inspectorSkillsButton.onClick.AddListener(ToggleInspectorSkillPanel);
+        inspectorSkillsButton = FindOrCreatePanelButton("InspectorSkillsButton", detailArea, "SKILLS", new Vector2(0.378f, 0.872f), new Vector2(0.560f, 0.948f));
+        SetPanelButtonLabelSize(inspectorSkillsButton, 14);
+        inspectorSkillsButton.onClick.AddListener(OpenSkillSwapPanel);
         Transform skillsLabel = inspectorSkillsButton.transform.Find("Text");
         inspectorSkillsButtonLabel = skillsLabel != null ? skillsLabel.GetComponent<Text>() : null;
 
@@ -4572,7 +5318,7 @@ public class MainTerminalController : MonoBehaviour
         inspectorViewSquadButton.onClick.AddListener(() => OpenSquadPanel(false, null));
         inspectorViewSquadButton.gameObject.SetActive(false);
 
-        inspectorSquadButton = FindOrCreatePanelButton("InspectorSquadButton", detailArea, "ADD TO SQUAD", new Vector2(0.555f, 0.875f), new Vector2(0.970f, 0.945f));
+        inspectorSquadButton = FindOrCreatePanelButton("InspectorSquadButton", detailArea, "ADD TO SQUAD", new Vector2(0.572f, 0.872f), new Vector2(0.970f, 0.948f));
         SetPanelButtonLabelSize(inspectorSquadButton, 15);
         inspectorSquadButton.onClick.AddListener(ToggleSelectedSquad);
         Transform squadLabel = inspectorSquadButton.transform.Find("Text");
@@ -4582,7 +5328,6 @@ public class MainTerminalController : MonoBehaviour
         BuildInspectorName(detailArea);
         BuildInspectorRadar(detailArea);
         BuildInspectorTalentBars(detailArea);
-        BuildInspectorSkillPanel(detailArea);
     }
 
     private void BuildInspectorPortrait(Transform detailArea)
@@ -4722,62 +5467,6 @@ public class MainTerminalController : MonoBehaviour
             value.text = "0";
             inspectorTalentValues[i] = value;
         }
-    }
-
-    private void BuildInspectorSkillPanel(Transform detailArea)
-    {
-        inspectorSkillRoot = CreateRect("InspectorSkillPanel", detailArea);
-        SetAnchors(inspectorSkillRoot, new Vector2(0.06f, 0.02f), new Vector2(0.94f, 0.295f));
-
-        Text caption = CreateText("SkillCaption", inspectorSkillRoot, 15, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.6f, 0.92f, 1f, 0.9f));
-        ApplyCrispCyberText(caption, new Color(0f, 0.1f, 0.16f, 0.9f));
-        SetAnchors(caption.rectTransform, new Vector2(0f, 0.900f), new Vector2(0.420f, 1f));
-        caption.text = "SKILL LOADOUT";
-
-        inspectorSkillMessageText = CreateText("SkillMessage", inspectorSkillRoot, 12, FontStyle.Bold, TextAnchor.UpperRight, new Color(0.84f, 1f, 0.96f, 1f));
-        inspectorSkillMessageText.lineSpacing = 0.86f;
-        ApplyCrispCyberText(inspectorSkillMessageText, new Color(0f, 0.1f, 0.16f, 0.9f));
-        SetAnchors(inspectorSkillMessageText.rectTransform, new Vector2(0.430f, 0.900f), new Vector2(1f, 1f));
-
-        inspectorSkillButtons = new Button[InspectorSkillRowCount];
-        inspectorSkillLabels = new Text[InspectorSkillRowCount];
-        inspectorSkillEntries = new LearnsetEntry[InspectorSkillRowCount];
-
-        float rowTop = 0.875f;
-        float rowSpan = rowTop / InspectorSkillRowCount;
-        for (int i = 0; i < InspectorSkillRowCount; i++)
-        {
-            float yMax = rowTop - i * rowSpan;
-            float yMin = rowTop - (i + 1) * rowSpan;
-            RectTransform row = CreateRect("SkillRow_" + i, inspectorSkillRoot);
-            SetAnchors(row, new Vector2(0f, yMin + 0.006f), new Vector2(1f, yMax - 0.006f));
-
-            Image rowImage = row.gameObject.AddComponent<Image>();
-            rowImage.color = new Color(0.012f, 0.040f, 0.060f, 0.70f);
-            rowImage.raycastTarget = true;
-
-            Button button = row.gameObject.AddComponent<Button>();
-            button.targetGraphic = rowImage;
-            button.transition = Selectable.Transition.ColorTint;
-            ColorBlock colors = button.colors;
-            colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(0.72f, 1f, 0.98f, 1f);
-            colors.pressedColor = new Color(1f, 0.70f, 0.86f, 1f);
-            colors.selectedColor = colors.highlightedColor;
-            colors.disabledColor = new Color(1f, 1f, 1f, 0.35f);
-            button.colors = colors;
-            int rowIndex = i;
-            button.onClick.AddListener(() => OnInspectorSkillClicked(rowIndex));
-            inspectorSkillButtons[i] = button;
-
-            Text label = CreateText("Label", row, 12, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.84f, 1f, 0.96f, 1f));
-            label.lineSpacing = 0.82f;
-            ApplyCrispCyberText(label, new Color(0f, 0.1f, 0.16f, 0.9f));
-            SetAnchors(label.rectTransform, new Vector2(0.035f, 0f), new Vector2(0.965f, 1f));
-            inspectorSkillLabels[i] = label;
-        }
-
-        inspectorSkillRoot.gameObject.SetActive(false);
     }
 
     private Button CreateSectionBackButton(Transform parent)
@@ -6725,6 +7414,216 @@ public class MainTerminalController : MonoBehaviour
         }
 
         return null;
+    }
+
+    // =====================================================================
+    // Skill-swap popup support: procedural star icons + battle-style card chrome
+    // =====================================================================
+
+    private const string SkillSwapElementIconPrefix = "UI/Elements/Element_";
+    private const string SkillSwapInstructionIconPrefix = "UI/Instructions/Instruction_";
+    private const string SkillSwapSelectFrameResourcePath = "UI/SkillFrame/scifi_inventory02_box_select01";
+
+    /// <summary>
+    /// Five-pointed star drawn procedurally (same approach as the battle HUD's
+    /// triangle / chamfer sprites). filled = solid; otherwise a uniform-width outline.
+    /// </summary>
+    private static Sprite StarSprite(bool filled)
+    {
+        if (filled && cachedFilledStarSprite != null) return cachedFilledStarSprite;
+        if (!filled && cachedHollowStarSprite != null) return cachedHollowStarSprite;
+
+        const int size = 32;
+        const int outline = 3; // outline thickness for the hollow variant
+        float center = (size - 1) * 0.5f;
+        float outerR = size * 0.47f;
+        float innerR = outerR * 0.46f;
+
+        var vx = new float[10];
+        var vy = new float[10];
+        for (int k = 0; k < 10; k++)
+        {
+            float ang = (90f + k * 36f) * Mathf.Deg2Rad; // first point at top
+            float r = (k % 2 == 0) ? outerR : innerR;
+            vx[k] = center + r * Mathf.Cos(ang);
+            vy[k] = center + r * Mathf.Sin(ang);
+        }
+
+        var inside = new bool[size * size];
+        for (int y = 0; y < size; y++)
+            for (int x = 0; x < size; x++)
+                inside[y * size + x] = PointInStarPolygon(x, y, vx, vy);
+
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+        };
+        Color clear = new Color(0f, 0f, 0f, 0f);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                bool on = inside[y * size + x];
+                if (on && !filled)
+                    on = NearStarBoundary(inside, size, x, y, outline);
+                texture.SetPixel(x, y, on ? Color.white : clear);
+            }
+        }
+        texture.Apply();
+
+        Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f);
+        sprite.name = filled ? "FavoriteStarFilled" : "FavoriteStarHollow";
+        if (filled) cachedFilledStarSprite = sprite; else cachedHollowStarSprite = sprite;
+        return sprite;
+    }
+
+    private static bool PointInStarPolygon(float px, float py, float[] vx, float[] vy)
+    {
+        bool inside = false;
+        int n = vx.Length;
+        for (int i = 0, j = n - 1; i < n; j = i++)
+        {
+            if (((vy[i] > py) != (vy[j] > py)) &&
+                (px < (vx[j] - vx[i]) * (py - vy[i]) / (vy[j] - vy[i]) + vx[i]))
+                inside = !inside;
+        }
+        return inside;
+    }
+
+    private static bool NearStarBoundary(bool[] inside, int size, int x, int y, int thickness)
+    {
+        for (int dy = -thickness; dy <= thickness; dy++)
+        {
+            for (int dx = -thickness; dx <= thickness; dx++)
+            {
+                int nx = x + dx, ny = y + dy;
+                if (nx < 0 || ny < 0 || nx >= size || ny >= size)
+                    return true; // star edge against the texture edge reads as outline
+                if (!inside[ny * size + nx])
+                    return true;
+            }
+        }
+        return false;
+    }
+
+    private Sprite SkillSwapElementIcon(ElementType elementType)
+    {
+        int i = (int)elementType;
+        if (i < 0 || i >= skillSwapElementIcons.Length) return null;
+        if (skillSwapElementIcons[i] == null)
+            skillSwapElementIcons[i] = Resources.Load<Sprite>($"{SkillSwapElementIconPrefix}{elementType}");
+        return skillSwapElementIcons[i];
+    }
+
+    private Sprite SkillSwapInstructionIcon(InstructionType instructionType)
+    {
+        int i = (int)instructionType;
+        if (i < 0 || i >= skillSwapInstructionIcons.Length) return null;
+        if (skillSwapInstructionIcons[i] == null)
+            skillSwapInstructionIcons[i] = Resources.Load<Sprite>($"{SkillSwapInstructionIconPrefix}{instructionType}");
+        return skillSwapInstructionIcons[i];
+    }
+
+    private static Sprite SkillSwapSelectFrameSprite()
+    {
+        if (cachedSkillSelectFrameSprite == null)
+            cachedSkillSelectFrameSprite = Resources.Load<Sprite>(SkillSwapSelectFrameResourcePath);
+        return cachedSkillSelectFrameSprite;
+    }
+
+    private static Sprite SkillCardFrameSprite()
+    {
+        if (cachedSkillCardFrameSprite == null)
+            cachedSkillCardFrameSprite = BuildChamferedSkillSprite(
+                new Color(0.035f, 0.080f, 0.122f, 0.96f),
+                new Color(0.10f, 0.33f, 0.46f, 1f),
+                "SkillCardFrame");
+        return cachedSkillCardFrameSprite;
+    }
+
+    private static Sprite BuildChamferedSkillSprite(Color fill, Color edge, string spriteName)
+    {
+        // Mirrors BattleHudController's chamfered panel chrome so payload skill
+        // cards wear the same cyber-glass border as the battle skill slots.
+        const int size = 28;
+        const int chamfer = 5;
+        const int border = 2;
+        const int slice = chamfer + border;
+
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+        };
+        Color clear = new Color(0f, 0f, 0f, 0f);
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                int l = x, r = size - 1 - x, b = y, t = size - 1 - y;
+                bool cut = (l + b < chamfer) || (r + b < chamfer) || (l + t < chamfer) || (r + t < chamfer);
+                if (cut) { texture.SetPixel(x, y, clear); continue; }
+                bool diagonalEdge = (l + b < chamfer + border) || (r + b < chamfer + border) ||
+                                    (l + t < chamfer + border) || (r + t < chamfer + border);
+                int straight = Mathf.Min(Mathf.Min(l, r), Mathf.Min(b, t));
+                bool straightEdge = straight < border;
+                texture.SetPixel(x, y, diagonalEdge || straightEdge ? edge : fill);
+            }
+        }
+        texture.Apply();
+        Sprite sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
+            SpriteMeshType.FullRect, new Vector4(slice, slice, slice, slice));
+        sprite.name = spriteName;
+        return sprite;
+    }
+
+    // Battle skill-tag border tints (mirrors BattleHudController's SkillTag* colors).
+    private static readonly Color SkillTagCPTint      = new Color(1f, 0.70f, 0.24f, 1f);
+    private static readonly Color SkillTagPowerTint   = new Color(1f, 0.62f, 0.40f, 1f);
+    private static readonly Color SkillTagCounterTint = new Color(0.35f, 0.85f, 0.50f, 1f);
+
+    private static Sprite SkillSwapPanelSprite()
+    {
+        if (cachedSkillSwapPanelSprite == null)
+            cachedSkillSwapPanelSprite = BuildChamferedSkillSprite(
+                new Color(0.014f, 0.034f, 0.056f, 0.985f),
+                new Color(0.13f, 0.44f, 0.56f, 1f),
+                "SkillSwapPanelFrame");
+        return cachedSkillSwapPanelSprite;
+    }
+
+    /// <summary>White-bordered chamfer chip; Image.color tints the border (battle tag style).</summary>
+    private static Sprite SkillChipFrameSprite()
+    {
+        if (cachedSkillChipFrameSprite == null)
+            cachedSkillChipFrameSprite = BuildChamferedSkillSprite(
+                new Color(0.045f, 0.075f, 0.10f, 0.94f),
+                Color.white,
+                "SkillSwapChipFrame");
+        return cachedSkillChipFrameSprite;
+    }
+
+    private static Color InstructionAccentColor(InstructionType instructionType)
+    {
+        switch (instructionType)
+        {
+            case InstructionType.Attack:  return new Color(1.00f, 0.36f, 0.30f, 1f);
+            case InstructionType.Defense: return new Color(0.38f, 0.86f, 1.00f, 1f);
+            case InstructionType.Status:  return new Color(0.45f, 1.00f, 0.55f, 1f);
+            default:                      return Color.white;
+        }
+    }
+
+    private static string InstructionLetterFor(InstructionType instructionType)
+    {
+        switch (instructionType)
+        {
+            case InstructionType.Attack:  return "A";
+            case InstructionType.Defense: return "D";
+            case InstructionType.Status:  return "S";
+            default:                      return "?";
+        }
     }
 
     private static Image CreateImage(string objectName, Transform parent, Color color)
