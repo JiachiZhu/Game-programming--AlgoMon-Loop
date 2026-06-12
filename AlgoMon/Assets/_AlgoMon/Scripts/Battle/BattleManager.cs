@@ -2562,6 +2562,9 @@ public class BattleManager : MonoBehaviour
         hud.SetStatus(BattleHudController.Side.Enemy, $"Status: {FormatUnitStatus(enemy)}");
 
         bool canAct = phase == BattlePhase.WaitingForPlayer;
+        // Skill slots preview their element matchup against the active enemy;
+        // runs every refresh so enemy switches re-evaluate the chips.
+        hud.SetOpposingElement(UnitElementType(enemy));
         if (selectingSwitchTarget && canAct)
             RenderSwitchSlots();
         else
@@ -2643,6 +2646,15 @@ public class BattleManager : MonoBehaviour
                 SwitchPortraitFor(unit),
                 available);
         }
+    }
+
+    private static ElementType UnitElementType(BattleUnit unit)
+    {
+        if (unit == null)
+            return ElementType.Normal;
+        return unit.Instance != null && unit.Instance.data != null
+            ? unit.Instance.data.elementType
+            : unit.Config.elementType;
     }
 
     private static Sprite SwitchPortraitFor(BattleUnit unit)

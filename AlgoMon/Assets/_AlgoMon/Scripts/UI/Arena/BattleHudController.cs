@@ -66,6 +66,21 @@ public class BattleHudController : MonoBehaviour
     // CP dot palette used by both prefab defaults and live HUD updates.
     private static readonly Color32 CPDotActive   = new Color32(120, 235, 244, 255);
     private static readonly Color32 CPDotInactive = new Color32(120, 235, 244,   0);
+
+    // Battery feedback layers: warm-white afterimage where HP just was, plus
+    // warning washes laid over the live fill once charge runs low.
+    private static readonly Color BatteryGhostColor = new Color(1f, 0.93f, 0.84f, 0.85f);
+    private static readonly Color BatteryWarnWash   = new Color(1f, 0.70f, 0.18f, 0.30f);
+    private static readonly Color BatteryDangerWash = new Color(1f, 0.24f, 0.16f, 0.42f);
+    private static readonly Color BatteryDangerText = new Color(1f, 0.55f, 0.50f, 1f);
+
+    // Skill-slot element preview vs the current opponent, and CP affordability.
+    private static readonly Color EffectivenessStrongColor = new Color(0.45f, 1f, 0.55f, 1f);
+    private static readonly Color EffectivenessWeakColor   = new Color(1f, 0.55f, 0.36f, 1f);
+    private static readonly Color SkillTagTextColor        = new Color(0.92f, 1f, 0.94f, 1f);
+    private static readonly Color CPShortfallColor         = new Color(1f, 0.42f, 0.42f, 1f);
+    private static readonly Color HotkeyHintColor          = new Color(0.55f, 0.88f, 0.97f, 0.70f);
+    private static Sprite whitePixelSprite;
     private static readonly Vector2 AnnouncerAnchorMin = new Vector2(0.30f, 0.805f);
     private static readonly Vector2 AnnouncerAnchorMax = new Vector2(0.70f, 0.925f);
 
@@ -81,6 +96,13 @@ public class BattleHudController : MonoBehaviour
     [Header("Resource Animation")]
     [SerializeField, Min(0f)] private float batteryLerpSpeed = 8f;
     [SerializeField, Min(0f)] private float cpLerpSpeed = 12f;
+    // Damage afterimage: when battery drops, a pale ghost layer lingers at the
+    // old value for a beat, then drains slowly so the size of the hit reads.
+    [SerializeField, Min(0f)] private float batteryGhostHoldSeconds = 0.45f;
+    [SerializeField, Min(0f)] private float batteryGhostDrainSpeed = 2.4f;
+    // Low-battery warning thresholds (fraction of max battery).
+    [SerializeField, Range(0f, 1f)] private float lowBatteryWarnRatio = 0.5f;
+    [SerializeField, Range(0f, 1f)] private float lowBatteryDangerRatio = 0.25f;
 
     [Header("Round Prompt Animation")]
     [SerializeField] private Image roundSandclockImage;
@@ -139,6 +161,8 @@ public class BattleHudController : MonoBehaviour
         public Text    LevelText;
         public Text    BatteryValueText;
         public Image   BatteryFill;
+        public Image   BatteryGhost;
+        public Image   BatteryWash;
         public Image[] CPDots;
         public Text    CPValueText;
         public Text    StatusText;
@@ -152,6 +176,8 @@ public class BattleHudController : MonoBehaviour
         public int TargetBattery;
         public int TargetBatteryMax;
         public float DisplayBattery;
+        public float GhostBattery;
+        public float GhostHoldTimer;
 
         public bool CPInitialized;
         public int TargetCP;
@@ -182,6 +208,21 @@ public class BattleHudController : MonoBehaviour
     private readonly Image[]      switchPortraitImages   = new Image[MaxSkillSlots];
     private readonly Image[]      switchElementChipIcons = new Image[MaxSkillSlots];
     private readonly SwitchSlotDetail[] switchSlotDetails = new SwitchSlotDetail[MaxSkillSlots];
+
+    // Element identity strip + effectiveness preview + keyboard hints.
+    private readonly Image[]      skillTypeStrips             = new Image[MaxSkillSlots];
+    private readonly GameObject[] skillEffectivenessTagObjects = new GameObject[MaxSkillSlots];
+    private readonly Text[]       skillEffectivenessTexts      = new Text[MaxSkillSlots];
+    private readonly Text[]       skillHotkeyTexts             = new Text[MaxSkillSlots];
+    private readonly ElementType[] skillSlotElements           = new ElementType[MaxSkillSlots];
+    private readonly bool[]        skillSlotDealsDamage        = new bool[MaxSkillSlots];
+    private ElementType opposingElement = ElementType.Normal;
+    private bool opposingElementKnown;
+
+    private static readonly KeyCode[] SkillHotkeys =
+        { KeyCode.Alpha1, KeyCode.Alpha2, KeyCode.Alpha3, KeyCode.Alpha4 };
+    private static readonly KeyCode[] SkillHotkeysKeypad =
+        { KeyCode.Keypad1, KeyCode.Keypad2, KeyCode.Keypad3, KeyCode.Keypad4 };
 
     private struct SwitchSlotDetail
     {
@@ -274,6 +315,7 @@ public class BattleHudController : MonoBehaviour
         UpdateRoundSandclockAnimation();
         UpdateAnnouncerPulse();
         EnsureSkillPanelPresentation();
+        HandleSkillHotkeys();
     }
 
     private void OnDestroy()
@@ -306,6 +348,7 @@ public class BattleHudController : MonoBehaviour
         enemy  = BindCombatant("SafeArea/CombatLayer/EnemyCombatantPanel");
         playerDisplay = default;
         enemyDisplay = default;
+        commandPanelGroup = EnsureCanvasGroup("SafeArea/CommandPanel");
         ApplyUnifiedPanelChrome();
         EnsureSkillPanelPresentation();
 
@@ -1018,16 +1061,36 @@ public class BattleHudController : MonoBehaviour
         if (refs.BatteryValueText != null)
             refs.BatteryValueText.text = $"{safeCurrent}/{safeMax}";
 
-        if (!display.BatteryInitialized)
+        // Max change means a different unit is in the bar (switch-in): snap both
+        // layers instead of ghosting the previous AlgoMon's value.
+        if (!display.BatteryInitialized || display.TargetBatteryMax != safeMax)
         {
             display.DisplayBattery = safeCurrent;
+            display.GhostBattery = safeCurrent;
+            display.GhostHoldTimer = 0f;
             display.BatteryInitialized = true;
+        }
+
+        // Damage (target actually dropped): park the ghost at the value the bar
+        // showed before the hit and hold briefly. RefreshHud re-sends the same
+        // value every update, so compare against the previous target, not the
+        // displayed value, or the hold would re-arm forever. Healing: the ghost
+        // rides up with the bar.
+        if (safeCurrent < display.TargetBattery)
+        {
+            display.GhostBattery = Mathf.Max(display.DisplayBattery, display.GhostBattery);
+            display.GhostHoldTimer = batteryGhostHoldSeconds;
+        }
+        else if (safeCurrent >= display.GhostBattery)
+        {
+            display.GhostBattery = safeCurrent;
         }
 
         display.TargetBattery = safeCurrent;
         display.TargetBatteryMax = safeMax;
         display.DisplayBattery = Mathf.Clamp(display.DisplayBattery, 0f, safeMax);
-        ApplyBatteryVisual(refs, display.DisplayBattery, safeMax);
+        display.GhostBattery = Mathf.Clamp(display.GhostBattery, 0f, safeMax);
+        ApplyBatteryVisual(refs, display.DisplayBattery, display.GhostBattery, safeMax);
     }
 
     public void SetCP(Side side, int current, int max)
@@ -1051,6 +1114,9 @@ public class BattleHudController : MonoBehaviour
         display.TargetCPMax = safeMax;
         display.DisplayCP = Mathf.Clamp(display.DisplayCP, 0f, safeMax);
         ApplyCPVisual(refs, display.DisplayCP, safeMax, side == Side.Player);
+
+        if (side == Side.Player)
+            RefreshCPAffordability();
     }
 
     public void SetStatus(Side side, string statusText)
@@ -1094,6 +1160,11 @@ public class BattleHudController : MonoBehaviour
         LayoutSkillTags(index, true, showsPower, showsCounter);
         SetSkillSlotBadges(index, skill);
 
+        skillSlotElements[index] = skill.elementType;
+        skillSlotDealsDamage[index] = skill.damageType != DamageType.None && skill.basePower > 0;
+        ApplySkillEffectiveness(index);
+        RefreshCPAffordability();
+
         // Hover preview follows the skill currently in the slot.
         skillHoverTitles[index] = skill.skillName;
         skillHoverBodies[index] = BuildSkillDetailFallback(skill);
@@ -1131,7 +1202,11 @@ public class BattleHudController : MonoBehaviour
         SetTag(skillCounterTagObjects[index], skillCounterTexts[index], !string.IsNullOrWhiteSpace(stateText), stateText);
         LayoutSwitchTags(index);
         SetSkillSlotBadges(index, null);
+        SetTypeStrip(index, true, elementType);
+        skillSlotDealsDamage[index] = false;
+        ApplySkillEffectiveness(index);
         skillCPCosts[index] = 0;
+        RefreshCPAffordability();
         switchSlotDetails[index] = new SwitchSlotDetail
         {
             HasData = true,
@@ -1183,6 +1258,7 @@ public class BattleHudController : MonoBehaviour
         skillCPCosts[index] = Mathf.Max(0, cpCost);
         if (skillCPTexts[index] != null)
             skillCPTexts[index].text = $"CP {skillCPCosts[index]}";
+        RefreshCPAffordability();
     }
 
     public void SetActionHover(ActionButton button, string title, string body)
@@ -1236,7 +1312,10 @@ public class BattleHudController : MonoBehaviour
         SetTag(skillCounterTagObjects[index], skillCounterTexts[index], false, string.Empty);
         LayoutSkillTags(index, false, false, false);
         SetSkillSlotBadges(index, null);
+        skillSlotDealsDamage[index] = false;
+        ApplySkillEffectiveness(index);
         skillCPCosts[index] = 0;
+        RefreshCPAffordability();
         skillHoverTitles[index] = string.Empty;
         skillHoverBodies[index] = string.Empty;
     }
@@ -1762,9 +1841,14 @@ public class BattleHudController : MonoBehaviour
             buttonOutline.enabled = true;
         }
 
-        Transform typeStrip = root.Find("TypeStrip");
-        if (typeStrip != null)
-            typeStrip.gameObject.SetActive(false);
+        // Element identity strip: slim colour-coded edge on the row's left.
+        // SetTypeStrip drives its colour/visibility from the slot's content.
+        skillTypeStrips[index] = EnsureChildImage(root, "TypeStrip");
+        SetStretchRect(skillTypeStrips[index].rectTransform, new Vector2(0.012f, 0.08f), new Vector2(0.034f, 0.92f));
+        skillTypeStrips[index].sprite = null;
+        skillTypeStrips[index].type = Image.Type.Simple;
+        skillTypeStrips[index].raycastTarget = false;
+        skillTypeStrips[index].gameObject.SetActive(false);
 
         RectTransform nameRect = skillNameTexts[index] != null
             ? skillNameTexts[index].GetComponent<RectTransform>()
@@ -1841,6 +1925,33 @@ public class BattleHudController : MonoBehaviour
         ConfigureSkillTag(skillCPTagObjects[index], skillCPTexts[index], new Vector2(0.205f, 0.125f), new Vector2(0.370f, 0.440f));
         ConfigureSkillTag(skillPowerTagObjects[index], skillPowerTexts[index], new Vector2(0.395f, 0.125f), new Vector2(0.585f, 0.440f));
         ConfigureSkillTag(skillCounterTagObjects[index], skillCounterTexts[index], new Vector2(0.610f, 0.125f), new Vector2(0.805f, 0.440f));
+
+        // Effectiveness preview vs the current opponent (STRONG / WEAK). Sits in
+        // the free well right of the counter tag; hidden on neutral matchups.
+        if (skillEffectivenessTagObjects[index] == null)
+        {
+            Image effectivenessChip = EnsureChildImage(root, "EffectivenessTag");
+            skillEffectivenessTagObjects[index] = effectivenessChip.gameObject;
+            skillEffectivenessTexts[index] = EnsureChildText(effectivenessChip.transform, "Text", 12, TextAnchor.MiddleCenter);
+        }
+        ConfigureSkillTag(
+            skillEffectivenessTagObjects[index],
+            skillEffectivenessTexts[index],
+            new Vector2(0.815f, 0.125f),
+            new Vector2(0.985f, 0.440f));
+        skillEffectivenessTexts[index].fontStyle = FontStyle.Bold;
+        ApplySkillEffectiveness(index);
+
+        // Keyboard hint: faint slot number in the top-right corner; pressing the
+        // matching 1-4 key clicks the slot (HandleSkillHotkeys).
+        skillHotkeyTexts[index] = EnsureChildText(root, "HotkeyText", 12, TextAnchor.MiddleCenter);
+        SetStretchRect(skillHotkeyTexts[index].rectTransform, new Vector2(0.880f, 0.560f), new Vector2(0.980f, 0.870f));
+        skillHotkeyTexts[index].text = (index + 1).ToString();
+        skillHotkeyTexts[index].font = ReadableHudFont();
+        skillHotkeyTexts[index].fontStyle = FontStyle.Bold;
+        skillHotkeyTexts[index].color = HotkeyHintColor;
+        skillHotkeyTexts[index].raycastTarget = false;
+        EnsureShadow(skillHotkeyTexts[index].gameObject, new Color(0f, 0f, 0f, 0.6f), new Vector2(1f, -1f));
         if (skillCPTagObjects[index] != null)
         {
             switchElementChipIcons[index] = EnsureChildImage(skillCPTagObjects[index].transform, "SwitchElementIcon");
@@ -2078,7 +2189,7 @@ public class BattleHudController : MonoBehaviour
         text.resizeTextForBestFit = true;
         text.resizeTextMinSize = 9;
         text.resizeTextMaxSize = Mathf.Max(13, text.fontSize);
-        text.color = new Color(0.92f, 1f, 0.94f, 1f);
+        text.color = SkillTagTextColor;
         text.raycastTarget = false;
         EnsureShadow(text.gameObject, new Color(0f, 0f, 0f, 0.65f), new Vector2(1f, -1f));
     }
@@ -2095,6 +2206,7 @@ public class BattleHudController : MonoBehaviour
             skillElementBadges[index].gameObject.SetActive(visible);
         if (skillElementIconImages[index] != null)
             skillElementIconImages[index].gameObject.SetActive(false);
+        SetTypeStrip(index, visible, visible ? skill.elementType : ElementType.Normal);
 
         if (!visible)
             return;
@@ -2144,6 +2256,102 @@ public class BattleHudController : MonoBehaviour
         {
             skillElementTexts[index].text = ElementShortLabel(skill.elementType);
             skillElementTexts[index].gameObject.SetActive(elementIcon == null);
+        }
+    }
+
+    private void SetTypeStrip(int index, bool visible, ElementType elementType)
+    {
+        if (!IndexInRange(index) || skillTypeStrips[index] == null)
+            return;
+
+        skillTypeStrips[index].gameObject.SetActive(visible);
+        if (!visible)
+            return;
+
+        Color strip = ElementBadgeColor(elementType);
+        strip.a = 0.95f;
+        skillTypeStrips[index].color = strip;
+    }
+
+    /// <summary>
+    /// Tells the HUD which element the current opponent has so each damaging
+    /// skill slot can preview its matchup (STRONG x1.5 / WEAK x0.75 chip).
+    /// BattleManager calls this from RefreshHud, so enemy switches re-evaluate.
+    /// </summary>
+    public void SetOpposingElement(ElementType elementType)
+    {
+        opposingElement = elementType;
+        opposingElementKnown = true;
+        for (int i = 0; i < MaxSkillSlots; i++)
+            ApplySkillEffectiveness(i);
+    }
+
+    private void ApplySkillEffectiveness(int index)
+    {
+        if (!IndexInRange(index))
+            return;
+
+        GameObject tagObject = skillEffectivenessTagObjects[index];
+        Text label = skillEffectivenessTexts[index];
+        if (tagObject == null || label == null)
+            return;
+
+        if (!opposingElementKnown || !skillSlotDealsDamage[index])
+        {
+            tagObject.SetActive(false);
+            return;
+        }
+
+        float multiplier = CombatResolver.GetElementMultiplier(skillSlotElements[index], opposingElement);
+        if (Mathf.Approximately(multiplier, 1f))
+        {
+            tagObject.SetActive(false);
+            return;
+        }
+
+        bool strong = multiplier > 1f;
+        tagObject.SetActive(true);
+        label.text = strong ? "STRONG" : "WEAK";
+        label.color = strong ? EffectivenessStrongColor : EffectivenessWeakColor;
+    }
+
+    /// <summary>
+    /// Recolours each slot's CP tag red while the player can't afford it, so a
+    /// dimmed row also says WHY it is unavailable. Driven by the player-side
+    /// CP value; switch slots keep cost 0 and never flag.
+    /// </summary>
+    private void RefreshCPAffordability()
+    {
+        int currentCP = playerDisplay.CPInitialized ? playerDisplay.TargetCP : int.MaxValue;
+        for (int i = 0; i < MaxSkillSlots; i++)
+        {
+            if (skillCPTexts[i] == null)
+                continue;
+
+            bool shortfall = skillCPCosts[i] > currentCP;
+            skillCPTexts[i].color = shortfall ? CPShortfallColor : SkillTagTextColor;
+        }
+    }
+
+    private void HandleSkillHotkeys()
+    {
+        // Only while the command bar is visible/interactable (player's turn) and
+        // no post-battle overlay is up. Keys 1-4 mirror clicking the slots, so
+        // they also work for switch-target selection.
+        if (commandPanelGroup == null || !commandPanelGroup.interactable || commandPanelGroup.alpha <= 0.5f)
+            return;
+        if (postBattlePanel != null && postBattlePanel.activeSelf)
+            return;
+
+        for (int i = 0; i < MaxSkillSlots; i++)
+        {
+            if (!Input.GetKeyDown(SkillHotkeys[i]) && !Input.GetKeyDown(SkillHotkeysKeypad[i]))
+                continue;
+
+            Button button = skillButtons[i];
+            if (button != null && button.interactable && button.isActiveAndEnabled)
+                button.onClick.Invoke();
+            break;
         }
     }
 
@@ -2588,7 +2796,20 @@ public class BattleHudController : MonoBehaviour
                 display.TargetBattery,
                 batteryLerpSpeed,
                 Time.deltaTime);
-            ApplyBatteryVisual(refs, display.DisplayBattery, display.TargetBatteryMax);
+
+            // Ghost afterimage: hold, then melt toward the live value.
+            if (display.GhostHoldTimer > 0f)
+                display.GhostHoldTimer = Mathf.Max(0f, display.GhostHoldTimer - Time.deltaTime);
+            else if (display.GhostBattery > display.TargetBattery)
+                display.GhostBattery = SmoothTo(
+                    display.GhostBattery,
+                    display.TargetBattery,
+                    batteryGhostDrainSpeed,
+                    Time.deltaTime);
+            if (display.GhostBattery < display.DisplayBattery)
+                display.GhostBattery = display.DisplayBattery;
+
+            ApplyBatteryVisual(refs, display.DisplayBattery, display.GhostBattery, display.TargetBatteryMax);
         }
 
         if (display.CPInitialized)
@@ -2612,14 +2833,48 @@ public class BattleHudController : MonoBehaviour
         return Mathf.Abs(value - target) <= 0.01f ? target : value;
     }
 
-    private static void ApplyBatteryVisual(CombatantRefs refs, float current, int max)
+    private void ApplyBatteryVisual(CombatantRefs refs, float current, float ghost, int max)
     {
-        if (refs.BatteryFill == null)
-            return;
-
         // The fill's sprite, colour, Filled-mode and position are authored in the
-        // prefab; only the dynamic clip amount is driven here.
-        refs.BatteryFill.fillAmount = max <= 0 ? 0f : Mathf.Clamp01(current / max);
+        // prefab; only the dynamic clip amount is driven here. The ghost and
+        // warning wash are runtime layers created in EnsureBatteryFeedbackLayers.
+        float ratio = max <= 0 ? 0f : Mathf.Clamp01(current / max);
+        float ghostRatio = max <= 0 ? 0f : Mathf.Clamp01(ghost / max);
+
+        if (refs.BatteryFill != null)
+            refs.BatteryFill.fillAmount = ratio;
+        if (refs.BatteryGhost != null)
+            refs.BatteryGhost.fillAmount = ghostRatio;
+
+        ApplyLowBatteryWarning(refs, ratio);
+    }
+
+    private void ApplyLowBatteryWarning(CombatantRefs refs, float ratio)
+    {
+        bool danger = ratio <= lowBatteryDangerRatio;
+        if (refs.BatteryWash != null)
+        {
+            Color wash;
+            if (danger)
+            {
+                wash = BatteryDangerWash;
+                wash.a *= 0.65f + 0.35f * (0.5f + 0.5f * Mathf.Sin(Time.unscaledTime * 7f));
+            }
+            else if (ratio <= lowBatteryWarnRatio)
+            {
+                wash = BatteryWarnWash;
+            }
+            else
+            {
+                wash = new Color(0f, 0f, 0f, 0f);
+            }
+
+            refs.BatteryWash.color = wash;
+            refs.BatteryWash.fillAmount = ratio;
+        }
+
+        if (refs.BatteryValueText != null)
+            refs.BatteryValueText.color = danger ? BatteryDangerText : Color.white;
     }
 
     private void ApplyCPVisual(CombatantRefs refs, float current, int max, bool allowPreview = false)
@@ -2680,8 +2935,95 @@ public class BattleHudController : MonoBehaviour
         if (cpRow != null)
             refs.CPDots = FindCPDots(cpRow);
 
+        EnsureBatteryFeedbackLayers(ref refs);
         ConfigureCombatantTextHierarchy(refs);
         return refs;
+    }
+
+    /// <summary>
+    /// Builds the two runtime layers around the prefab-authored battery fill:
+    /// a ghost afterimage just beneath it (shows the chunk of HP that was lost)
+    /// and a low-battery warning wash just above it. Both are plain filled
+    /// rectangles matching the fill's rect, so the prefab stays untouched.
+    /// </summary>
+    private void EnsureBatteryFeedbackLayers(ref CombatantRefs refs)
+    {
+        if (refs.BatteryFill == null)
+            return;
+
+        RectTransform fillRect = refs.BatteryFill.rectTransform;
+        Transform barRoot = fillRect.parent;
+        Image.FillMethod fillMethod = refs.BatteryFill.type == Image.Type.Filled
+            ? refs.BatteryFill.fillMethod
+            : Image.FillMethod.Horizontal;
+        int fillOrigin = refs.BatteryFill.type == Image.Type.Filled
+            ? refs.BatteryFill.fillOrigin
+            : 0;
+
+        refs.BatteryGhost = EnsureChildImage(barRoot, "GhostFill");
+        ConfigureBatteryLayer(refs.BatteryGhost, fillRect, fillMethod, fillOrigin, BatteryGhostColor);
+
+        refs.BatteryWash = EnsureChildImage(barRoot, "LowBatteryWash");
+        ConfigureBatteryLayer(refs.BatteryWash, fillRect, fillMethod, fillOrigin, new Color(0f, 0f, 0f, 0f));
+
+        // Draw order: ghost beneath the live fill, wash directly above it.
+        // Guarded moves keep the order stable when Bind() runs again.
+        Transform ghost = refs.BatteryGhost.transform;
+        Transform wash = refs.BatteryWash.transform;
+        if (ghost.GetSiblingIndex() > fillRect.GetSiblingIndex())
+            ghost.SetSiblingIndex(fillRect.GetSiblingIndex());
+        if (wash.GetSiblingIndex() < fillRect.GetSiblingIndex())
+            wash.SetSiblingIndex(fillRect.GetSiblingIndex());
+        else if (wash.GetSiblingIndex() > fillRect.GetSiblingIndex() + 1)
+            wash.SetSiblingIndex(fillRect.GetSiblingIndex() + 1);
+    }
+
+    private static void ConfigureBatteryLayer(
+        Image layer,
+        RectTransform fillRect,
+        Image.FillMethod fillMethod,
+        int fillOrigin,
+        Color color)
+    {
+        if (layer == null || fillRect == null)
+            return;
+
+        RectTransform rect = layer.rectTransform;
+        rect.anchorMin = fillRect.anchorMin;
+        rect.anchorMax = fillRect.anchorMax;
+        rect.pivot = fillRect.pivot;
+        rect.anchoredPosition = fillRect.anchoredPosition;
+        rect.sizeDelta = fillRect.sizeDelta;
+        rect.localScale = fillRect.localScale;
+
+        layer.sprite = WhitePixelSprite();
+        layer.type = Image.Type.Filled;
+        layer.fillMethod = fillMethod;
+        layer.fillOrigin = fillOrigin;
+        layer.fillAmount = 0f;
+        layer.color = color;
+        layer.raycastTarget = false;
+    }
+
+    /// <summary>
+    /// 1x1 white sprite for the runtime battery layers. Image ignores
+    /// Filled-mode clipping with a null sprite, so a real sprite is required.
+    /// </summary>
+    private static Sprite WhitePixelSprite()
+    {
+        if (whitePixelSprite != null)
+            return whitePixelSprite;
+
+        var texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+        {
+            filterMode = FilterMode.Point,
+            wrapMode = TextureWrapMode.Clamp,
+        };
+        texture.SetPixel(0, 0, Color.white);
+        texture.Apply();
+        whitePixelSprite = Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 100f);
+        whitePixelSprite.name = "HudWhitePixel";
+        return whitePixelSprite;
     }
 
     private void ConfigureCombatantTextHierarchy(CombatantRefs refs)
