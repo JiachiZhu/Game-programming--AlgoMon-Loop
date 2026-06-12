@@ -482,7 +482,7 @@ public class GameManager : MonoBehaviour
 
         if (!CanAffordCompute(offer.ComputeCost))
         {
-            reason = $"Need {offer.ComputeCost - computeBalance} more compute.";
+            reason = $"Need {offer.ComputeCost - computeBalance} more credits.";
             return false;
         }
 
@@ -496,7 +496,7 @@ public class GameManager : MonoBehaviour
 
         if (!TrySpendCompute(offer.ComputeCost))
         {
-            message = "Compute spend failed.";
+            message = "Credit spend failed.";
             return false;
         }
 
@@ -557,7 +557,7 @@ public class GameManager : MonoBehaviour
         int cost = CurrentShopRefreshCost;
         if (!CanAffordCompute(cost))
         {
-            reason = $"Need {cost - computeBalance} more compute.";
+            reason = $"Need {cost - computeBalance} more credits.";
             return false;
         }
 
@@ -572,13 +572,13 @@ public class GameManager : MonoBehaviour
         int cost = CurrentShopRefreshCost;
         if (!TrySpendCompute(cost))
         {
-            message = "Compute spend failed.";
+            message = "Credit spend failed.";
             return false;
         }
 
         currentShopRefreshCount++;
         GenerateShopOffers();
-        message = $"Shop refreshed for {cost} compute. Next refresh costs {CurrentShopRefreshCost}.";
+        message = $"Shop refreshed for {cost} credits. Next refresh costs {CurrentShopRefreshCost}.";
         return true;
     }
 
@@ -914,6 +914,10 @@ public class GameManager : MonoBehaviour
         string encounterLabel = BuildBattleTransitionEncounterLabel(encounterNode);
         string riskLabel = BuildBattleTransitionRiskLabel(encounterNode);
 
+        // Silence the grid music first so the encounter-lock impact lands clean;
+        // the arena's battle track fades in on scene load.
+        AudioManager.Instance?.FadeOutMusic();
+        AudioManager.Instance?.PlayUiSfx(UiSfx.Impact);
         BattleLinkTransition.Play(
             encounterLabel,
             riskLabel,
@@ -990,6 +994,7 @@ public class GameManager : MonoBehaviour
 
         if (e.PlayerWon && completedNode != null && completedNode.nodeType != NodeType.Boss)
         {
+            AudioManager.Instance?.PlayRewardSfx();
             GoTo(GameScene.TheGrid);
             return;
         }

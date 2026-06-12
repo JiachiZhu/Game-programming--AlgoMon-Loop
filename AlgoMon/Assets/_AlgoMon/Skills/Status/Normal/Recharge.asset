@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   skillName: Recharge
   description: "Spend one turn to restore 5 CP. Participates in ASD check \u2014
-    can be countered by Attack skills with Nullify."
+    loses to Attack skills (you still take the hit), but the CP always restores."
   instructionType: 1
   damageType: 0
   elementType: 0

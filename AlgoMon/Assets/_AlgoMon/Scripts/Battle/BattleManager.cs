@@ -30,8 +30,8 @@ using UnityEngine;
 /// - SubroutineData triggers are applied at supported battle timing hooks
 /// - former special counter skills use generic SkillData fields
 ///
-/// Bag items and ally-faint Subroutine hooks are intentionally left for follow-up
-/// battle issues.
+/// Bag items (HUD button removed for now) and ally-faint Subroutine hooks are
+/// intentionally left for follow-up battle issues.
 /// </summary>
 [DisallowMultipleComponent]
 public class BattleManager : MonoBehaviour
@@ -44,6 +44,7 @@ public class BattleManager : MonoBehaviour
     private const float HackerSwitchMatchupImprovement = 0.25f;
     private const string PlayerPresentationId = "Player";
     private const string EnemyPresentationId = "Enemy";
+    private static readonly Dictionary<string, Sprite> switchPortraitSpriteCache = new Dictionary<string, Sprite>();
 
     private enum BattlePhase
     {
@@ -465,20 +466,20 @@ public class BattleManager : MonoBehaviour
         SkillData playerSkill = player.GetSkill(slotIndex);
         if (playerSkill == null)
         {
-            SetDetail("Skill Details", "No skill is loaded in this slot.");
+            RejectAction("TRACE", "No skill is loaded in this slot.", false);
             return;
         }
 
         if (IsDefenseOnCooldown(player, playerSkill))
         {
-            SetDetail(SkillName(playerSkill), "Defense is cooling down this round.");
+            RejectAction(SkillName(playerSkill), "Defense is cooling down this round.", false);
             return;
         }
 
         if (!CanPay(player, playerSkill))
         {
             int cost = EffectiveSkillCost(player, playerSkill);
-            SetDetail(SkillName(playerSkill), $"{player.Name} needs {cost} CP.");
+            RejectAction(SkillName(playerSkill), $"{player.Name} needs {cost} CP.", false);
             return;
         }
 
@@ -494,8 +495,7 @@ public class BattleManager : MonoBehaviour
 
         if (forcePlayerSwitchTarget)
         {
-            SetDetail("Switch Required", $"{player.Name} is offline. Choose a reserve AlgoMon.");
-            RefreshHud();
+            RejectAction("Switch Required", $"{player.Name} is offline. Choose a reserve AlgoMon.");
             return;
         }
 
@@ -503,7 +503,7 @@ public class BattleManager : MonoBehaviour
 
         if (rechargeSkill == null)
         {
-            SetDetail("Recharge", "Recharge skill asset is not assigned.");
+            RejectAction("Recharge", "Recharge skill asset is not assigned.", false);
             return;
         }
 
@@ -559,7 +559,7 @@ public class BattleManager : MonoBehaviour
             currentRound++;
             phase = BattlePhase.WaitingForPlayer;
             EmitLog("Awaiting next instruction.");
-            SetDetail("Skill Details", "Choose a skill.");
+            SetDetail("TRACE", "Choose a skill.");
             RefreshHud();
         }
 
@@ -825,6 +825,19 @@ public class BattleManager : MonoBehaviour
         ResolvePlayerSkill(slotIndex);
     }
 
+    /// <summary>
+    /// Player clicked something whose gameplay condition is not met (cooldown,
+    /// CP shortage, fainted target, trapped, ...). One glitch SFX + the detail
+    /// line; refreshHud mirrors what each call site did before the SFX existed.
+    /// </summary>
+    private void RejectAction(string title, string body, bool refreshHud = true)
+    {
+        AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
+        SetDetail(title, body);
+        if (refreshHud)
+            RefreshHud();
+    }
+
     private void HandleActionClicked(BattleHudController.ActionButton button)
     {
         if (phase != BattlePhase.WaitingForPlayer)
@@ -832,8 +845,7 @@ public class BattleManager : MonoBehaviour
 
         if (forcePlayerSwitchTarget)
         {
-            SetDetail("Switch Required", $"{player.Name} is offline. Choose a reserve AlgoMon.");
-            RefreshHud();
+            RejectAction("Switch Required", $"{player.Name} is offline. Choose a reserve AlgoMon.");
             return;
         }
 
@@ -841,12 +853,6 @@ public class BattleManager : MonoBehaviour
         {
             case BattleHudController.ActionButton.Recharge:
                 ResolveRecharge();
-                break;
-
-            case BattleHudController.ActionButton.Bag:
-                selectingSwitchTarget = false;
-                SetDetail("Bag", "Not yet implemented.");
-                RefreshHud();
                 break;
 
             case BattleHudController.ActionButton.Switch:
@@ -866,28 +872,25 @@ public class BattleManager : MonoBehaviour
         {
             if (forcePlayerSwitchTarget)
             {
-                SetDetail("Switch Required", $"{player.Name} is offline. Choose a reserve AlgoMon.");
-                RefreshHud();
+                RejectAction("Switch Required", $"{player.Name} is offline. Choose a reserve AlgoMon.");
                 return;
             }
 
             selectingSwitchTarget = false;
-            SetDetail("Skill Details", "Choose a skill.");
+            SetDetail("TRACE", "Choose a skill.");
             RefreshHud();
             return;
         }
 
         if (!CanSwitchOut(player))
         {
-            SetDetail("Switch", $"{player.Name} cannot switch right now.");
-            RefreshHud();
+            RejectAction("Switch", $"{player.Name} cannot switch right now.");
             return;
         }
 
         if (!HasSwitchTarget(playerParty, player))
         {
-            SetDetail("Switch", "No reserve AlgoMon is ready.");
-            RefreshHud();
+            RejectAction("Switch", "No reserve AlgoMon is ready.");
             return;
         }
 
@@ -904,8 +907,7 @@ public class BattleManager : MonoBehaviour
         bool forcedSwitch = forcePlayerSwitchTarget;
         if (!TryGetSwitchTarget(playerParty, player, partyIndex, forcedSwitch, out BattleUnit switchTarget, out string reason))
         {
-            SetDetail("Switch", reason);
-            RefreshHud();
+            RejectAction("Switch", reason);
             return;
         }
 
@@ -1357,7 +1359,15 @@ public class BattleManager : MonoBehaviour
             CounteredInstructionType = loser.Skill.instructionType
         });
 
-        EmitLog($"{winner.Actor.Name}'s {SkillName(winner.Skill)} wins the ASD check.");
+        AudioManager.Instance?.PlayCounterSfx();
+
+        string counterSummary = SkillDetailTextFormatter.BuildCounterSummary(winner.Skill);
+        if (counterSummary.StartsWith("Counter:", StringComparison.OrdinalIgnoreCase))
+            counterSummary = counterSummary.Substring("Counter:".Length).Trim();
+
+        EmitLog(string.IsNullOrWhiteSpace(counterSummary)
+            ? $"{winner.Actor.Name}'s {SkillName(winner.Skill)} counters."
+            : $"{winner.Actor.Name}'s {SkillName(winner.Skill)} counters: {counterSummary}");
         RefreshHud();
         if (logLineDelay > 0f)
             yield return new WaitForSeconds(logLineDelay);
@@ -1704,6 +1714,22 @@ public class BattleManager : MonoBehaviour
         if (action.WonCounter && action.Skill.counterRecast && phase == BattlePhase.Resolving && action.Target.CurrentBattery > 0)
         {
             EmitLog($"{SkillName(action.Skill)} recasts from counter momentum.");
+
+            // Re-emit the action so the recast strike replays the attacker's lunge +
+            // VFX (+ SFX), not just damage. It is a FRESH strike, not the countering
+            // hit itself, so WonCounter=false keeps it out of the counter-cut-in
+            // suppression. Without this the recast only ran damage resolution: the
+            // target flinched but the attacker showed no second attack effect.
+            EventBus.Publish(new BattleActionEvent
+            {
+                ActorId = PresentationIdFor(action.Actor),
+                ActorName = action.Actor.Name,
+                TargetId = PresentationIdFor(action.Target),
+                SkillName = SkillName(action.Skill),
+                InstructionType = action.Skill.instructionType,
+                WonCounter = false,
+                WasCountered = false
+            });
             RefreshHud();
             if (logLineDelay > 0f)
                 yield return new WaitForSeconds(logLineDelay);
@@ -1893,6 +1919,8 @@ public class BattleManager : MonoBehaviour
             DurationType = result.DurationType,
             Duration = result.Duration
         });
+
+        AudioManager.Instance?.PlayStatusSfx(IsBuffStatus(status));
 
         string stackPart = after == 1 ? "1 stack" : $"{after} stacks";
         EmitLog($"{target.Name} gains {status} ({stackPart}).");
@@ -2166,6 +2194,7 @@ public class BattleManager : MonoBehaviour
                 Amount = restored,
                 Label = $"+{restored} CP"
             });
+            AudioManager.Instance?.PlayStatusSfx(true); // charge = positive
         }
         return restored;
     }
@@ -2226,8 +2255,28 @@ public class BattleManager : MonoBehaviour
                 Amount = restored,
                 Label = $"+{restored}"
             });
+            AudioManager.Instance?.PlayStatusSfx(true); // heal = positive
         }
         return restored;
+    }
+
+    // Positive (buff) statuses use the charge/heal cue; everything else (Burn,
+    // Freeze, Leech, Ensnare, Throttle, Corrupted) uses the debuff cue.
+    private static bool IsBuffStatus(StatusType status)
+    {
+        switch (status)
+        {
+            case StatusType.ComputingUp:
+            case StatusType.ThroughputUp:
+            case StatusType.FirewallUp:
+            case StatusType.EncryptionUp:
+            case StatusType.Concurrent:
+            case StatusType.BufferLoad:
+            case StatusType.Overclock:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private BattleUnit UnitFor(AlgoMonInstance instance)
@@ -2452,47 +2501,40 @@ public class BattleManager : MonoBehaviour
     private void ShowPostBattleRewardSummary(string resultLine, EncounterReward reward)
     {
         string body = BuildPostBattleRewardBody(resultLine, reward);
-        SetDetail("Victory Rewards", body);
-        Announce("Rewards", "Node cleared. Review rewards, then continue.");
+        SetDetail("Node Cleared", body);
+        Announce("Rewards", "Rewards uploaded.");
 
         if (hud != null)
-            hud.ShowPostBattlePanel("Node Cleared", body, "Continue");
+            hud.ShowPostBattlePanel("Node Cleared", body, "Terminal");
     }
 
     private static string BuildPostBattleRewardBody(string resultLine, EncounterReward reward)
     {
         var builder = new StringBuilder();
 
-        if (!string.IsNullOrWhiteSpace(resultLine))
-            builder.AppendLine(resultLine.Trim());
-
         if (reward == null || !reward.HasAnyGrant)
         {
-            builder.AppendLine("No persistent rewards were granted.");
+            builder.AppendLine("NO REWARDS");
         }
         else
         {
-            builder.AppendLine($"NODE: {reward.sourceNodeType.ToString().ToUpperInvariant()} | T{reward.threatTier} | LV {reward.encounterLevel}");
-            builder.AppendLine($"ALGOMON EXP +{reward.algoMonExp}");
-            builder.AppendLine($"COMPUTE +{reward.compute}");
-
-            if (!string.IsNullOrWhiteSpace(reward.speciesCodeName))
-                builder.AppendLine($"SOURCE SPECIES: {reward.speciesCodeName.ToUpperInvariant()}");
+            builder.AppendLine($"{reward.sourceNodeType.ToString().ToUpperInvariant()}  T{reward.threatTier}  LV {reward.encounterLevel}");
+            builder.AppendLine($"EXP +{reward.algoMonExp}    CREDITS +{reward.compute}");
 
             if (reward.baseDataGranted)
-                builder.AppendLine($"BASE FORM +1 ({EncounterReward.FormatQuality(reward.baseDataQuality)})");
+                builder.AppendLine($"FORM DATA +1  {EncounterReward.FormatQuality(reward.baseDataQuality)}");
             else if (reward.shouldGrantBaseData)
-                builder.AppendLine("BASE FORM SKIPPED");
+                builder.AppendLine("FORM DATA --");
 
             if (reward.evolutionDataGranted)
-                builder.AppendLine("LEGACY EVOLUTION DATA +1");
+                builder.AppendLine("EVOLUTION DATA +1");
             else if (reward.shouldGrantEvolutionData)
-                builder.AppendLine("LEGACY EVOLUTION DATA SKIPPED");
+                builder.AppendLine("EVOLUTION DATA --");
 
+            if (!string.IsNullOrWhiteSpace(reward.speciesCodeName))
+                builder.AppendLine(reward.speciesCodeName.ToUpperInvariant());
         }
 
-        builder.AppendLine();
-        builder.Append("Press CONTINUE to proceed.");
         return builder.ToString();
     }
 
@@ -2530,12 +2572,10 @@ public class BattleManager : MonoBehaviour
             ? HasAvailableReserve(playerParty, player)
             : HasSwitchTarget(playerParty, player));
         hud.SetActionButtonAvailable(BattleHudController.ActionButton.Recharge, canAct && !switchRequired);
-        hud.SetActionButtonAvailable(BattleHudController.ActionButton.Bag, canAct && !switchRequired);
         hud.SetActionButtonAvailable(BattleHudController.ActionButton.Switch, canSwitch && !switchRequired);
         hud.SetActionButtonAvailable(BattleHudController.ActionButton.Flee, canAct && !switchRequired);
 
         hud.SetActionHover(BattleHudController.ActionButton.Recharge, "Recharge", "+5 CP\nSpend the turn to restore CP.");
-        hud.SetActionHover(BattleHudController.ActionButton.Bag, "Bag", "Not yet implemented.");
         hud.SetActionHover(
             BattleHudController.ActionButton.Switch,
             switchRequired ? "Switch Required" : selectingSwitchTarget ? "Cancel Switch" : "Switch",
@@ -2562,6 +2602,7 @@ public class BattleManager : MonoBehaviour
 
             hud.SetSkillSlot(i, skill);
             hud.SetSkillHover(i, SkillName(skill), BuildSkillHover(player, skill));
+            hud.SetSkillCPCost(i, EffectiveSkillCost(player, skill));
             hud.SetSkillSlotAvailable(i, canAct && CanUseSkill(player, skill));
         }
     }
@@ -2584,15 +2625,83 @@ public class BattleManager : MonoBehaviour
                 : unit.CurrentBattery <= 0
                     ? "OFFLINE"
                     : "READY";
+            ElementType elementType = unit.Instance != null && unit.Instance.data != null
+                ? unit.Instance.data.elementType
+                : unit.Config.elementType;
 
             hud.SetSwitchSlot(
                 i,
                 unit.Name,
-                $"Lv {unit.DisplayLevel}",
-                $"BAT {unit.CurrentBattery}/{unit.MaxBattery}",
+                elementType,
+                unit.DisplayLevel,
+                unit.CurrentBattery,
+                unit.MaxBattery,
+                unit.CurrentCP,
+                MaxCP,
                 state,
+                FormatUnitStatus(unit),
+                SwitchPortraitFor(unit),
                 available);
         }
+    }
+
+    private static Sprite SwitchPortraitFor(BattleUnit unit)
+    {
+        AlgoMonInstance instance = unit != null ? unit.Instance : null;
+        AlgoMonData data = instance != null ? instance.data : null;
+        if (data == null)
+            return null;
+
+        string cacheKey = $"{data.codeName}|{instance.battleFormName}";
+        if (switchPortraitSpriteCache.TryGetValue(cacheKey, out Sprite cachedSprite))
+            return cachedSprite;
+
+        if (data.portrait != null)
+        {
+            switchPortraitSpriteCache[cacheKey] = data.portrait;
+            return data.portrait;
+        }
+
+        BattleAnimationProfile profile = BattleAnimationProfileLoader.TryLoadEditorProfile(data.codeName, instance.battleFormName);
+        if (profile == null)
+            profile = data.battleAnimationProfile;
+
+        Sprite sprite = FirstSprite(profile != null ? profile.idle : null);
+        if (sprite != null)
+        {
+            switchPortraitSpriteCache[cacheKey] = sprite;
+            return sprite;
+        }
+        sprite = FirstSprite(profile != null ? profile.entry : null);
+        if (sprite != null)
+        {
+            switchPortraitSpriteCache[cacheKey] = sprite;
+            return sprite;
+        }
+        sprite = FirstSprite(profile != null ? profile.status : null);
+        if (sprite != null)
+        {
+            switchPortraitSpriteCache[cacheKey] = sprite;
+            return sprite;
+        }
+
+        sprite = FirstSprite(profile != null ? profile.attack : null);
+        switchPortraitSpriteCache[cacheKey] = sprite;
+        return sprite;
+    }
+
+    private static Sprite FirstSprite(BattleAnimationClipData clip)
+    {
+        if (clip == null || clip.frames == null)
+            return null;
+
+        for (int i = 0; i < clip.frames.Length; i++)
+        {
+            if (clip.frames[i] != null)
+                return clip.frames[i];
+        }
+
+        return null;
     }
 
     private string PhaseLabel()
@@ -2620,33 +2729,35 @@ public class BattleManager : MonoBehaviour
     {
         var line = new StringBuilder();
         int cost = EffectiveSkillCost(unit, skill);
-        line.Append($"CP {cost}");
+        line.Append($"{skill.instructionType} | {skill.elementType} | CP {cost}");
         if (cost != Mathf.Max(0, skill.cpCost))
             line.Append($" (base {Mathf.Max(0, skill.cpCost)})");
         if (unit != null && unit.Statuses.SkillRepeatCount(currentRound) > 1)
             line.Append(cost > 0 ? $" | Concurrent: +{cost} CP for repeat" : " | Concurrent: free repeat");
 
         if (skill.basePower > 0)
-            line.Append($" | PWR {skill.basePower}");
+            line.Append($" | BP {skill.basePower}");
         if (skill.canCounter)
-            line.Append(" | Counter");
+            line.Append(" | Counter-ready");
 
-        string body = string.IsNullOrWhiteSpace(skill.description)
-            ? string.Empty
-            : skill.description.Trim();
+        string counterSummary = SkillDetailTextFormatter.BuildCounterSummary(skill);
+        string body = SkillDetailTextFormatter.BuildReadableDescription(skill);
 
         if (IsDefenseOnCooldown(unit, skill))
-            return $"{line}\nDefense is cooling down this round.\n{body}".Trim();
+            return BuildSkillHoverBody(line.ToString(), "Defense is cooling down this round.", counterSummary, body);
 
         if (unit.CurrentCP < cost)
         {
             int missing = cost - unit.CurrentCP;
-            return $"{line}\nNeeds {missing} more CP.\n{body}".Trim();
+            return BuildSkillHoverBody(line.ToString(), $"Needs {missing} more CP.", counterSummary, body);
         }
 
-        return string.IsNullOrEmpty(body)
-            ? line.ToString()
-            : $"{line}\n{body}";
+        return BuildSkillHoverBody(line.ToString(), counterSummary, body);
+    }
+
+    private static string BuildSkillHoverBody(string metaLine, params string[] sections)
+    {
+        return SkillDetailTextFormatter.BuildBody(metaLine, sections);
     }
 
     private static string SkillName(SkillData skill)

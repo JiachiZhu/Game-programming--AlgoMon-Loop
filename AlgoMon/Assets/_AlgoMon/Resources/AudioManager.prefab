@@ -1,0 +1,107 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6839257973773286779
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7115340502399163226}
+  - component: {fileID: 7812838103248225871}
+  - component: {fileID: 7268266905164521389}
+  m_Layer: 0
+  m_Name: AudioManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7115340502399163226
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6839257973773286779}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &7812838103248225871
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6839257973773286779}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d579383ab8d72f4418461d4a90a5cf35, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  menuTracks:
+  - {fileID: 8300000, guid: ee960331321ca57428b6b2d9b97a4ae7, type: 3}
+  - {fileID: 8300000, guid: 7d5e1b54a72de0a4c8f370adb723f9c9, type: 3}
+  - {fileID: 8300000, guid: d4c73b1eb69b115479306b937d86566d, type: 3}
+  menuTrackNames:
+  - Hi-Tech Loop
+  - Shadowy Figure
+  - Nightscape
+  gridExplorationMusic: {fileID: 8300000, guid: 6673c54b4aae09d4088aebfd30474ef5, type: 3}
+  battleWildEliteMusic: {fileID: 8300000, guid: 99039667ac9cc0a42ae6cb7b13dcd9c2, type: 3}
+  battleHackerMusic: {fileID: 8300000, guid: 3c17c1372cc0f714b811e3c389f1668c, type: 3}
+  battleBossMusic: {fileID: 8300000, guid: c2558934b9962a94a93a521c64ba2ce8, type: 3}
+  victoryTracks:
+  - {fileID: 8300000, guid: b6654acd499393045ba0c0708a1a3afd, type: 3}
+  - {fileID: 8300000, guid: fb2566d41f3dc5e469161db4c0d2ee8d, type: 3}
+  keyboardTypingClip: {fileID: 8300000, guid: 58ab009a2c3360b4faada40fbb518da4, type: 3}
+  uiHoverClip: {fileID: 8300000, guid: 0827c50e991c5a14d8cc0f743f372f5a, type: 3}
+  uiClickClip: {fileID: 8300000, guid: 4262620be2542df4983d3c2ec45a8dc8, type: 3}
+  uiZoomEnableClip: {fileID: 8300000, guid: dd5759fba14922f4ab0dde32ec69daac, type: 3}
+  uiZoomDisableClip: {fileID: 8300000, guid: dbb18702570bc6946812c71060f8bbea, type: 3}
+  uiInvalidClip: {fileID: 8300000, guid: c0a84c2f697b2ae4d888a498dfd73b25, type: 3}
+  uiImpactClip: {fileID: 8300000, guid: d900f8d646581194cbbec50dc9d32a39, type: 3}
+  speciesAttackSfx:
+  - codeName: Heapion
+    baseAttack: {fileID: 8300000, guid: 240e592067ee76f4e9b94b4474c41ad1, type: 3}
+    evolvedAttack: {fileID: 8300000, guid: efbaed9369b0acf4eb0b53385fcf719f, type: 3}
+  - codeName: Overflux
+    baseAttack: {fileID: 8300000, guid: 3d0c78da59504f74fa9aa6d1a4129b1f, type: 3}
+    evolvedAttack: {fileID: 8300000, guid: e2c41ae6b19bf4d42980821d8a086e28, type: 3}
+  - codeName: Cachelon
+    baseAttack: {fileID: 8300000, guid: 09bff44188eac2e48820fc1c95efa633, type: 3}
+    evolvedAttack: {fileID: 0}
+  - codeName: Nullbyte
+    baseAttack: {fileID: 8300000, guid: 9cf730f124bafb4408b4a57e6ae178f2, type: 3}
+    evolvedAttack: {fileID: 0}
+  - codeName: Sortex
+    baseAttack: {fileID: 8300000, guid: ed7276a4a6937e9438d25b184031f1f7, type: 3}
+    evolvedAttack: {fileID: 8300000, guid: b2f7a5af1846b704d94606930580fcab, type: 3}
+  - codeName: Recursix
+    baseAttack: {fileID: 8300000, guid: 744f1eb570b915143a7c18375e48a616, type: 3}
+    evolvedAttack: {fileID: 0}
+  statusBuffClip: {fileID: 8300000, guid: 40d0919c3b44ff94a920f96d27abc83b, type: 3}
+  statusDebuffClip: {fileID: 8300000, guid: a1451940ab74a30439e7f54b76928e0f, type: 3}
+  defenseClip: {fileID: 8300000, guid: 1979b3ca9f8e7724aa75ef3af5c4aa3c, type: 3}
+  counterClip: {fileID: 8300000, guid: 376b0b6d9dfab9844bf1341f8ed6ed46, type: 3}
+  purchaseClip: {fileID: 8300000, guid: 23f052b652147c34485e37508ff2b1d2, type: 3}
+  rewardClip: {fileID: 8300000, guid: 23f052b652147c34485e37508ff2b1d2, type: 3}
+  defeatClip: {fileID: 8300000, guid: 22d172d8f811a334ab69f05d976f6df8, type: 3}
+  musicVolume: 0.7
+  sfxVolume: 0.8
+  crossfadeSeconds: 0.75
+  selectedMenuTrackIndex: 0
+--- !u!81 &7268266905164521389
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6839257973773286779}
+  m_Enabled: 1

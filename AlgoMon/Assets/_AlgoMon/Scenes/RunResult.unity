@@ -306,9 +306,10 @@ MonoBehaviour:
   titleText: {fileID: 0}
   resultText: {fileID: 0}
   detailText: {fileID: 0}
-  footerText: {fileID: 0}
   continueButton: {fileID: 0}
   accentFill: {fileID: 0}
+  statusPillText: {fileID: 0}
+  routeMetaText: {fileID: 0}
 --- !u!4 &1090424800
 Transform:
   m_ObjectHideFlags: 0

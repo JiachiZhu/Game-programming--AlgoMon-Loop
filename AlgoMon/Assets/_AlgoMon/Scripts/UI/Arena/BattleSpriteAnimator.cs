@@ -65,6 +65,7 @@ public class BattleSpriteAnimator : MonoBehaviour
     private Quaternion baseBodyLocalRotation;
     private Vector3 feedbackOffset;
     private float contactScaleMultiplier = 1f;
+    private float battleSideFacingSign = 1f;
     private float motionFacingSign = 1f;
     private float hitFlash;
     private float statusFlash;
@@ -77,6 +78,8 @@ public class BattleSpriteAnimator : MonoBehaviour
     private Color baseShadowColor;
     private Sprite basePrimarySprite;
     private bool initialized;
+    private bool hasCapturedBodyPose;
+    private bool useBattleSideFacing;
     private bool profileClipPlaying;
     private bool contactSortingActive;
     private bool fainted;
@@ -199,6 +202,9 @@ public class BattleSpriteAnimator : MonoBehaviour
     {
         RestoreRendererBaseColors();
 
+        if (body != bodyTransform)
+            hasCapturedBodyPose = false;
+
         body = bodyTransform;
         primaryRenderer = primarySpriteRenderer;
         bodyRenderers = renderers;
@@ -280,6 +286,16 @@ public class BattleSpriteAnimator : MonoBehaviour
         }
 
         ApplyRendererColors();
+    }
+
+    public void SetBattleSideFacing(bool playerSide)
+    {
+        Initialize();
+        useBattleSideFacing = true;
+        battleSideFacingSign = playerSide ? -1f : 1f;
+        motionFacingSign = 1f;
+        ApplyProfileFacing();
+        ApplyBaseScaleImmediately();
     }
 
     public void SetAnimationProfile(BattleAnimationProfile profile)
@@ -441,6 +457,10 @@ public class BattleSpriteAnimator : MonoBehaviour
         StopProfileClip();
         if (actionRoutine != null)
             StopCoroutine(actionRoutine);
+        feedbackOffset = Vector3.zero;
+        contactScaleMultiplier = 1f;
+        motionFacingSign = 1f;
+        RestoreSortingOrders();
         BeginIdleClip();
     }
 
@@ -548,10 +568,13 @@ public class BattleSpriteAnimator : MonoBehaviour
 
         if (body != null)
         {
-            baseBodyLocalPosition = body.localPosition;
-            baseBodyLocalScale = body.localScale;
-            authoredBodyLocalScale = body.localScale;
-            baseBodyLocalRotation = body.localRotation;
+            if (!hasCapturedBodyPose)
+            {
+                baseBodyLocalPosition = body.localPosition;
+                authoredBodyLocalScale = body.localScale;
+                baseBodyLocalRotation = body.localRotation;
+                hasCapturedBodyPose = true;
+            }
         }
 
         if (bodyRenderers != null)
@@ -581,11 +604,35 @@ public class BattleSpriteAnimator : MonoBehaviour
             return;
 
         Vector3 scale = authoredBodyLocalScale;
+        scale.x = Mathf.Abs(scale.x);
         scale *= ProfileVisualScaleMultiplier();
         scale *= ProfileAuthoredScaleMultiplier();
-        if (animationProfile != null && animationProfile.mirrorX)
-            scale.x *= -1f;
+        scale.x *= FacingSign();
         baseBodyLocalScale = scale;
+    }
+
+    private float FacingSign()
+    {
+        float sign = useBattleSideFacing ? battleSideFacingSign : AuthoredFacingSign();
+        if (animationProfile != null && animationProfile.mirrorX)
+            sign *= -1f;
+        return sign;
+    }
+
+    private float AuthoredFacingSign()
+    {
+        return authoredBodyLocalScale.x < 0f ? -1f : 1f;
+    }
+
+    private void ApplyBaseScaleImmediately()
+    {
+        if (body == null)
+            return;
+
+        Vector3 facingScale = baseBodyLocalScale;
+        facingScale.x *= motionFacingSign;
+        Vector3 revealScale = new Vector3(1f + switchRevealScaleOffset, 1f + switchRevealScaleOffset, 1f);
+        body.localScale = Vector3.Scale(facingScale * contactScaleMultiplier, revealScale);
     }
 
     private float ProfileAuthoredScaleMultiplier()
@@ -1153,6 +1200,7 @@ public class BattleSpriteAnimator : MonoBehaviour
 
         profileClipRoutine = null;
         profileClipPlaying = false;
+        feedbackOffset = Vector3.zero;
         contactScaleMultiplier = 1f;
         motionFacingSign = 1f;
         RestoreSortingOrders();
@@ -1238,6 +1286,7 @@ public class BattleSpriteAnimator : MonoBehaviour
 
         feedbackOffset = Vector3.zero;
         contactScaleMultiplier = 1f;
+        motionFacingSign = 1f;
         RestoreSortingOrders();
         hitFlash = 0f;
         hitRoutine = null;

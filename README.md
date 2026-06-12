@@ -197,16 +197,51 @@ AlgoMon-Loop/
 | Element icons | Gemini 3.1 Pro / Nano Banana | Project-specific generated element badge artwork |
 | AlgoMon battle animation frames | PixelLab | Project-specific pixel-style sprite animation frames |
 | Battle action effect animations | [Super Pixel Effects Pack 2 by unTied Games](https://untiedgames.itch.io/super-pixel-effects-pack-2) | Used for AlgoMon attack/guard effects (claw, electric burst, fire burst, explosion, splatter, magic swirl). License: attribution required, no reselling the asset itself; commercial and non-commercial use OK. |
-| Heapion & Overflux attack effects | [Combat Effects 6 — 2D Pixel Art VFX Pack by Pozac](https://pozac.itch.io/combat-effects-6-2d-pixel-art-vfx-pack) | Effect 1 (6 frames) for Heapion's base attack; Effect 3 (12 frames) for Overflux's base attack. Paid itch.io pack; confirm exact license terms before final submission. |
+| Pozac Combat Effects 6 battle effects | [Combat Effects 6 - 2D Pixel Art VFX Pack by Pozac](https://pozac.itch.io/combat-effects-6-2d-pixel-art-vfx-pack) | Effect 1 for Heapion base attack; Effect 3 for Overflux base attack; Effect 8 for Nullbyte evolved attack; Effect 13 for Overflux defense; Effect 19 for Nullbyte defense; Effect 30 for Cachelon defense/status. Paid itch.io pack; confirm exact license terms before final submission. |
 | Pixel-art editing and Aseprite import workflow | Aseprite prebuilt GitHub build + Unity 2D Aseprite package | Used as the pixel-art canvas/editor workflow for sprite cleanup, frame editing, and Unity import support |
 | UI icons | [Lucide Icons](https://lucide.dev/) | Used under the ISC License |
 | Fonts | [Nico Font Pack by Emily Huo](https://emhuo.itch.io/nico-pixel-fonts-pack) | Used under the SIL Open Font License 1.1 |
 | Skill frame UI | [Free Inventory Sci-Fi by ELV Games](https://elvgames.itch.io/free-sci-fi-inventory) | License permits use and modification; credit ELV Games |
 | Battle health bar UI | [Basic Pixel Health bar and Scroll bar by BDragon1727](https://bdragon1727.itch.io/basic-pixel-health-bar-and-scroll-bar) | Used for Pixel UI Pack 3 health-bar pieces |
 | Battle announcer panel | [Pixel ui asset art by DuxDevGames](https://dux-dev-games.itch.io/pixel-ui-asset-art) | Cropped into the announcer panel |
+| Battle skill/counter announcement banner | [Pixel UI & HUD Pack by Dead Revolver](https://deadrevolver.itch.io/pixel-ui-hud-pack) | Black TitleBanner used as the in-battle skill/counter announcement banner; keep Dead Revolver credit and purchase evidence |
 | CP battery visual reference | [Complete UI Essential Pack by Crusenho](https://crusenho.itch.io/complete-ui-essential-pack) | Visual reference for custom CP battery frame; CC BY 4.0 |
 | Custom battle/grid support UI | Project-generated / Codex-assisted | Ground disc, CP fills, round sandclock frames, terminal node disc/ring, and MainTerminal mask/shadow pieces |
 | Development Guidelines | [Karpathy Cursor Rules](https://github.com/forrestchang/andrej-karpathy-skills/blob/main/.cursor/rules/karpathy-guidelines.mdc) | Used to configure Cursor IDE to maintain code quality and avoid AI generation pitfalls |
 
 See `Docs/AssetAttribution.md` for the current source/license checklist and
 the assets that still need source confirmation before final submission.
+
+### 🎵 Music (Pixabay)
+
+All tracks sourced from [Pixabay](https://pixabay.com/music/) under the **Pixabay Content License** (free for commercial use, attribution not required but credited here; redistribution of the raw audio files is not permitted).
+
+| Track | Artist | In-game use | License |
+|---|---|---|---|
+| [Dark Matter Canon](https://pixabay.com/music/synthwave-dark-matter-canon-429876/) | Psychronic | Battle theme — rival / advanced-hacker encounters | Pixabay Content License |
+| [Flight of the Cosmos](https://pixabay.com/music/synthwave-flight-of-the-cosmos-433848/) | Psychronic | Stage boss battle theme | Pixabay Content License |
+| [Party Celebration (Happy Synth-Pop Loop)](https://pixabay.com/music/upbeat-party-celebration-happy-synth-pop-loop-311112/) | Sonican | Victory theme (random pool) | Pixabay Content License |
+| [Light Vortex](https://pixabay.com/music/synthwave-light-vortex-433844/) | Psychronic | Battle theme — wild & elite encounters | Pixabay Content License |
+| [Synthwave Synth-Pop](https://pixabay.com/music/synthwave-synthwave-synthwave-synth-pop-music-460249/) | HitsLab | Victory theme (random pool) | Pixabay Content License |
+| [Synthwave 80s Retro Background](https://pixabay.com/music/synthwave-synthwave-80s-retro-background-music-400483/) | INPLUSMUSIC | Grid exploration music | Pixabay Content License |
+| [Hi-Tech Loop](https://pixabay.com/music/corporate-hi-tech-loop-151203/) | The_Mountain | Main menu music (player-selectable) | Pixabay Content License |
+| [Shadowy Figure](https://pixabay.com/music/synthwave-shadowy-figure-116963/) | SoundCarousel | Main menu music (player-selectable) | Pixabay Content License |
+| [Nightscape](https://pixabay.com/music/house-nightscape-13815/) | SoundCarousel | Main menu music (player-selectable) | Pixabay Content License |
+
+### 🔊 Sound Effects
+
+| Sound | Author | In-game use | License |
+|---|---|---|---|
+| [Mechanical Keyboard Typing (Bass Version)](https://freesound.org/people/stu556/sounds/450281/) | stu556 (Freesound) | MainTerminal typing-character ambience — loops while the character is shown, muted in terminal-zoom | CC0 1.0 (public domain) |
+| [Magic Fire Impact](https://freesound.org/people/EminYILDIRIM/sounds/562413/) | EminYILDIRIM (Freesound) | Sliced into Heapion base/evolved + Overflux base/evolved attack sounds | CC BY 3.0 (attribution given here) |
+| [Custom Tiger Claw Ice Laser](https://freesound.org/people/Artninja/sounds/777293/) | Artninja (Freesound) | Cachelon attack sound (both forms) | CC BY 4.0 (attribution given here) |
+| [Water Impact Magic Spell](https://freesound.org/people/mikiko850/sounds/848661/) | mikiko850 (Freesound) | Nullbyte attack sound (both forms) | CC BY 4.0 (attribution given here) |
+| [Thunder Distant 5](https://freesound.org/people/TimoSchmied/sounds/848278/) | TimoSchmied (Freesound) | Sortex evolved attack sound | CC BY 4.0 (attribution given here) |
+| [Scratch Short Reverb](https://freesound.org/people/perspektywa_tn/sounds/844111/) | perspektywa_tn (Freesound) | (superseded) earlier Sortex base attempt | _confirm license on page_ |
+| [RPG Essentials SFX — Free!](https://leohpaz.itch.io/rpg-essentials-sfx-free) — Claw + Thunder + Heal + Debuff | Leohpaz (itch.io) | Sortex base attack (Claw_03 × Thunder_02 mix); positive status cue (Heal_02 — buff/charge/heal); negative status cue (Debuff_01) | Free (name-your-price); royalty-free, credit appreciated |
+| [Block - RPG 1](https://freesound.org/people/colorsCrimsonTears/sounds/641896/) | colorsCrimsonTears (Freesound) | Shared defense-skill sound (all AlgoMons) | CC0 1.0 (public domain) |
+| [Energy Burst](https://freesound.org/people/SilverIllusionist/sounds/668645/) | SilverIllusionist (Freesound) | Recursix attack sound (both forms) | CC BY 4.0 (attribution given here) |
+| [Sword Clash 2](https://freesound.org/people/CTCollab/sounds/223632/) | CTCollab (Freesound) | ASD counter-success sound | CC BY 4.0 (attribution given here) |
+| [Coin9](https://freesound.org/people/The-Sacha-Rush/sounds/336936/) | The-Sacha-Rush (Freesound) | Shop purchase + node-clear reward sound | CC BY 4.0 (attribution given here) |
+| [Game Over Orchestral Stinger](https://freesound.org/people/Coghezzi/sounds/856516/) | Coghezzi (Freesound) | Run-defeat sting on the RunResult screen | CC0 1.0 (public domain) |
+| [Sci-Fi UI SFX Pack](https://hoveaudio.itch.io/free-sci-fi-ui-sound-effects-pack) — Click_Combo / Click_Combo_2 / Click_Combo_2_High / Click_Combo_2_Low / Glitch_1 / Impact_1 | Hove Audio (itch.io) | Button hover & click, terminal-zoom on/off, invalid-action glitch, grid node entry / battle transition impact | Free per author's store page: "feel free to use it in whatever project you like" |
