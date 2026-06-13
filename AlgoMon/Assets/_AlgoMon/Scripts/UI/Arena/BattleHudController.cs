@@ -1145,8 +1145,10 @@ public class BattleHudController : MonoBehaviour
 
     // Shared with the payload skill-loadout SUBROUTINE button: the same PixelUIHUD
     // blue button art, baked into RuntimeUiAssetCatalog so it loads in builds too.
-    private const string PanelButtonNormalSpritePath  = "Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonE_Unpressed.png";
+    private const string PanelButtonNormalSpritePath   = "Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonE_Unpressed.png";
+    private const string PanelButtonHoverGlowSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonStone_Highlighted.png";
     private static Sprite sharedPanelButtonNormal;
+    private static Sprite sharedPanelButtonHoverGlow;
 
     private static Sprite SharedPanelButtonSprite(string assetPath, ref Sprite cache)
     {
@@ -1168,36 +1170,73 @@ public class BattleHudController : MonoBehaviour
     }
 
     /// <summary>
-    /// Builds the SUBROUTINE button that sits in the combatant card header row,
-    /// right after the name and its element icon (no extra vertical band). Reuses
-    /// the payload skill-loadout button art for a consistent look; clicking it
-    /// shows the passive in the skill description box.
+    /// Wires the combatant card's SUBROUTINE button. The button itself is authored
+    /// in BattleHud.prefab so it can be positioned and styled in edit mode; this only
+    /// hooks the click, resolves the blue-frame hover feedback, and stores the ref.
+    /// If the prefab has no authored button (e.g. someone removed it), a styled one
+    /// is built at runtime as a fallback.
     /// </summary>
     private void EnsureSubroutineButton(Side side, Transform panel)
     {
-        ref CombatantRefs refs = ref RefsFor(side);
-
-        // Header layout: name + element icon on the left, then the SUBROUTINE
-        // button, with the level pinned to the far right.
-        if (refs.NameText != null)
-        {
-            RectTransform nameRt = refs.NameText.rectTransform;
-            nameRt.anchorMax = new Vector2(0.40f, nameRt.anchorMax.y);
-        }
-        if (refs.LevelText != null)
-        {
-            RectTransform levelRt = refs.LevelText.rectTransform;
-            levelRt.anchorMin = new Vector2(0.86f, levelRt.anchorMin.y);
-        }
-
         Transform existing = panel.Find("SubroutineButton");
-        GameObject buttonObject = existing != null
-            ? existing.gameObject
-            : new GameObject("SubroutineButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
-        if (existing == null)
-            buttonObject.transform.SetParent(panel, false);
+        Button button;
+        Image hoverGlow;
+        if (existing != null)
+        {
+            // Respect the authored layout/art; only resolve the pieces we wire.
+            button = existing.GetComponent<Button>();
+            if (button == null)
+                button = existing.gameObject.AddComponent<Button>();
+            Transform glow = existing.Find("HoverGlow");
+            hoverGlow = glow != null ? glow.GetComponent<Image>() : null;
+        }
+        else
+        {
+            button = BuildSubroutineButtonFallback(panel, out hoverGlow);
+        }
 
-        // Snug frame in the header: wide enough for the word, not taller than the name.
+        button.onClick.RemoveAllListeners();
+        Side captured = side;
+        button.onClick.AddListener(() => ShowSubroutineDetail(captured));
+
+        // Same blue-frame hover the MainTerminal panel buttons use: PixelHudButtonFeedback
+        // fades the ButtonStone_Highlighted glow in on hover.
+        if (hoverGlow != null)
+        {
+            PixelHudButtonFeedback feedback = button.GetComponent<PixelHudButtonFeedback>();
+            if (feedback == null)
+                feedback = button.gameObject.AddComponent<PixelHudButtonFeedback>();
+            feedback.Configure(button, hoverGlow, null);
+        }
+
+        ref CombatantRefs refs = ref RefsFor(side);
+        refs.SubroutineButton = button;
+        button.gameObject.SetActive(false); // re-enabled by SetSubroutine when a passive exists
+    }
+
+    /// <summary>
+    /// Runtime fallback that builds a SUBROUTINE button matching the authored one,
+    /// used only if the prefab has none. Mirrors the payload skill-loadout button art.
+    /// </summary>
+    private Button BuildSubroutineButtonFallback(Transform panel, out Image hoverGlow)
+    {
+        // Open the header gap: trim the name, push the level to the far right.
+        Transform nameTf = panel.Find("NameText");
+        if (nameTf != null)
+        {
+            RectTransform nameRt = nameTf.GetComponent<RectTransform>();
+            if (nameRt != null) nameRt.anchorMax = new Vector2(0.40f, nameRt.anchorMax.y);
+        }
+        Transform levelTf = panel.Find("LevelText");
+        if (levelTf != null)
+        {
+            RectTransform levelRt = levelTf.GetComponent<RectTransform>();
+            if (levelRt != null) levelRt.anchorMin = new Vector2(0.86f, levelRt.anchorMin.y);
+        }
+
+        var buttonObject = new GameObject("SubroutineButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(panel, false);
+
         var rt = buttonObject.GetComponent<RectTransform>();
         rt.anchorMin = new Vector2(0.420f, 0.760f);
         rt.anchorMax = new Vector2(0.710f, 0.930f);
@@ -1206,14 +1245,6 @@ public class BattleHudController : MonoBehaviour
 
         var image = buttonObject.GetComponent<Image>();
         image.raycastTarget = true;
-
-        var button = buttonObject.GetComponent<Button>();
-        button.targetGraphic = image;
-        button.transition = Selectable.Transition.None; // hover/press handled by BattleHudButtonFeedback
-        button.onClick.RemoveAllListeners();
-        Side captured = side;
-        button.onClick.AddListener(() => ShowSubroutineDetail(captured));
-
         Sprite normalSprite = SharedPanelButtonSprite(PanelButtonNormalSpritePath, ref sharedPanelButtonNormal);
         if (normalSprite != null)
         {
@@ -1222,25 +1253,28 @@ public class BattleHudController : MonoBehaviour
         }
         else
         {
-            // Fallback if the catalog art is unavailable: HUD chrome chip.
             image.sprite = HudPanelSprite();
             image.type = Image.Type.Sliced;
             image.pixelsPerUnitMultiplier = 2.4f;
         }
         image.color = Color.white;
 
-        // Same scale + brighten hover/press feel as the RECHARGE/SWITCH/FLEE buttons.
-        Color accent = ActionAccentColor("SWITCH");
-        BattleHudButtonFeedback feedback = button.GetComponent<BattleHudButtonFeedback>();
-        if (feedback == null)
-            feedback = button.gameObject.AddComponent<BattleHudButtonFeedback>();
-        feedback.Configure(button, 1.10f, 0.94f);
-        feedback.SetBackground(
-            image,
-            Color.white,
-            Color.Lerp(Color.white, accent, 0.45f),
-            new Color(0.58f, 0.80f, 0.92f, 1f),
-            new Color(1f, 1f, 1f, 0.45f));
+        var button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.transition = Selectable.Transition.None;
+
+        // Blue-frame hover glow overlay (same art as the home buttons).
+        Image glow = EnsureChildImage(buttonObject.transform, "HoverGlow");
+        Sprite glowSprite = SharedPanelButtonSprite(PanelButtonHoverGlowSpritePath, ref sharedPanelButtonHoverGlow);
+        glow.sprite = glowSprite;
+        glow.type = Image.Type.Simple;
+        glow.raycastTarget = false;
+        glow.color = Color.clear;
+        RectTransform glowRt = glow.rectTransform;
+        glowRt.anchorMin = Vector2.zero;
+        glowRt.anchorMax = Vector2.one;
+        glowRt.offsetMin = Vector2.zero;
+        glowRt.offsetMax = Vector2.zero;
 
         Text label = EnsureChildText(buttonObject.transform, "Label", 14, TextAnchor.MiddleCenter);
         label.text = "SUBROUTINE";
@@ -1256,10 +1290,11 @@ public class BattleHudController : MonoBehaviour
         lrt.anchorMax = Vector2.one;
         lrt.offsetMin = new Vector2(3f, 0f);
         lrt.offsetMax = new Vector2(-3f, 0f);
+        label.transform.SetAsLastSibling();
         EnsureShadow(label.gameObject, new Color(0f, 0f, 0f, 0.7f), new Vector2(1f, -1f));
 
-        refs.SubroutineButton = button;
-        buttonObject.SetActive(false); // re-enabled by SetSubroutine when a passive exists
+        hoverGlow = glow;
+        return button;
     }
 
     private void ShowSubroutineDetail(Side side)
