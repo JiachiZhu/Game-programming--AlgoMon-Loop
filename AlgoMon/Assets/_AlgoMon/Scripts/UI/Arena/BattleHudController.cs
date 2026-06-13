@@ -1143,27 +1143,53 @@ public class BattleHudController : MonoBehaviour
         EnsureSubroutineButton(side, panel);
     }
 
+    // Shared with the payload skill-loadout SUBROUTINE button: the same PixelUIHUD
+    // blue button art, baked into RuntimeUiAssetCatalog so it loads in builds too.
+    private const string PanelButtonNormalSpritePath  = "Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonE_Unpressed.png";
+    private const string PanelButtonPressedSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonF_Pressed.png";
+    private static Sprite sharedPanelButtonNormal;
+    private static Sprite sharedPanelButtonPressed;
+
+    private static Sprite SharedPanelButtonSprite(string assetPath, ref Sprite cache)
+    {
+        if (cache != null)
+            return cache;
+        Texture2D texture = RuntimeUiAssetCatalog.FindTexture(assetPath);
+        if (texture != null)
+        {
+            cache = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f),
+                100f,
+                0,
+                SpriteMeshType.FullRect);
+            cache.name = texture.name;
+        }
+        return cache;
+    }
+
     /// <summary>
-    /// Builds the compact SUB button that sits in the combatant card header row,
-    /// between the name and the level (no extra vertical band). Styled with the
-    /// shared HUD chrome so it matches the RECHARGE/SWITCH/FLEE buttons; clicking
-    /// it shows the passive in the skill description box.
+    /// Builds the SUBROUTINE button that sits in the combatant card header row,
+    /// right after the name and its element icon (no extra vertical band). Reuses
+    /// the payload skill-loadout button art for a consistent look; clicking it
+    /// shows the passive in the skill description box.
     /// </summary>
     private void EnsureSubroutineButton(Side side, Transform panel)
     {
         ref CombatantRefs refs = ref RefsFor(side);
 
-        // Make room in the header: trim the name's right edge and push the level
-        // inward so the SUB button drops into the gap between them.
+        // Header layout: name + element icon on the left, then the SUBROUTINE
+        // button, with the level pinned to the far right.
         if (refs.NameText != null)
         {
             RectTransform nameRt = refs.NameText.rectTransform;
-            nameRt.anchorMax = new Vector2(0.56f, nameRt.anchorMax.y);
+            nameRt.anchorMax = new Vector2(0.40f, nameRt.anchorMax.y);
         }
         if (refs.LevelText != null)
         {
             RectTransform levelRt = refs.LevelText.rectTransform;
-            levelRt.anchorMin = new Vector2(0.78f, levelRt.anchorMin.y);
+            levelRt.anchorMin = new Vector2(0.86f, levelRt.anchorMin.y);
         }
 
         Transform existing = panel.Find("SubroutineButton");
@@ -1174,51 +1200,66 @@ public class BattleHudController : MonoBehaviour
             buttonObject.transform.SetParent(panel, false);
 
         var rt = buttonObject.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0.575f, 0.735f);
-        rt.anchorMax = new Vector2(0.765f, 0.945f);
+        rt.anchorMin = new Vector2(0.425f, 0.730f);
+        rt.anchorMax = new Vector2(0.840f, 0.950f);
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
 
-        Color accent = ActionAccentColor("SWITCH"); // cyan HUD accent, matches the command buttons
-
         var image = buttonObject.GetComponent<Image>();
-        image.sprite = HudPanelSprite();
-        image.type = Image.Type.Sliced;
-        image.pixelsPerUnitMultiplier = 2.4f;
-        image.color = Color.Lerp(ActionButtonFill, accent, 0.14f);
         image.raycastTarget = true;
 
         var button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
         button.onClick.RemoveAllListeners();
         Side captured = side;
         button.onClick.AddListener(() => ShowSubroutineDetail(captured));
 
-        Text label = EnsureChildText(buttonObject.transform, "Label", 11, TextAnchor.MiddleCenter);
-        label.text = "SUB";
+        Sprite normalSprite = SharedPanelButtonSprite(PanelButtonNormalSpritePath, ref sharedPanelButtonNormal);
+        Sprite pressedSprite = SharedPanelButtonSprite(PanelButtonPressedSpritePath, ref sharedPanelButtonPressed);
+        if (normalSprite != null)
+        {
+            image.sprite = normalSprite;
+            image.type = Image.Type.Simple;
+            image.color = Color.white;
+            SpriteState state = button.spriteState;
+            state.highlightedSprite = normalSprite;
+            state.pressedSprite = pressedSprite != null ? pressedSprite : normalSprite;
+            state.selectedSprite = normalSprite;
+            state.disabledSprite = normalSprite;
+            button.spriteState = state;
+            button.transition = Selectable.Transition.SpriteSwap;
+            ColorBlock cb = button.colors;
+            cb.normalColor = Color.white;
+            cb.highlightedColor = new Color(0.85f, 0.95f, 1f, 1f);
+            cb.pressedColor = Color.white;
+            cb.selectedColor = Color.white;
+            cb.disabledColor = new Color(1f, 1f, 1f, 0.5f);
+            button.colors = cb;
+        }
+        else
+        {
+            // Fallback if the catalog art is unavailable: HUD chrome chip.
+            image.sprite = HudPanelSprite();
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 2.4f;
+            image.color = Color.Lerp(ActionButtonFill, ActionAccentColor("SWITCH"), 0.16f);
+        }
+
+        Text label = EnsureChildText(buttonObject.transform, "Label", 12, TextAnchor.MiddleCenter);
+        label.text = "SUBROUTINE";
         label.font = ReadableHudFont();
         label.fontStyle = FontStyle.Bold;
-        label.color = Color.Lerp(new Color(0.86f, 0.96f, 1f, 0.96f), accent, 0.25f);
+        label.color = new Color(0.92f, 0.99f, 1f, 1f);
         label.raycastTarget = false;
         label.resizeTextForBestFit = true;
         label.resizeTextMinSize = 7;
-        label.resizeTextMaxSize = 12;
+        label.resizeTextMaxSize = 13;
         RectTransform lrt = label.rectTransform;
         lrt.anchorMin = Vector2.zero;
         lrt.anchorMax = Vector2.one;
-        lrt.offsetMin = Vector2.zero;
-        lrt.offsetMax = Vector2.zero;
+        lrt.offsetMin = new Vector2(6f, 1f);
+        lrt.offsetMax = new Vector2(-6f, -1f);
         EnsureShadow(label.gameObject, new Color(0f, 0f, 0f, 0.7f), new Vector2(1f, -1f));
-
-        BattleHudButtonFeedback feedback = button.GetComponent<BattleHudButtonFeedback>();
-        if (feedback == null)
-            feedback = button.gameObject.AddComponent<BattleHudButtonFeedback>();
-        feedback.Configure(button, 1.08f, 0.92f);
-        feedback.SetBackground(
-            image,
-            Color.Lerp(ActionButtonFill, accent, 0.14f),
-            Color.Lerp(ActionButtonFillHover, accent, 0.30f),
-            Color.Lerp(ActionButtonFillPressed, accent, 0.42f),
-            ActionButtonFillDisabled);
 
         refs.SubroutineButton = button;
         buttonObject.SetActive(false); // re-enabled by SetSubroutine when a passive exists
