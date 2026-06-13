@@ -3019,12 +3019,45 @@ public class MainTerminalController : MonoBehaviour
         zoomRect.anchorMax = new Vector2(0.5f, 0.5f);
         zoomRect.pivot = new Vector2(0.5f, 0.5f);
         zoomRect.sizeDelta = terminalBaseRectSize;
-        Vector2 boundsCenter = contentBounds.center;
-        zoomRect.anchoredPosition = -boundsCenter * fitScale;
         zoomRect.localScale = new Vector3(
             xSign * fitScale,
             ySign * fitScale,
             terminalBaseLocalScale.z);
+
+        // Centre the *visible shell* on the SCREEN. The shell sits off-centre inside
+        // its parent rect, and the parent root is itself offset from screen centre, so
+        // a pre-computed -boundsCenter offset (or centring on the parent) left the
+        // terminal shifted right. Park the rect on the anchor, let the layout settle,
+        // then nudge anchoredPosition by the screen-space residual that moves the shell
+        // centre onto the screen centre.
+        zoomRect.anchoredPosition = Vector2.zero;
+        if (parentRect != null)
+        {
+            Canvas.ForceUpdateCanvases();
+            RectTransform centerTarget = zoomRect.Find("Trial_MainMenuOuterShell") as RectTransform;
+            if (centerTarget == null)
+                centerTarget = zoomRect;
+
+            Canvas canvas = zoomRect.GetComponentInParent<Canvas>();
+            Camera uiCamera = null;
+            if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+                uiCamera = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
+
+            Vector3[] shellCorners = new Vector3[4];
+            centerTarget.GetWorldCorners(shellCorners);
+            Vector2 shellScreen = RectTransformUtility.WorldToScreenPoint(
+                uiCamera, (shellCorners[0] + shellCorners[2]) * 0.5f);
+            Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, shellScreen, uiCamera, out Vector2 shellLocal)
+                && RectTransformUtility.ScreenPointToLocalPointInRectangle(parentRect, screenCenter, uiCamera, out Vector2 targetLocal))
+            {
+                zoomRect.anchoredPosition += targetLocal - shellLocal;
+            }
+        }
+        else
+        {
+            zoomRect.anchoredPosition = -contentBounds.center * fitScale;
+        }
     }
 
     private void CaptureTerminalBaseRect(RectTransform zoomRect)

@@ -43,6 +43,7 @@ See `2026-06-13_old-build-bug-triage.md` for full detail.
 | Floor labels `2F`–`5F` off-centre | Low | Main terminal depth selector | Centred the floor-number labels |
 | Terminal shell offset (zoom off) | — | (old build only) | Already fixed on main; no change needed |
 | Skill loadout / squad popups closed on a click in empty space | Medium | Payload → open the skill loadout (or squad) popup → click any empty area | Removed the backdrop click-to-close; only the CLOSE button dismisses now (found during this round, not in the old build) |
+| Terminal off-centre (shifted right) when TERMINAL ZOOM is on | Medium | Settings → enable TERMINAL ZOOM → terminal sits right of centre | Re-centre the shell on the screen (two-pass), not the parent rect; measured offset now 0 px (found during this round) |
 
 ## Follow-ups
 
