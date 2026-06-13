@@ -3531,6 +3531,8 @@ public class MainTerminalController : MonoBehaviour
         builder.AppendLine("SKILLS");
         AppendPayloadSkills(builder, mon);
 
+        AppendSubroutineSection(builder, data);
+
         if (data != null && !string.IsNullOrWhiteSpace(data.description))
         {
             builder.AppendLine();
@@ -3539,6 +3541,20 @@ public class MainTerminalController : MonoBehaviour
         }
 
         return builder.ToString();
+    }
+
+    private static void AppendSubroutineSection(StringBuilder builder, AlgoMonData data)
+    {
+        SubroutineData sub = data != null ? data.subroutine : null;
+        if (sub == null || string.IsNullOrWhiteSpace(sub.subroutineName))
+            return;
+
+        builder.AppendLine();
+        builder.AppendLine("SUBROUTINE / PASSIVE");
+        builder.AppendLine($"{sub.subroutineName.Trim().ToUpperInvariant()}  ::  {sub.TriggerLabel}");
+        builder.Append(!string.IsNullOrWhiteSpace(sub.description)
+            ? sub.description.Trim()
+            : "Hardwired passive. Activates automatically in battle.");
     }
 
     private static string BuildGeneLabPreview(GameManager targetManager, int unit1Index, int unit2Index, string status)

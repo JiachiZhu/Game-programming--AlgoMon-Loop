@@ -81,4 +81,27 @@ public class SubroutineData : ScriptableObject
 
     [Tooltip("Clear ALL temporary negative statuses from self.")]
     public bool clearsOwnDebuffs = false;
+
+    /// <summary>Human-readable trigger label for this subroutine, e.g. "ON LOW BATTERY (&lt;25%)".</summary>
+    public string TriggerLabel => LabelFor(trigger);
+
+    /// <summary>
+    /// Maps a SubroutineTrigger to a player-facing label. Shared by the Payload
+    /// inspector card, the battle HUD badge, and the subroutine-fired banner so
+    /// the wording stays consistent everywhere a subroutine is surfaced.
+    /// </summary>
+    public static string LabelFor(SubroutineTrigger trigger)
+    {
+        switch (trigger)
+        {
+            case SubroutineTrigger.OnBattleStart: return "ON BATTLE START";
+            case SubroutineTrigger.OnTurnStart:   return "ON TURN START";
+            case SubroutineTrigger.OnCounterWin:  return "ON COUNTER WIN";
+            case SubroutineTrigger.OnCounterLose: return "ON COUNTER LOSS";
+            case SubroutineTrigger.OnDamageTaken: return "ON DAMAGE TAKEN";
+            case SubroutineTrigger.OnAllyFainted: return "WHEN ALLY SHUT DOWN";
+            case SubroutineTrigger.OnLowBattery:  return "ON LOW BATTERY (<25%)";
+            default: return trigger.ToString().ToUpperInvariant();
+        }
+    }
 }
