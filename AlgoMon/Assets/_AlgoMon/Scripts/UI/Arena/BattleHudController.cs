@@ -210,6 +210,7 @@ public class BattleHudController : MonoBehaviour
         public Text    StatusText;
         public Image[] StatusChips;
         public Text[]  StatusChipTexts;
+        public Text    SubroutineLabel;
     }
     private CombatantRefs player;
     private CombatantRefs enemy;
@@ -1124,6 +1125,17 @@ public class BattleHudController : MonoBehaviour
 
         if (side == Side.Player) playerSubroutine = card;
         else enemySubroutine = card;
+
+        // Always-visible passive line on the card (name + trigger); the full
+        // description remains available on the card hover/click detail.
+        ref CombatantRefs refs = ref RefsFor(side);
+        if (refs.SubroutineLabel != null)
+        {
+            refs.SubroutineLabel.text = card.Has
+                ? $"PASSIVE: {subroutineName.Trim().ToUpperInvariant()}" +
+                  (string.IsNullOrWhiteSpace(triggerLabel) ? string.Empty : $"  ({triggerLabel})")
+                : string.Empty;
+        }
     }
 
     private void WireCombatantSubroutine(Side side, string panelPath)
@@ -3146,8 +3158,41 @@ public class BattleHudController : MonoBehaviour
         EnsureBatteryFeedbackLayers(ref refs);
         EnsureCombatantElementIcon(ref refs);
         EnsureStatusChipPool(ref refs);
+        EnsureSubroutineLabel(ref refs, root);
         ConfigureCombatantTextHierarchy(refs);
         return refs;
+    }
+
+    /// <summary>
+    /// Always-visible passive line on the combatant card, sitting in the empty
+    /// band between the name and the battery bar. Shows the subroutine name and
+    /// trigger at a glance; the full description stays on the card hover/click.
+    /// </summary>
+    private void EnsureSubroutineLabel(ref CombatantRefs refs, string root)
+    {
+        Transform panel = transform.Find(root);
+        if (panel == null)
+            return;
+
+        Text label = EnsureChildText(panel, "SubroutineLabel", 14, TextAnchor.MiddleLeft);
+        label.font = ReadableHudFont();
+        label.fontStyle = FontStyle.Bold;
+        label.color = new Color(0.80f, 0.72f, 1f, 0.96f);
+        label.raycastTarget = false;
+        label.horizontalOverflow = HorizontalWrapMode.Overflow;
+        label.verticalOverflow = VerticalWrapMode.Truncate;
+        label.resizeTextForBestFit = true;
+        label.resizeTextMinSize = 9;
+        label.resizeTextMaxSize = 14;
+
+        RectTransform rt = label.rectTransform;
+        rt.anchorMin = new Vector2(0.06f, 0.635f);
+        rt.anchorMax = new Vector2(0.95f, 0.715f);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+        EnsureShadow(label.gameObject, new Color(0f, 0f, 0f, 0.7f), new Vector2(1f, -1f));
+
+        refs.SubroutineLabel = label;
     }
 
     /// <summary>
