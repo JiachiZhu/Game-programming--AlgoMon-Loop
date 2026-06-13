@@ -1603,10 +1603,10 @@ public class MainTerminalController : MonoBehaviour
 
         Image backdrop = skillSwapPanelRoot.gameObject.AddComponent<Image>();
         backdrop.color = new Color(0f, 0f, 0f, 0.72f);
+        // The dim backdrop stays raycast-blocking so clicks can't reach the menu
+        // behind, but it no longer closes the panel: dismissing is only via the CLOSE
+        // button, so a stray click on empty space can't drop the loadout mid-edit.
         backdrop.raycastTarget = true;
-        Button backdropButton = skillSwapPanelRoot.gameObject.AddComponent<Button>();
-        backdropButton.transition = Selectable.Transition.None;
-        backdropButton.onClick.AddListener(CloseSkillSwapPanel);
 
         // Solid procedural frame: its visible border IS the rect, so the header,
         // cards and detail panel all sit unambiguously inside the box.
@@ -2464,10 +2464,9 @@ public class MainTerminalController : MonoBehaviour
 
         Image backdrop = squadPanelRoot.gameObject.AddComponent<Image>();
         backdrop.color = new Color(0f, 0f, 0f, 0.66f);
+        // Dim backdrop blocks the menu behind but does not close the panel; use the
+        // CLOSE button so an accidental click on empty space can't dismiss it.
         backdrop.raycastTarget = true;
-        Button backdropButton = squadPanelRoot.gameObject.AddComponent<Button>();
-        backdropButton.transition = Selectable.Transition.None;
-        backdropButton.onClick.AddListener(CloseSquadPanel);
 
         RectTransform box = CreateRect("SquadPanelBox", squadPanelRoot);
         SetAnchors(box, new Vector2(0.07f, 0.18f), new Vector2(0.93f, 0.84f));
@@ -5086,10 +5085,8 @@ public class MainTerminalController : MonoBehaviour
             new Color(0.006f, 0.012f, 0.026f, 0.88f));
         background.raycastTarget = true;
 
-        Text title = CreateText("SettingsPanelTitle", settingsPanelRoot, 25, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.82f, 1f, 1f, 1f));
-        ApplyCrispCyberText(title, new Color(0f, 0.12f, 0.18f, 0.95f));
-        SetAnchors(title.rectTransform, new Vector2(0.070f, 0.910f), new Vector2(0.920f, 0.985f));
-        title.text = "SETTINGS";
+        // The section header (EnterSectionView("SETTINGS")) already titles this view,
+        // so the panel intentionally omits its own duplicate "SETTINGS" title.
 
         BuildVolumeSliderRow(
             "MusicVolume",
@@ -6810,7 +6807,7 @@ public class MainTerminalController : MonoBehaviour
             if (label != null)
             {
                 label.font = defaultFont;
-                label.alignment = TextAnchor.UpperLeft;
+                label.alignment = TextAnchor.UpperCenter;
                 label.horizontalOverflow = HorizontalWrapMode.Overflow;
                 label.verticalOverflow = VerticalWrapMode.Overflow;
                 label.resizeTextForBestFit = false;
@@ -6818,6 +6815,15 @@ public class MainTerminalController : MonoBehaviour
                 if (label.fontSize <= 0)
                     label.fontSize = templateLabel != null ? templateLabel.fontSize : 14;
                 label.lineSpacing = 0.92f;
+
+                // The authored floor-number rect sits ~14px right of the button
+                // centre; span the full button width so UpperCenter centres the
+                // "1F".."5F" label horizontally (vertical placement preserved).
+                RectTransform labelRect = label.rectTransform;
+                labelRect.anchorMin = new Vector2(0f, labelRect.anchorMin.y);
+                labelRect.anchorMax = new Vector2(1f, labelRect.anchorMax.y);
+                labelRect.offsetMin = new Vector2(0f, labelRect.offsetMin.y);
+                labelRect.offsetMax = new Vector2(0f, labelRect.offsetMax.y);
             }
 
             Text codeLabel = depthTierButtonCodeLabels != null && i < depthTierButtonCodeLabels.Length

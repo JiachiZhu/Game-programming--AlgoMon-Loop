@@ -1544,15 +1544,22 @@ public class GridMapController : MonoBehaviour
             ? gridButtonFrameSprite
             : LoadEditorSprite(CyberHudSpriteRoot + "/btn_wide_01_tint.png");
 
-        startIcon = LoadEditorSprite(GridIconSpriteRoot + "/square-chevron-right.png") ?? startIcon;
-        combatIcon = LoadEditorSprite(GridIconSpriteRoot + "/sword.png") ?? combatIcon;
-        hackerIcon = LoadEditorSprite(GridIconSpriteRoot + "/square-terminal.png") ?? hackerIcon;
-        eliteIcon = LoadEditorSprite(GridIconSpriteRoot + "/swords.png") ?? eliteIcon;
-        shopIcon = LoadEditorSprite(GridIconSpriteRoot + "/shopping-bag.png") ?? shopIcon;
-        rebootIcon = LoadEditorSprite(GridIconSpriteRoot + "/refresh-cw.png") ?? rebootIcon;
-        bossIcon = LoadEditorSprite(GridIconSpriteRoot + "/cpu.png") ?? bossIcon;
 #endif
 
+        // Node-type icons must resolve in standalone builds too. They previously loaded
+        // through AssetDatabase inside UNITY_EDITOR only, so builds fell back to the stale
+        // serialized HUD icons and never matched what the editor displayed. Resolve through
+        // the runtime catalog (baked by AlgoMon > Build > Rebuild Runtime Asset Catalogs)
+        // so the packaged build shows the same icons as the editor.
+        startIcon = ResolveGridSprite(GridIconSpriteRoot + "/square-chevron-right.png", startIcon);
+        combatIcon = ResolveGridSprite(GridIconSpriteRoot + "/sword.png", combatIcon);
+        hackerIcon = ResolveGridSprite(GridIconSpriteRoot + "/square-terminal.png", hackerIcon);
+        eliteIcon = ResolveGridSprite(GridIconSpriteRoot + "/swords.png", eliteIcon);
+        shopIcon = ResolveGridSprite(GridIconSpriteRoot + "/shopping-bag.png", shopIcon);
+        bossIcon = ResolveGridSprite(GridIconSpriteRoot + "/cpu.png", bossIcon);
+
+        // The reboot icon is procedurally generated below in both editor and build,
+        // so it always matches and does not need a catalog entry.
         rebootIcon = CreateRebootLoopArrowSprite("GridRebootLoopArrow", 96);
         gridNodeGlowSprite = CreateRadialSprite("GridNodeGlowDisc", 96, 0f, 0.42f, 0.34f);
         gridNodeFrameSprite = CreateRadialSprite("GridNodeCoreDisc", 64, 0f, 0.35f, 0.10f);
@@ -1707,6 +1714,23 @@ public class GridMapController : MonoBehaviour
         textDim = new Color(0.34f, 0.58f, 0.66f, 1f);
         accent = new Color(0.20f, 0.94f, 0.86f, 1f);
         warning = new Color(1f, 0.60f, 0.28f, 1f);
+    }
+
+    // Resolve a sprite by its asset path for both editor and standalone builds:
+    // the runtime catalog (baked into Resources) covers builds and post-bake editor,
+    // the editor AssetDatabase covers a pre-bake editor session, and the serialized
+    // reference is the final fallback.
+    private static Sprite ResolveGridSprite(string assetPath, Sprite fallback)
+    {
+        Sprite fromCatalog = RuntimeUiAssetCatalog.FindSprite(assetPath);
+        if (fromCatalog != null)
+            return fromCatalog;
+#if UNITY_EDITOR
+        Sprite fromDatabase = LoadEditorSprite(assetPath);
+        if (fromDatabase != null)
+            return fromDatabase;
+#endif
+        return fallback;
     }
 
 #if UNITY_EDITOR

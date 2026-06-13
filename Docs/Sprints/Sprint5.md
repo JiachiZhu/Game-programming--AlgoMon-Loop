@@ -1,4 +1,4 @@
-# Sprint 5 - June 1 to June 7
+# Sprint 5 - June 1 to June 12
 
 ## Goal
 
@@ -24,10 +24,10 @@ first pass of asset attribution. The current gap is not the core playable loop;
 it is presentation quality. Some screens work mechanically but still feel like
 separate pieces made at different times.
 
-Sprint 5 runs for one week (`June 1 - June 7`). The main scope is polish across
-existing playable screens. New gameplay systems are intentionally limited unless
-they are needed to support feedback clarity. Full Lab / gene merge gameplay,
-large new enemy sets, and major combat redesigns are deferred.
+Sprint 5 ran from `June 1 - June 12`. The planned polish scope expanded because
+the first Windows build exposed player-only asset loading and compile problems.
+The final sprint work therefore covered both presentation polish and the build
+readiness pass needed to make the vertical slice run outside the editor.
 
 ---
 
@@ -49,33 +49,32 @@ AlgoMon's UI should feel like a compact cyber-pixel operating system:
 
 ## Planned Issues
 
-Sprint 5 issues are now real GitHub issues under the
-`Sprint5(6.1-6.7)` milestone. Use the rank below as the working order unless a
-submission blocker appears.
+Sprint 5 issues live under the `Sprint5(6.1-6.12)` milestone. This is the final
+local snapshot for the sprint.
 
 | Rank | # | Title | Priority | Kanban |
 |---:|---|---|---|---|
-| 1 | #38 | [UI] Define a shared visual style guide for Sprint 5 screens | P0 | To Do |
-| 2 | #39 | [MainTerminal] Polish start flow, tier selector, and terminal feedback | P0 | To Do |
-| 3 | #40 | [Grid] Add consistent node feedback, route preview, and danger accents | P0 | To Do |
-| 4 | #41 | [Battle HUD] Unify action panels, status display, HP/CP bars, and switch UI | P0 | To Do |
-| 5 | #42 | [Animation] Produce entry animations for all 12 base/evolved AlgoMon forms | P1 | To Do |
-| 6 | #27 | [Polish] Add skill VFX profile pipeline | P1 | To Do |
-| 7 | #43 | [Audio] Add first-pass UI, grid, and battle sound effects | P1 | To Do |
-| 8 | #44 | [Flow] Polish scene transitions, restart, continue, victory, and defeat states | P1 | To Do |
-| 9 | #45 | [QA] Run readability, playability, and submission smoke tests | P0 final gate | To Do |
-| 10 | #28 | [Polish] Add object pooling for floating feedback text | P2 | To Do |
+| 1 | #38 | [UI] Define a shared visual style guide for Sprint 5 screens | P0 | Done |
+| 2 | #39 | [MainTerminal] Polish start flow, tier selector, and terminal feedback | P0 | Done |
+| 3 | #40 | [Grid] Add consistent node feedback, route preview, and danger accents | P0 | Done |
+| 4 | #41 | [Battle HUD] Unify action panels, status display, HP/CP bars, and switch UI | P0 | Done |
+| 5 | #42 | [Animation] Produce entry animations for all 12 base/evolved AlgoMon forms | P1 | Done |
+| 6 | #43 | [Audio] Add first-pass UI, grid, and battle sound effects | P1 | Done |
+| 7 | #44 | [Flow] Polish scene transitions, restart, continue, victory, and defeat states | P1 | Done |
+| 8 | #45 | [QA] Run readability, playability, and submission smoke tests | P0 final gate | Carried to Sprint 6 |
+| 9 | #46 | [Gene Lab] Implement payload, fusion, and evolution loop | P0 | Done |
+| 10 | #28 | [Polish] Add object pooling for floating feedback text | P2 | Closed as deferred |
 
 ### Kanban Notes
 
-- GitHub issues use stable labels only: `sprint:5`, `priority:P0/P1/P2`, and
-  `area:*`. Do not use labels for live Kanban state because they will not
-  follow Project card drag-and-drop automatically.
-- GitHub Projects v2 setup is blocked until the local GitHub token can be
-  refreshed with `read:project` / `project` scope. Mirror this order into a
-  Project board once that authorization works.
-- Move only one or two P0 issues into active work at a time. #45 should stay
-  as the final gate until the visible polish issues are complete.
+- Sprint 5 is functionally closed for feature polish. The playable route now
+  covers MainTerminal, TheGrid, TheArena, RunResult, and the first Gene Lab loop.
+- #45 moves into Sprint 6 as the final QA / submission evidence gate.
+- #28 was closed as deferred because testing has not shown visible slowdown from
+  the current floating feedback implementation, and the final sprint needs to
+  stay focused on clarity, build safety, playtesting, and presentation evidence.
+- The standalone build readiness work became part of the Sprint 5 final gate
+  because the first player build exposed editor-only asset paths.
 
 ### Stretch Goals
 
@@ -83,42 +82,13 @@ Only pick these up if the core presentation polish pass is stable.
 
 | # | Title | Status |
 |---|---|---|
-| Backlog | [Lab] Create a first visual mockup for the future gene merge screen | Stretch |
-| Backlog | [Settings] Add simple audio volume controls or mute toggles | Stretch |
-| Backlog | [Accessibility] Add optional colorblind/readability checks for node colors | Stretch |
+| Backlog | [Accessibility] Add optional colorblind/readability checks for node colors | Carry to Sprint 6 only if feedback needs it |
+| #45 | [QA] Run readability, playability, and submission smoke tests | Sprint 6 carry-over |
+| #28 | [Polish] Add object pooling for floating feedback text | Closed as future optimization |
 
 ---
 
 ## Issue Briefs
-
-### #27 - [Polish] Add skill VFX profile pipeline
-
-**Objective:** Add a data-driven skill VFX profile layer so skills can trigger
-reusable visual effects without adding skill-name-specific branches to
-`BattleManager`.
-
-**Acceptance Criteria**
-
-- [ ] Create a `SkillVfxProfile` ScriptableObject asset type.
-- [ ] Add optional VFX profile references to `SkillData`.
-- [ ] Teach `BattlePresentationController` to read skill VFX profile data when
-  available.
-- [ ] Preserve current generic battle presentation behavior when no VFX profile
-  is assigned.
-- [ ] Create first-pass reusable VFX profiles for at least one Attack, one
-  Defense, and one Status skill.
-- [ ] Define naming and folder conventions for future per-skill VFX assets.
-- [ ] Verify assigned VFX profiles trigger correctly in TheArena.
-- [ ] Document the VFX profile fields and authoring guidance in
-  `Docs/BattlePresentation.md`.
-
-**Scope Notes**
-
-- This issue establishes the VFX system and representative examples; full
-  coverage for all skills can be split into later content-production issues.
-- Do not move combat logic into VFX code.
-- No full particle library, camera direction system, sound effects, or hit-stop
-  work in this issue.
 
 ### #28 - [Polish] Add object pooling for floating feedback text
 

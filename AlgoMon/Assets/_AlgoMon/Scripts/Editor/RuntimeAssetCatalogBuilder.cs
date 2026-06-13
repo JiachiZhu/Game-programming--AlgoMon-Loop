@@ -24,6 +24,7 @@ public static class RuntimeAssetCatalogBuilder
     private const string MainTerminalSpriteRoot = "Assets/_AlgoMon/Sprites/UI/MainTerminal";
     private const string CyberHudSpriteRoot = MainTerminalSpriteRoot + "/CyberpunkHUD";
     private const string PixelHudSpriteRoot = MainTerminalSpriteRoot + "/PixelUIHUD";
+    private const string GridIconSpriteRoot = "Assets/_AlgoMon/Sprites/UI/Grid/Icons";
 
     // Mirrors the sprite paths requested by MainTerminalController and GridLinkTransition.
     // A missing file here is fine: the loaders fall back to flat-color styling.
@@ -56,6 +57,15 @@ public static class RuntimeAssetCatalogBuilder
         PixelHudSpriteRoot + "/Selectors/Square_Select.png",
         PixelHudSpriteRoot + "/Grid/White/SelectorEdge_Focus.png",
         PixelHudSpriteRoot + "/Grid/White/SelectorThick_Focus.png",
+        // TheGrid node-type icons (GridMapController). Without these baked, the
+        // standalone build falls back to stale serialized HUD icons that do not
+        // match the lucide icons the editor loads through AssetDatabase.
+        GridIconSpriteRoot + "/square-chevron-right.png",
+        GridIconSpriteRoot + "/sword.png",
+        GridIconSpriteRoot + "/square-terminal.png",
+        GridIconSpriteRoot + "/swords.png",
+        GridIconSpriteRoot + "/shopping-bag.png",
+        GridIconSpriteRoot + "/cpu.png",
     };
 
     // Panel buttons are loaded as textures because MainTerminalController creates
