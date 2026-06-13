@@ -1144,11 +1144,28 @@ public class BattleHudController : MonoBehaviour
     }
 
     /// <summary>
-    /// Builds the compact SUBROUTINE button that sits in the band below the
-    /// combatant name; clicking it shows the passive in the skill description box.
+    /// Builds the compact SUB button that sits in the combatant card header row,
+    /// between the name and the level (no extra vertical band). Styled with the
+    /// shared HUD chrome so it matches the RECHARGE/SWITCH/FLEE buttons; clicking
+    /// it shows the passive in the skill description box.
     /// </summary>
     private void EnsureSubroutineButton(Side side, Transform panel)
     {
+        ref CombatantRefs refs = ref RefsFor(side);
+
+        // Make room in the header: trim the name's right edge and push the level
+        // inward so the SUB button drops into the gap between them.
+        if (refs.NameText != null)
+        {
+            RectTransform nameRt = refs.NameText.rectTransform;
+            nameRt.anchorMax = new Vector2(0.56f, nameRt.anchorMax.y);
+        }
+        if (refs.LevelText != null)
+        {
+            RectTransform levelRt = refs.LevelText.rectTransform;
+            levelRt.anchorMin = new Vector2(0.78f, levelRt.anchorMin.y);
+        }
+
         Transform existing = panel.Find("SubroutineButton");
         GameObject buttonObject = existing != null
             ? existing.gameObject
@@ -1157,42 +1174,52 @@ public class BattleHudController : MonoBehaviour
             buttonObject.transform.SetParent(panel, false);
 
         var rt = buttonObject.GetComponent<RectTransform>();
-        rt.anchorMin = new Vector2(0.06f, 0.620f);
-        rt.anchorMax = new Vector2(0.44f, 0.726f);
+        rt.anchorMin = new Vector2(0.575f, 0.735f);
+        rt.anchorMax = new Vector2(0.765f, 0.945f);
         rt.offsetMin = Vector2.zero;
         rt.offsetMax = Vector2.zero;
 
+        Color accent = ActionAccentColor("SWITCH"); // cyan HUD accent, matches the command buttons
+
         var image = buttonObject.GetComponent<Image>();
-        image.color = new Color(0.18f, 0.13f, 0.30f, 0.80f);
+        image.sprite = HudPanelSprite();
+        image.type = Image.Type.Sliced;
+        image.pixelsPerUnitMultiplier = 2.4f;
+        image.color = Color.Lerp(ActionButtonFill, accent, 0.14f);
         image.raycastTarget = true;
 
         var button = buttonObject.GetComponent<Button>();
-        ColorBlock colors = button.colors;
-        colors.normalColor = Color.white;
-        colors.highlightedColor = new Color(0.85f, 0.78f, 1f, 1f);
-        colors.pressedColor = new Color(0.70f, 0.60f, 1f, 1f);
-        colors.fadeDuration = 0.08f;
-        button.colors = colors;
         button.onClick.RemoveAllListeners();
         Side captured = side;
         button.onClick.AddListener(() => ShowSubroutineDetail(captured));
 
-        Text label = EnsureChildText(buttonObject.transform, "Label", 12, TextAnchor.MiddleCenter);
-        label.text = "SUBROUTINE";
+        Text label = EnsureChildText(buttonObject.transform, "Label", 11, TextAnchor.MiddleCenter);
+        label.text = "SUB";
         label.font = ReadableHudFont();
         label.fontStyle = FontStyle.Bold;
-        label.color = new Color(0.86f, 0.80f, 1f, 1f);
+        label.color = Color.Lerp(new Color(0.86f, 0.96f, 1f, 0.96f), accent, 0.25f);
         label.raycastTarget = false;
         label.resizeTextForBestFit = true;
-        label.resizeTextMinSize = 8;
+        label.resizeTextMinSize = 7;
         label.resizeTextMaxSize = 12;
         RectTransform lrt = label.rectTransform;
         lrt.anchorMin = Vector2.zero;
         lrt.anchorMax = Vector2.one;
-        lrt.offsetMin = new Vector2(4f, 0f);
-        lrt.offsetMax = new Vector2(-4f, 0f);
+        lrt.offsetMin = Vector2.zero;
+        lrt.offsetMax = Vector2.zero;
+        EnsureShadow(label.gameObject, new Color(0f, 0f, 0f, 0.7f), new Vector2(1f, -1f));
 
-        ref CombatantRefs refs = ref RefsFor(side);
+        BattleHudButtonFeedback feedback = button.GetComponent<BattleHudButtonFeedback>();
+        if (feedback == null)
+            feedback = button.gameObject.AddComponent<BattleHudButtonFeedback>();
+        feedback.Configure(button, 1.08f, 0.92f);
+        feedback.SetBackground(
+            image,
+            Color.Lerp(ActionButtonFill, accent, 0.14f),
+            Color.Lerp(ActionButtonFillHover, accent, 0.30f),
+            Color.Lerp(ActionButtonFillPressed, accent, 0.42f),
+            ActionButtonFillDisabled);
+
         refs.SubroutineButton = button;
         buttonObject.SetActive(false); // re-enabled by SetSubroutine when a passive exists
     }
