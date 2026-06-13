@@ -132,6 +132,60 @@ internal static class SkillDetailTextFormatter
             : $"Counter: {fallback}.";
     }
 
+    /// <summary>
+    /// Builds a highlighted one-line effect summary for a species Subroutine (passive),
+    /// using the same status/duration vocabulary as the skill counter summary so numbers
+    /// and effect terms light up via Highlight().
+    /// </summary>
+    public static string BuildSubroutineSummary(SubroutineData subroutine)
+    {
+        if (subroutine == null)
+            return string.Empty;
+
+        var parts = new List<string>();
+
+        if (subroutine.drainOpponentCP > 0)
+            parts.Add($"drain {subroutine.drainOpponentCP} CP from opponent");
+        if (subroutine.shredOpponentFirewall > 0f)
+            parts.Add($"shred opponent Firewall by {FormatPercent(subroutine.shredOpponentFirewall)}{FormatDuration(subroutine.firewallShredDurationType, subroutine.firewallShredDuration)}");
+
+        AddStatusPart(
+            parts,
+            "opponent",
+            subroutine.applyToOpponent,
+            subroutine.opponentStatusStacks,
+            subroutine.opponentStatusDurationType,
+            subroutine.opponentStatusDuration);
+
+        if (subroutine.forceOpponentLast)
+            parts.Add("force opponent to act last next turn");
+
+        AddStatusPart(
+            parts,
+            "self",
+            subroutine.applyToSelf,
+            subroutine.selfStatusStacks,
+            subroutine.selfStatusDurationType,
+            subroutine.selfStatusDuration);
+
+        if (subroutine.selfCPDiscount > 0)
+            parts.Add($"all own skill CP costs -{subroutine.selfCPDiscount}{FormatDuration(subroutine.cpDiscountDurationType, subroutine.cpDiscountDuration)}");
+        if (subroutine.nextPriorityBonus != 0)
+            parts.Add($"next priority {FormatSigned(subroutine.nextPriorityBonus)}");
+        if (subroutine.nextBasePowerBonus != 0)
+            parts.Add($"next BP {FormatSigned(subroutine.nextBasePowerBonus)}");
+        if (subroutine.selfHealPercent > 0f)
+            parts.Add($"restore {FormatPercent(subroutine.selfHealPercent)} Battery");
+        if (subroutine.clearsOwnDebuffs)
+            parts.Add("clear own temporary debuffs");
+
+        if (parts.Count == 0)
+            return string.Empty;
+
+        string joined = string.Join("; ", parts);
+        return $"Effect: {char.ToUpperInvariant(joined[0])}{joined.Substring(1)}.";
+    }
+
     private static void AddStatusPart(
         List<string> parts,
         string target,
