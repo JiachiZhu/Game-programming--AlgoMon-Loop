@@ -22,7 +22,14 @@ public static class EventBus
         if (!_handlers.ContainsKey(type))
             _handlers[type] = new List<Delegate>();
 
-        _handlers[type].Add(handler);
+        // Guard against duplicate subscriptions: Unsubscribe only removes the
+        // first matching delegate, so a double-Add would leak a handler that
+        // fires twice per publish. Balanced OnEnable/OnDisable plus Clear() on
+        // scene transitions normally prevent this, but the guard keeps the bus
+        // correct if a lifecycle path ever re-subscribes without unsubscribing.
+        List<Delegate> list = _handlers[type];
+        if (!list.Contains(handler))
+            list.Add(handler);
     }
 
     public static void Unsubscribe<T>(Action<T> handler)

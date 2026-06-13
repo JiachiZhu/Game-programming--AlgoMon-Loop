@@ -140,6 +140,7 @@ public class BattlePresentationController : MonoBehaviour
     [Header("Switch Reveal")]
     [SerializeField, Min(0f)] private float switchRevealDuration = 0.48f;
     [SerializeField] private Color switchRevealFeedbackColor = new Color(0.62f, 0.95f, 1f);
+    [SerializeField] private Color subroutineFeedbackColor = new Color(0.76f, 0.66f, 1f);
 
     [Header("Battle Action Effects")]
     [SerializeField] private BattleActionEffectBinding[] actionEffectBindings;
@@ -230,6 +231,7 @@ public class BattlePresentationController : MonoBehaviour
         EventBus.Subscribe<StatusAppliedEvent>(OnStatusApplied);
         EventBus.Subscribe<CounterEvent>(OnCounter);
         EventBus.Subscribe<UnitFaintedEvent>(OnUnitFainted);
+        EventBus.Subscribe<SubroutineTriggeredEvent>(OnSubroutineTriggered);
     }
 
     private void OnDisable()
@@ -240,6 +242,7 @@ public class BattlePresentationController : MonoBehaviour
         EventBus.Unsubscribe<StatusAppliedEvent>(OnStatusApplied);
         EventBus.Unsubscribe<CounterEvent>(OnCounter);
         EventBus.Unsubscribe<UnitFaintedEvent>(OnUnitFainted);
+        EventBus.Unsubscribe<SubroutineTriggeredEvent>(OnSubroutineTriggered);
     }
 
     private void AutoBind()
@@ -1412,6 +1415,18 @@ public class BattlePresentationController : MonoBehaviour
         }
 
         SpawnUtilityFeedback(counter, "COUNTER", new Color(1f, 0.92f, 0.45f));
+    }
+
+    private void OnSubroutineTriggered(SubroutineTriggeredEvent evt)
+    {
+        BattleSpriteAnimator owner = AnimatorFor(evt.OwnerId);
+        if (owner == null)
+            return;
+
+        string label = string.IsNullOrWhiteSpace(evt.SubroutineName)
+            ? "SUBROUTINE"
+            : evt.SubroutineName.Trim().ToUpperInvariant();
+        SpawnUtilityFeedback(owner, label, subroutineFeedbackColor);
     }
 
     private void SuppressNextCounterAction(string combatantId)

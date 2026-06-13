@@ -1427,6 +1427,11 @@ public class BattleManager : MonoBehaviour
             yield break;
 
         EmitLog($"{owner.Name}'s {SubroutineName(subroutine)} activates.");
+        EventBus.Publish(new SubroutineTriggeredEvent
+        {
+            OwnerId = PresentationIdFor(owner),
+            SubroutineName = SubroutineName(subroutine),
+        });
         RefreshHud();
         if (logLineDelay > 0f)
             yield return new WaitForSeconds(logLineDelay);
@@ -2556,12 +2561,14 @@ public class BattleManager : MonoBehaviour
         hud.SetBattery(BattleHudController.Side.Player, player.CurrentBattery, player.MaxBattery);
         hud.SetCP(BattleHudController.Side.Player, player.CurrentCP, MaxCP);
         hud.SetStatusChips(BattleHudController.Side.Player, BuildStatusChips(player));
+        PushSubroutineToHud(BattleHudController.Side.Player, player);
 
         hud.SetCombatant(BattleHudController.Side.Enemy, enemy.Name, enemy.DisplayLevel);
         hud.SetCombatantElement(BattleHudController.Side.Enemy, UnitElementType(enemy));
         hud.SetBattery(BattleHudController.Side.Enemy, enemy.CurrentBattery, enemy.MaxBattery);
         hud.SetCP(BattleHudController.Side.Enemy, enemy.CurrentCP, MaxCP);
         hud.SetStatusChips(BattleHudController.Side.Enemy, BuildStatusChips(enemy));
+        PushSubroutineToHud(BattleHudController.Side.Enemy, enemy);
 
         bool canAct = phase == BattlePhase.WaitingForPlayer;
         // Skill slots preview their element matchup against the active enemy;
@@ -2646,7 +2653,8 @@ public class BattleManager : MonoBehaviour
                 state,
                 FormatUnitStatus(unit),
                 SwitchPortraitFor(unit),
-                available);
+                available,
+                unit?.Instance?.data?.subroutine);
         }
     }
 
@@ -2786,6 +2794,15 @@ public class BattleManager : MonoBehaviour
         if (subroutine == null || string.IsNullOrWhiteSpace(subroutine.subroutineName))
             return "Subroutine";
         return subroutine.subroutineName.Trim();
+    }
+
+    private void PushSubroutineToHud(BattleHudController.Side side, BattleUnit unit)
+    {
+        if (hud == null)
+            return;
+
+        SubroutineData sub = unit?.Instance?.data?.subroutine;
+        hud.SetSubroutine(side, sub);
     }
 
     private static string FormatSigned(int value)

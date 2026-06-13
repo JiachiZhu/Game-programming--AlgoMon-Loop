@@ -210,6 +210,7 @@ public class BattleHudController : MonoBehaviour
         public Text    StatusText;
         public Image[] StatusChips;
         public Text[]  StatusChipTexts;
+        public Button  SubroutineButton;
     }
     private CombatantRefs player;
     private CombatantRefs enemy;
@@ -297,6 +298,12 @@ public class BattleHudController : MonoBehaviour
     private readonly string[] skillHoverBodies  = new string[MaxSkillSlots];
     private readonly string[] actionHoverTitles = new string[3];
     private readonly string[] actionHoverBodies = new string[3];
+
+    // Per-side subroutine card text, shown in the skill detail panel when the
+    // player hovers or clicks a combatant card. Pushed in by BattleManager.
+    private struct SubroutineCardData { public bool Has; public string Title; public string Body; }
+    private SubroutineCardData playerSubroutine;
+    private SubroutineCardData enemySubroutine;
     private readonly int[]    skillCPCosts      = new int[MaxSkillSlots];
     private bool cpPreviewActive;
     private int cpPreviewCost;
@@ -446,6 +453,8 @@ public class BattleHudController : MonoBehaviour
         HideSkillDetailPanel();
 
         WireHoverPreviews();
+        WireCombatantSubroutine(Side.Player, "SafeArea/CombatLayer/PlayerCombatantPanel");
+        WireCombatantSubroutine(Side.Enemy, "SafeArea/CombatLayer/EnemyCombatantPanel");
 
         IsBound = true;
     }
@@ -1098,6 +1107,204 @@ public class BattleHudController : MonoBehaviour
         if (refs.LevelText != null) refs.LevelText.text = $"Lv. {level}";
     }
 
+    /// <summary>
+    /// Stores the subroutine (passive) detail shown in the skill description box when
+    /// the player clicks the card's SUBROUTINE button. Pass null to clear. The body is
+    /// built with the shared skill formatter so key values are highlighted.
+    /// </summary>
+    public void SetSubroutine(Side side, SubroutineData subroutine)
+    {
+        SubroutineCardData card = default;
+        card.Has = subroutine != null && !string.IsNullOrWhiteSpace(subroutine.subroutineName);
+        if (card.Has)
+        {
+            card.Title = $"{subroutine.subroutineName.Trim().ToUpperInvariant()}  ·  SUBROUTINE";
+            card.Body = SkillDetailTextFormatter.BuildBody(
+                $"PASSIVE | {subroutine.TriggerLabel}",
+                SkillDetailTextFormatter.BuildSubroutineSummary(subroutine),
+                subroutine.description != null ? subroutine.description.Trim() : string.Empty);
+        }
+
+        if (side == Side.Player) playerSubroutine = card;
+        else enemySubroutine = card;
+
+        // The SUBROUTINE button only shows when the unit actually has a passive.
+        ref CombatantRefs refs = ref RefsFor(side);
+        if (refs.SubroutineButton != null)
+            refs.SubroutineButton.gameObject.SetActive(card.Has);
+    }
+
+    private void WireCombatantSubroutine(Side side, string panelPath)
+    {
+        Transform panel = FindTransform(panelPath);
+        if (panel == null)
+            return;
+
+        EnsureSubroutineButton(side, panel);
+    }
+
+    // Shared with the payload skill-loadout SUBROUTINE button: the same PixelUIHUD
+    // blue button art, baked into RuntimeUiAssetCatalog so it loads in builds too.
+    private const string PanelButtonNormalSpritePath   = "Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonE_Unpressed.png";
+    private const string PanelButtonHoverGlowSpritePath = "Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonStone_Highlighted.png";
+    private static Sprite sharedPanelButtonNormal;
+    private static Sprite sharedPanelButtonHoverGlow;
+
+    private static Sprite SharedPanelButtonSprite(string assetPath, ref Sprite cache)
+    {
+        if (cache != null)
+            return cache;
+        Texture2D texture = RuntimeUiAssetCatalog.FindTexture(assetPath);
+        if (texture != null)
+        {
+            cache = Sprite.Create(
+                texture,
+                new Rect(0f, 0f, texture.width, texture.height),
+                new Vector2(0.5f, 0.5f),
+                100f,
+                0,
+                SpriteMeshType.FullRect);
+            cache.name = texture.name;
+        }
+        return cache;
+    }
+
+    /// <summary>
+    /// Wires the combatant card's SUBROUTINE button. The button itself is authored
+    /// in BattleHud.prefab so it can be positioned and styled in edit mode; this only
+    /// hooks the click, resolves the blue-frame hover feedback, and stores the ref.
+    /// If the prefab has no authored button (e.g. someone removed it), a styled one
+    /// is built at runtime as a fallback.
+    /// </summary>
+    private void EnsureSubroutineButton(Side side, Transform panel)
+    {
+        Transform existing = panel.Find("SubroutineButton");
+        Button button;
+        Image hoverGlow;
+        if (existing != null)
+        {
+            // Respect the authored layout/art; only resolve the pieces we wire.
+            button = existing.GetComponent<Button>();
+            if (button == null)
+                button = existing.gameObject.AddComponent<Button>();
+            Transform glow = existing.Find("HoverGlow");
+            hoverGlow = glow != null ? glow.GetComponent<Image>() : null;
+        }
+        else
+        {
+            button = BuildSubroutineButtonFallback(panel, out hoverGlow);
+        }
+
+        button.onClick.RemoveAllListeners();
+        Side captured = side;
+        button.onClick.AddListener(() => ShowSubroutineDetail(captured));
+
+        // Same blue-frame hover the MainTerminal panel buttons use: PixelHudButtonFeedback
+        // fades the ButtonStone_Highlighted glow in on hover.
+        if (hoverGlow != null)
+        {
+            PixelHudButtonFeedback feedback = button.GetComponent<PixelHudButtonFeedback>();
+            if (feedback == null)
+                feedback = button.gameObject.AddComponent<PixelHudButtonFeedback>();
+            feedback.Configure(button, hoverGlow, null);
+        }
+
+        ref CombatantRefs refs = ref RefsFor(side);
+        refs.SubroutineButton = button;
+        button.gameObject.SetActive(false); // re-enabled by SetSubroutine when a passive exists
+    }
+
+    /// <summary>
+    /// Runtime fallback that builds a SUBROUTINE button matching the authored one,
+    /// used only if the prefab has none. Mirrors the payload skill-loadout button art.
+    /// </summary>
+    private Button BuildSubroutineButtonFallback(Transform panel, out Image hoverGlow)
+    {
+        // Open the header gap: trim the name, push the level to the far right.
+        Transform nameTf = panel.Find("NameText");
+        if (nameTf != null)
+        {
+            RectTransform nameRt = nameTf.GetComponent<RectTransform>();
+            if (nameRt != null) nameRt.anchorMax = new Vector2(0.40f, nameRt.anchorMax.y);
+        }
+        Transform levelTf = panel.Find("LevelText");
+        if (levelTf != null)
+        {
+            RectTransform levelRt = levelTf.GetComponent<RectTransform>();
+            if (levelRt != null) levelRt.anchorMin = new Vector2(0.86f, levelRt.anchorMin.y);
+        }
+
+        var buttonObject = new GameObject("SubroutineButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(panel, false);
+
+        var rt = buttonObject.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.420f, 0.760f);
+        rt.anchorMax = new Vector2(0.710f, 0.930f);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        var image = buttonObject.GetComponent<Image>();
+        image.raycastTarget = true;
+        Sprite normalSprite = SharedPanelButtonSprite(PanelButtonNormalSpritePath, ref sharedPanelButtonNormal);
+        if (normalSprite != null)
+        {
+            image.sprite = normalSprite;
+            image.type = Image.Type.Simple;
+        }
+        else
+        {
+            image.sprite = HudPanelSprite();
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 2.4f;
+        }
+        image.color = Color.white;
+
+        var button = buttonObject.GetComponent<Button>();
+        button.targetGraphic = image;
+        button.transition = Selectable.Transition.None;
+
+        // Blue-frame hover glow overlay (same art as the home buttons).
+        Image glow = EnsureChildImage(buttonObject.transform, "HoverGlow");
+        Sprite glowSprite = SharedPanelButtonSprite(PanelButtonHoverGlowSpritePath, ref sharedPanelButtonHoverGlow);
+        glow.sprite = glowSprite;
+        glow.type = Image.Type.Simple;
+        glow.raycastTarget = false;
+        glow.color = Color.clear;
+        RectTransform glowRt = glow.rectTransform;
+        glowRt.anchorMin = Vector2.zero;
+        glowRt.anchorMax = Vector2.one;
+        glowRt.offsetMin = Vector2.zero;
+        glowRt.offsetMax = Vector2.zero;
+
+        Text label = EnsureChildText(buttonObject.transform, "Label", 14, TextAnchor.MiddleCenter);
+        label.text = "SUBROUTINE";
+        label.font = ReadableHudFont();
+        label.fontStyle = FontStyle.Bold;
+        label.color = new Color(0.93f, 0.99f, 1f, 1f);
+        label.raycastTarget = false;
+        label.resizeTextForBestFit = true;
+        label.resizeTextMinSize = 10;
+        label.resizeTextMaxSize = 16;
+        RectTransform lrt = label.rectTransform;
+        lrt.anchorMin = Vector2.zero;
+        lrt.anchorMax = Vector2.one;
+        lrt.offsetMin = new Vector2(3f, 0f);
+        lrt.offsetMax = new Vector2(-3f, 0f);
+        label.transform.SetAsLastSibling();
+        EnsureShadow(label.gameObject, new Color(0f, 0f, 0f, 0.7f), new Vector2(1f, -1f));
+
+        hoverGlow = glow;
+        return button;
+    }
+
+    private void ShowSubroutineDetail(Side side)
+    {
+        SubroutineCardData card = side == Side.Player ? playerSubroutine : enemySubroutine;
+        if (!card.Has)
+            return;
+        ShowSkillDetail(card.Title, card.Body);
+    }
+
     public void SetBattery(Side side, int current, int max)
     {
         ref CombatantRefs refs = ref RefsFor(side);
@@ -1238,7 +1445,8 @@ public class BattleHudController : MonoBehaviour
         string stateText,
         string statusSummary,
         Sprite portraitSprite,
-        bool available)
+        bool available,
+        SubroutineData subroutine = null)
     {
         if (!IndexInRange(index)) return;
 
@@ -1289,7 +1497,8 @@ public class BattleHudController : MonoBehaviour
             currentCP,
             maxCP,
             stateText,
-            statusSummary);
+            statusSummary,
+            subroutine);
     }
 
     public void SetSkillSlotAvailable(int index, bool available)
@@ -3766,6 +3975,11 @@ public class BattleHudController : MonoBehaviour
         if (skillDetailPanel == null)
             return;
 
+        // Restore the resting content (battle log / validation text) before hiding
+        // so the panel never re-appears showing stale hover text from a skill slot
+        // or combatant card. Documented design: hover previews are transient.
+        WriteSkillDetail(restingDetailTitle, restingDetailBody);
+
         CanvasGroup group = skillDetailPanel.GetComponent<CanvasGroup>();
         if (group == null)
             group = skillDetailPanel.gameObject.AddComponent<CanvasGroup>();
@@ -3860,7 +4074,8 @@ public class BattleHudController : MonoBehaviour
         int currentCP,
         int maxCP,
         string stateText,
-        string statusSummary)
+        string statusSummary,
+        SubroutineData subroutine = null)
     {
         int safeMaxBattery = Mathf.Max(1, maxBattery);
         int safeMaxCP = Mathf.Max(1, maxCP);
@@ -3869,11 +4084,21 @@ public class BattleHudController : MonoBehaviour
         string state = string.IsNullOrWhiteSpace(stateText) ? "READY" : stateText.Trim();
         string status = string.IsNullOrWhiteSpace(statusSummary) ? "Ready" : statusSummary.Trim();
 
-        return SkillDetailTextFormatter.BuildBody(
+        string body = SkillDetailTextFormatter.BuildBody(
             $"{ElementDetailLabel(elementType)} | Lv {Mathf.Max(1, level)} | {state}",
             $"BATTERY <b>{safeBattery}/{safeMaxBattery}</b>\n{BuildCompactResourceBar(safeBattery, safeMaxBattery, 12)}",
             $"CP <b>{safeCP}/{safeMaxCP}</b>\n{BuildCompactResourceBar(safeCP, safeMaxCP, 10)}",
             $"Status: <b>{status}</b>");
+
+        if (subroutine != null && !string.IsNullOrWhiteSpace(subroutine.subroutineName))
+        {
+            string desc = string.IsNullOrWhiteSpace(subroutine.description)
+                ? "Hardwired passive ability."
+                : subroutine.description.Trim();
+            body += $"\n\n<b>SUBROUTINE</b>  {subroutine.subroutineName.Trim()} · {subroutine.TriggerLabel}\n{desc}";
+        }
+
+        return body;
     }
 
     private static string BuildCompactResourceBar(int current, int max, int segments)

@@ -1844,8 +1844,16 @@ public class MainTerminalController : MonoBehaviour
     {
         Text caption = CreateText("SkillSwapDetailLabel", box, 13, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.6f, 0.92f, 1f, 0.92f));
         ApplyCrispCyberText(caption, new Color(0f, 0.1f, 0.16f, 0.9f));
-        SetAnchors(caption.rectTransform, new Vector2(0.595f, 0.570f), new Vector2(0.964f, 0.618f));
+        SetAnchors(caption.rectTransform, new Vector2(0.595f, 0.570f), new Vector2(0.760f, 0.618f));
         caption.text = "SKILL DATA";
+
+        // Pull the unit's passive into this same data board on demand.
+        Button subroutineButton = FindOrCreatePanelButton(
+            "SkillSwapSubroutineButton", box, "SUBROUTINE",
+            new Vector2(0.775f, 0.566f), new Vector2(0.964f, 0.624f));
+        SetPanelButtonLabelSize(subroutineButton, 12);
+        subroutineButton.onClick.RemoveListener(ShowSubroutineDetail);
+        subroutineButton.onClick.AddListener(ShowSubroutineDetail);
 
         RectTransform detail = CreateRect("SkillSwapDetail", box);
         SetAnchors(detail, new Vector2(0.595f, 0.035f), new Vector2(0.964f, 0.560f));
@@ -1962,6 +1970,50 @@ public class MainTerminalController : MonoBehaviour
                 meta.ToString(),
                 SkillDetailTextFormatter.BuildCounterSummary(skill),
                 SkillDetailTextFormatter.BuildReadableDescription(skill));
+    }
+
+    /// <summary>SUBROUTINE button: render the selected unit's passive into the shared data board, values highlighted.</summary>
+    private void ShowSubroutineDetail()
+    {
+        if (skillSwapDetailName == null)
+            return;
+
+        manager = manager != null ? manager : GameManager.EnsureInstance();
+        AlgoMonInstance mon = SelectedPayloadMon(manager);
+        SubroutineData subroutine = mon != null && mon.data != null ? mon.data.subroutine : null;
+        bool has = subroutine != null && !string.IsNullOrWhiteSpace(subroutine.subroutineName);
+
+        if (skillSwapDetailElementIcon != null) skillSwapDetailElementIcon.gameObject.SetActive(false);
+        if (skillSwapDetailCPChip != null) skillSwapDetailCPChip.gameObject.SetActive(false);
+        if (skillSwapDetailPowerChip != null) skillSwapDetailPowerChip.gameObject.SetActive(false);
+        if (skillSwapDetailCounterChip != null) skillSwapDetailCounterChip.gameObject.SetActive(false);
+        if (skillSwapDetailBadge != null) skillSwapDetailBadge.gameObject.SetActive(has);
+
+        if (!has)
+        {
+            skillSwapDetailName.text = "SUBROUTINE";
+            if (skillSwapDetailBody != null)
+                skillSwapDetailBody.text = "This unit has no subroutine.";
+            return;
+        }
+
+        skillSwapDetailName.text = subroutine.subroutineName.Trim().ToUpperInvariant();
+
+        Color accent = new Color(0.76f, 0.66f, 1f);
+        if (skillSwapDetailBadgeIcon != null)
+            skillSwapDetailBadgeIcon.enabled = false;
+        if (skillSwapDetailBadgeLetter != null)
+        {
+            skillSwapDetailBadgeLetter.text = "P";
+            skillSwapDetailBadgeLetter.color = accent;
+            skillSwapDetailBadgeLetter.enabled = true;
+        }
+
+        if (skillSwapDetailBody != null)
+            skillSwapDetailBody.text = SkillDetailTextFormatter.BuildBody(
+                $"PASSIVE | {subroutine.TriggerLabel}",
+                SkillDetailTextFormatter.BuildSubroutineSummary(subroutine),
+                subroutine.description != null ? subroutine.description.Trim() : string.Empty);
     }
 
     private void OnSkillSwapCardHover(bool isLoadout, int index)
@@ -3506,9 +3558,6 @@ public class MainTerminalController : MonoBehaviour
         AlgoMonData data = mon.data;
         string codeName = data != null && !string.IsNullOrWhiteSpace(data.codeName) ? data.codeName.Trim() : DisplayNameFor(mon);
         string element = data != null ? data.elementType.ToString().ToUpperInvariant() : "NORMAL";
-        string subroutine = data != null && data.subroutine != null && !string.IsNullOrWhiteSpace(data.subroutine.subroutineName)
-            ? data.subroutine.subroutineName.Trim()
-            : "NONE";
 
         var builder = new StringBuilder();
         builder.AppendLine($"{DisplayNameFor(mon).ToUpperInvariant()}");
@@ -3516,7 +3565,6 @@ public class MainTerminalController : MonoBehaviour
         builder.AppendLine($"FORM: {FormLabel(mon)}  FUSION: {mon.FusionProgressText}");
         builder.AppendLine($"LV {mon.level:00}/{AlgoMonInstance.MAX_LEVEL}  EXP {mon.exp}/{mon.expToNextLevel}");
         builder.AppendLine($"DATA QUALITY: {EncounterReward.FormatQuality(mon.dataQuality)}");
-        builder.AppendLine($"SUBROUTINE: {subroutine.ToUpperInvariant()}");
         builder.AppendLine();
         builder.AppendLine("ACTIVE STATS");
         builder.AppendLine($"BAT {mon.Battery:000}  SPD {mon.ClockSpeed:000}");
@@ -3531,6 +3579,8 @@ public class MainTerminalController : MonoBehaviour
         builder.AppendLine("SKILLS");
         AppendPayloadSkills(builder, mon);
 
+        AppendSubroutineSection(builder, data);
+
         if (data != null && !string.IsNullOrWhiteSpace(data.description))
         {
             builder.AppendLine();
@@ -3539,6 +3589,20 @@ public class MainTerminalController : MonoBehaviour
         }
 
         return builder.ToString();
+    }
+
+    private static void AppendSubroutineSection(StringBuilder builder, AlgoMonData data)
+    {
+        SubroutineData sub = data != null ? data.subroutine : null;
+        if (sub == null || string.IsNullOrWhiteSpace(sub.subroutineName))
+            return;
+
+        builder.AppendLine();
+        builder.AppendLine("SUBROUTINE / PASSIVE");
+        builder.AppendLine($"{sub.subroutineName.Trim().ToUpperInvariant()}  ::  {sub.TriggerLabel}");
+        builder.Append(!string.IsNullOrWhiteSpace(sub.description)
+            ? sub.description.Trim()
+            : "Hardwired passive. Activates automatically in battle.");
     }
 
     private static string BuildGeneLabPreview(GameManager targetManager, int unit1Index, int unit2Index, string status)
@@ -3566,7 +3630,8 @@ public class MainTerminalController : MonoBehaviour
         builder.AppendLine(unit2Line);
         builder.AppendLine($"FUSION: {selected.FusionProgressText}  {evolveLine}");
         if (!string.IsNullOrWhiteSpace(status))
-            builder.Append($"STATUS: {status}");
+            builder.AppendLine($"STATUS: {status}");
+        AppendSubroutineSection(builder, selected.data);
         return builder.ToString();
     }
 
