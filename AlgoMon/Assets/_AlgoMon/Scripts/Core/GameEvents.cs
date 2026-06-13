@@ -34,6 +34,16 @@ public struct BattleEndEvent
     public bool PlayerWon;
 }
 
+/// <summary>
+/// Raised when a unit's Subroutine (passive) fires. The presentation layer pops
+/// an above-sprite callout so the player sees the passive act, not just a log line.
+/// </summary>
+public struct SubroutineTriggeredEvent
+{
+    public string OwnerId;          // presentation id of the unit whose subroutine fired
+    public string SubroutineName;
+}
+
 public struct BattleActionEvent
 {
     public string ActorId;

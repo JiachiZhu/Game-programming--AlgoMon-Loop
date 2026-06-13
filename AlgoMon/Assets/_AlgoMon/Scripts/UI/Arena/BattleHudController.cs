@@ -297,6 +297,12 @@ public class BattleHudController : MonoBehaviour
     private readonly string[] skillHoverBodies  = new string[MaxSkillSlots];
     private readonly string[] actionHoverTitles = new string[3];
     private readonly string[] actionHoverBodies = new string[3];
+
+    // Per-side subroutine card text, shown in the skill detail panel when the
+    // player hovers or clicks a combatant card. Pushed in by BattleManager.
+    private struct SubroutineCardData { public bool Has; public string Title; public string Body; }
+    private SubroutineCardData playerSubroutine;
+    private SubroutineCardData enemySubroutine;
     private readonly int[]    skillCPCosts      = new int[MaxSkillSlots];
     private bool cpPreviewActive;
     private int cpPreviewCost;
@@ -446,6 +452,8 @@ public class BattleHudController : MonoBehaviour
         HideSkillDetailPanel();
 
         WireHoverPreviews();
+        WireCombatantSubroutine(Side.Player, "SafeArea/CombatLayer/PlayerCombatantPanel");
+        WireCombatantSubroutine(Side.Enemy, "SafeArea/CombatLayer/EnemyCombatantPanel");
 
         IsBound = true;
     }
@@ -1098,6 +1106,64 @@ public class BattleHudController : MonoBehaviour
         if (refs.LevelText != null) refs.LevelText.text = $"Lv. {level}";
     }
 
+    /// <summary>
+    /// Stores the subroutine (passive) text shown in the skill detail panel when
+    /// the player hovers or clicks a combatant card. Pass a null/empty name to clear.
+    /// </summary>
+    public void SetSubroutine(Side side, string subroutineName, string triggerLabel, string description)
+    {
+        SubroutineCardData card = default;
+        card.Has = !string.IsNullOrWhiteSpace(subroutineName);
+        if (card.Has)
+        {
+            card.Title = $"{subroutineName.Trim().ToUpperInvariant()}  ·  SUBROUTINE";
+            string trig = string.IsNullOrWhiteSpace(triggerLabel) ? string.Empty : $"TRIGGER: {triggerLabel}\n";
+            string body = string.IsNullOrWhiteSpace(description) ? "Hardwired passive ability." : description.Trim();
+            card.Body = trig + body;
+        }
+
+        if (side == Side.Player) playerSubroutine = card;
+        else enemySubroutine = card;
+    }
+
+    private void WireCombatantSubroutine(Side side, string panelPath)
+    {
+        Transform panel = FindTransform(panelPath);
+        if (panel == null)
+            return;
+
+        // The card must receive pointer events to surface its subroutine.
+        Image panelImage = panel.GetComponent<Image>();
+        if (panelImage != null)
+            panelImage.raycastTarget = true;
+
+        EventTrigger trigger = panel.GetComponent<EventTrigger>();
+        if (trigger == null)
+            trigger = panel.gameObject.AddComponent<EventTrigger>();
+        if (trigger.triggers == null)
+            trigger.triggers = new System.Collections.Generic.List<EventTrigger.Entry>();
+        trigger.triggers.Clear();
+
+        AddCombatantTrigger(trigger, EventTriggerType.PointerEnter, () => ShowSubroutineDetail(side));
+        AddCombatantTrigger(trigger, EventTriggerType.PointerClick, () => ShowSubroutineDetail(side));
+        AddCombatantTrigger(trigger, EventTriggerType.PointerExit, HideSkillDetailPanel);
+    }
+
+    private static void AddCombatantTrigger(EventTrigger trigger, EventTriggerType type, Action action)
+    {
+        var entry = new EventTrigger.Entry { eventID = type };
+        entry.callback.AddListener(_ => action());
+        trigger.triggers.Add(entry);
+    }
+
+    private void ShowSubroutineDetail(Side side)
+    {
+        SubroutineCardData card = side == Side.Player ? playerSubroutine : enemySubroutine;
+        if (!card.Has)
+            return;
+        ShowSkillDetail(card.Title, card.Body);
+    }
+
     public void SetBattery(Side side, int current, int max)
     {
         ref CombatantRefs refs = ref RefsFor(side);
@@ -1238,7 +1304,8 @@ public class BattleHudController : MonoBehaviour
         string stateText,
         string statusSummary,
         Sprite portraitSprite,
-        bool available)
+        bool available,
+        SubroutineData subroutine = null)
     {
         if (!IndexInRange(index)) return;
 
@@ -1289,7 +1356,8 @@ public class BattleHudController : MonoBehaviour
             currentCP,
             maxCP,
             stateText,
-            statusSummary);
+            statusSummary,
+            subroutine);
     }
 
     public void SetSkillSlotAvailable(int index, bool available)
@@ -3766,6 +3834,11 @@ public class BattleHudController : MonoBehaviour
         if (skillDetailPanel == null)
             return;
 
+        // Restore the resting content (battle log / validation text) before hiding
+        // so the panel never re-appears showing stale hover text from a skill slot
+        // or combatant card. Documented design: hover previews are transient.
+        WriteSkillDetail(restingDetailTitle, restingDetailBody);
+
         CanvasGroup group = skillDetailPanel.GetComponent<CanvasGroup>();
         if (group == null)
             group = skillDetailPanel.gameObject.AddComponent<CanvasGroup>();
@@ -3860,7 +3933,8 @@ public class BattleHudController : MonoBehaviour
         int currentCP,
         int maxCP,
         string stateText,
-        string statusSummary)
+        string statusSummary,
+        SubroutineData subroutine = null)
     {
         int safeMaxBattery = Mathf.Max(1, maxBattery);
         int safeMaxCP = Mathf.Max(1, maxCP);
@@ -3869,11 +3943,21 @@ public class BattleHudController : MonoBehaviour
         string state = string.IsNullOrWhiteSpace(stateText) ? "READY" : stateText.Trim();
         string status = string.IsNullOrWhiteSpace(statusSummary) ? "Ready" : statusSummary.Trim();
 
-        return SkillDetailTextFormatter.BuildBody(
+        string body = SkillDetailTextFormatter.BuildBody(
             $"{ElementDetailLabel(elementType)} | Lv {Mathf.Max(1, level)} | {state}",
             $"BATTERY <b>{safeBattery}/{safeMaxBattery}</b>\n{BuildCompactResourceBar(safeBattery, safeMaxBattery, 12)}",
             $"CP <b>{safeCP}/{safeMaxCP}</b>\n{BuildCompactResourceBar(safeCP, safeMaxCP, 10)}",
             $"Status: <b>{status}</b>");
+
+        if (subroutine != null && !string.IsNullOrWhiteSpace(subroutine.subroutineName))
+        {
+            string desc = string.IsNullOrWhiteSpace(subroutine.description)
+                ? "Hardwired passive ability."
+                : subroutine.description.Trim();
+            body += $"\n\n<b>SUBROUTINE</b>  {subroutine.subroutineName.Trim()} · {subroutine.TriggerLabel}\n{desc}";
+        }
+
+        return body;
     }
 
     private static string BuildCompactResourceBar(int current, int max, int segments)

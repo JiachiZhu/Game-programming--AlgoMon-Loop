@@ -3506,9 +3506,6 @@ public class MainTerminalController : MonoBehaviour
         AlgoMonData data = mon.data;
         string codeName = data != null && !string.IsNullOrWhiteSpace(data.codeName) ? data.codeName.Trim() : DisplayNameFor(mon);
         string element = data != null ? data.elementType.ToString().ToUpperInvariant() : "NORMAL";
-        string subroutine = data != null && data.subroutine != null && !string.IsNullOrWhiteSpace(data.subroutine.subroutineName)
-            ? data.subroutine.subroutineName.Trim()
-            : "NONE";
 
         var builder = new StringBuilder();
         builder.AppendLine($"{DisplayNameFor(mon).ToUpperInvariant()}");
@@ -3516,7 +3513,6 @@ public class MainTerminalController : MonoBehaviour
         builder.AppendLine($"FORM: {FormLabel(mon)}  FUSION: {mon.FusionProgressText}");
         builder.AppendLine($"LV {mon.level:00}/{AlgoMonInstance.MAX_LEVEL}  EXP {mon.exp}/{mon.expToNextLevel}");
         builder.AppendLine($"DATA QUALITY: {EncounterReward.FormatQuality(mon.dataQuality)}");
-        builder.AppendLine($"SUBROUTINE: {subroutine.ToUpperInvariant()}");
         builder.AppendLine();
         builder.AppendLine("ACTIVE STATS");
         builder.AppendLine($"BAT {mon.Battery:000}  SPD {mon.ClockSpeed:000}");
@@ -3582,7 +3578,8 @@ public class MainTerminalController : MonoBehaviour
         builder.AppendLine(unit2Line);
         builder.AppendLine($"FUSION: {selected.FusionProgressText}  {evolveLine}");
         if (!string.IsNullOrWhiteSpace(status))
-            builder.Append($"STATUS: {status}");
+            builder.AppendLine($"STATUS: {status}");
+        AppendSubroutineSection(builder, selected.data);
         return builder.ToString();
     }
 
