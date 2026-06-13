@@ -210,7 +210,7 @@ public class BattleHudController : MonoBehaviour
         public Text    StatusText;
         public Image[] StatusChips;
         public Text[]  StatusChipTexts;
-        public Text    SubroutineLabel;
+        public Button  SubroutineButton;
     }
     private CombatantRefs player;
     private CombatantRefs enemy;
@@ -1108,34 +1108,30 @@ public class BattleHudController : MonoBehaviour
     }
 
     /// <summary>
-    /// Stores the subroutine (passive) text shown in the skill detail panel when
-    /// the player hovers or clicks a combatant card. Pass a null/empty name to clear.
+    /// Stores the subroutine (passive) detail shown in the skill description box when
+    /// the player clicks the card's SUBROUTINE button. Pass null to clear. The body is
+    /// built with the shared skill formatter so key values are highlighted.
     /// </summary>
-    public void SetSubroutine(Side side, string subroutineName, string triggerLabel, string description)
+    public void SetSubroutine(Side side, SubroutineData subroutine)
     {
         SubroutineCardData card = default;
-        card.Has = !string.IsNullOrWhiteSpace(subroutineName);
+        card.Has = subroutine != null && !string.IsNullOrWhiteSpace(subroutine.subroutineName);
         if (card.Has)
         {
-            card.Title = $"{subroutineName.Trim().ToUpperInvariant()}  ·  SUBROUTINE";
-            string trig = string.IsNullOrWhiteSpace(triggerLabel) ? string.Empty : $"TRIGGER: {triggerLabel}\n";
-            string body = string.IsNullOrWhiteSpace(description) ? "Hardwired passive ability." : description.Trim();
-            card.Body = trig + body;
+            card.Title = $"{subroutine.subroutineName.Trim().ToUpperInvariant()}  ·  SUBROUTINE";
+            card.Body = SkillDetailTextFormatter.BuildBody(
+                $"PASSIVE | {subroutine.TriggerLabel}",
+                SkillDetailTextFormatter.BuildSubroutineSummary(subroutine),
+                subroutine.description != null ? subroutine.description.Trim() : string.Empty);
         }
 
         if (side == Side.Player) playerSubroutine = card;
         else enemySubroutine = card;
 
-        // Always-visible passive line on the card (name + trigger); the full
-        // description remains available on the card hover/click detail.
+        // The SUBROUTINE button only shows when the unit actually has a passive.
         ref CombatantRefs refs = ref RefsFor(side);
-        if (refs.SubroutineLabel != null)
-        {
-            refs.SubroutineLabel.text = card.Has
-                ? $"PASSIVE: {subroutineName.Trim().ToUpperInvariant()}" +
-                  (string.IsNullOrWhiteSpace(triggerLabel) ? string.Empty : $"  ({triggerLabel})")
-                : string.Empty;
-        }
+        if (refs.SubroutineButton != null)
+            refs.SubroutineButton.gameObject.SetActive(card.Has);
     }
 
     private void WireCombatantSubroutine(Side side, string panelPath)
@@ -1144,28 +1140,61 @@ public class BattleHudController : MonoBehaviour
         if (panel == null)
             return;
 
-        // The card must receive pointer events to surface its subroutine.
-        Image panelImage = panel.GetComponent<Image>();
-        if (panelImage != null)
-            panelImage.raycastTarget = true;
-
-        EventTrigger trigger = panel.GetComponent<EventTrigger>();
-        if (trigger == null)
-            trigger = panel.gameObject.AddComponent<EventTrigger>();
-        if (trigger.triggers == null)
-            trigger.triggers = new System.Collections.Generic.List<EventTrigger.Entry>();
-        trigger.triggers.Clear();
-
-        AddCombatantTrigger(trigger, EventTriggerType.PointerEnter, () => ShowSubroutineDetail(side));
-        AddCombatantTrigger(trigger, EventTriggerType.PointerClick, () => ShowSubroutineDetail(side));
-        AddCombatantTrigger(trigger, EventTriggerType.PointerExit, HideSkillDetailPanel);
+        EnsureSubroutineButton(side, panel);
     }
 
-    private static void AddCombatantTrigger(EventTrigger trigger, EventTriggerType type, Action action)
+    /// <summary>
+    /// Builds the compact SUBROUTINE button that sits in the band below the
+    /// combatant name; clicking it shows the passive in the skill description box.
+    /// </summary>
+    private void EnsureSubroutineButton(Side side, Transform panel)
     {
-        var entry = new EventTrigger.Entry { eventID = type };
-        entry.callback.AddListener(_ => action());
-        trigger.triggers.Add(entry);
+        Transform existing = panel.Find("SubroutineButton");
+        GameObject buttonObject = existing != null
+            ? existing.gameObject
+            : new GameObject("SubroutineButton", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        if (existing == null)
+            buttonObject.transform.SetParent(panel, false);
+
+        var rt = buttonObject.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.06f, 0.620f);
+        rt.anchorMax = new Vector2(0.44f, 0.726f);
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        var image = buttonObject.GetComponent<Image>();
+        image.color = new Color(0.18f, 0.13f, 0.30f, 0.80f);
+        image.raycastTarget = true;
+
+        var button = buttonObject.GetComponent<Button>();
+        ColorBlock colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = new Color(0.85f, 0.78f, 1f, 1f);
+        colors.pressedColor = new Color(0.70f, 0.60f, 1f, 1f);
+        colors.fadeDuration = 0.08f;
+        button.colors = colors;
+        button.onClick.RemoveAllListeners();
+        Side captured = side;
+        button.onClick.AddListener(() => ShowSubroutineDetail(captured));
+
+        Text label = EnsureChildText(buttonObject.transform, "Label", 12, TextAnchor.MiddleCenter);
+        label.text = "SUBROUTINE";
+        label.font = ReadableHudFont();
+        label.fontStyle = FontStyle.Bold;
+        label.color = new Color(0.86f, 0.80f, 1f, 1f);
+        label.raycastTarget = false;
+        label.resizeTextForBestFit = true;
+        label.resizeTextMinSize = 8;
+        label.resizeTextMaxSize = 12;
+        RectTransform lrt = label.rectTransform;
+        lrt.anchorMin = Vector2.zero;
+        lrt.anchorMax = Vector2.one;
+        lrt.offsetMin = new Vector2(4f, 0f);
+        lrt.offsetMax = new Vector2(-4f, 0f);
+
+        ref CombatantRefs refs = ref RefsFor(side);
+        refs.SubroutineButton = button;
+        buttonObject.SetActive(false); // re-enabled by SetSubroutine when a passive exists
     }
 
     private void ShowSubroutineDetail(Side side)
@@ -3158,41 +3187,8 @@ public class BattleHudController : MonoBehaviour
         EnsureBatteryFeedbackLayers(ref refs);
         EnsureCombatantElementIcon(ref refs);
         EnsureStatusChipPool(ref refs);
-        EnsureSubroutineLabel(ref refs, root);
         ConfigureCombatantTextHierarchy(refs);
         return refs;
-    }
-
-    /// <summary>
-    /// Always-visible passive line on the combatant card, sitting in the empty
-    /// band between the name and the battery bar. Shows the subroutine name and
-    /// trigger at a glance; the full description stays on the card hover/click.
-    /// </summary>
-    private void EnsureSubroutineLabel(ref CombatantRefs refs, string root)
-    {
-        Transform panel = transform.Find(root);
-        if (panel == null)
-            return;
-
-        Text label = EnsureChildText(panel, "SubroutineLabel", 14, TextAnchor.MiddleLeft);
-        label.font = ReadableHudFont();
-        label.fontStyle = FontStyle.Bold;
-        label.color = new Color(0.80f, 0.72f, 1f, 0.96f);
-        label.raycastTarget = false;
-        label.horizontalOverflow = HorizontalWrapMode.Overflow;
-        label.verticalOverflow = VerticalWrapMode.Truncate;
-        label.resizeTextForBestFit = true;
-        label.resizeTextMinSize = 9;
-        label.resizeTextMaxSize = 14;
-
-        RectTransform rt = label.rectTransform;
-        rt.anchorMin = new Vector2(0.06f, 0.635f);
-        rt.anchorMax = new Vector2(0.95f, 0.715f);
-        rt.offsetMin = Vector2.zero;
-        rt.offsetMax = Vector2.zero;
-        EnsureShadow(label.gameObject, new Color(0f, 0f, 0f, 0.7f), new Vector2(1f, -1f));
-
-        refs.SubroutineLabel = label;
     }
 
     /// <summary>

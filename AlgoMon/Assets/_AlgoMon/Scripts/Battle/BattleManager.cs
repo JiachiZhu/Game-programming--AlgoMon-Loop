@@ -2802,10 +2802,7 @@ public class BattleManager : MonoBehaviour
             return;
 
         SubroutineData sub = unit?.Instance?.data?.subroutine;
-        if (sub != null && !string.IsNullOrWhiteSpace(sub.subroutineName))
-            hud.SetSubroutine(side, sub.subroutineName.Trim(), sub.TriggerLabel, sub.description);
-        else
-            hud.SetSubroutine(side, null, null, null);
+        hud.SetSubroutine(side, sub);
     }
 
     private static string FormatSigned(int value)
