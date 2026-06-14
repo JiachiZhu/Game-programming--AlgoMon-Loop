@@ -11,7 +11,7 @@ responsible for the final submission.
 
 ## AI assistance with code
 
-AI coding assistants — **Codex, Cursor, Claude (Claude Code), and ChatGPT** — were
+AI coding assistants — **Codex, Cursor and Claude (Claude Code)** — were
 used to help **implement, refactor, and debug** parts of the C# script code logic.
 The author designed the architecture, gameplay, data structures and algorithms, then
 reviewed, tested, and validated the generated code and all game logic.
@@ -29,7 +29,7 @@ No third-party or AI-generated work is presented as the author's own hand-made c
 
 ## Tools used
 
-- **Code AI:** Codex, Cursor, Claude (Claude Code), ChatGPT
+- **Code AI:** Codex, Cursor, Claude (Claude Code)
 - **Image AI:** PixelLab, ChatGPT Image 2, Gemini 3.1 Pro / Nano Banana
 - **Audio:** third-party (Pixabay music; Freesound / itch.io SFX) — see credits
 
