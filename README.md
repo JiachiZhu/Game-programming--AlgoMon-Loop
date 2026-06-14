@@ -189,6 +189,13 @@ AlgoMon-Loop/
 
 ## 🎨 Credits
 
+> **Third-party asset notice.** All third-party assets in this repository remain the
+> property of their respective creators and are included **solely for this academic
+> coursework submission**, under their respective licenses. They are credited below
+> (and in `Docs/AssetAttribution.md`) and are **not offered for redistribution or
+> reuse** — please obtain them from the original creators via the linked store pages.
+> This project is non-commercial / academic. AI use is declared in `AI_USE.md`.
+
 | Asset | Tool | Notes |
 |---|---|---|
 | AlgoMon sprite artwork (12 images) | Google Gemini 3.1 Pro (image generation) | All portraits generated specifically for this project |

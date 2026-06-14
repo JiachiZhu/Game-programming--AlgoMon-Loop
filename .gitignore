@@ -111,3 +111,8 @@ My project 2D/[Uu]ser[Ss]ettings/
 My project 2D/.plastic/
 My project 2D/.vs/
 
+
+# Academic-integrity: unused plugin + editor-only commercial fonts kept local, not redistributed in the public repo
+AlgoMon/Assets/Plugins/
+AlgoMon/Assets/Resources/DOTweenSettings.asset*
+AlgoMon/Assets/_AlgoMon/Fonts/CyberpunkUISystem/
