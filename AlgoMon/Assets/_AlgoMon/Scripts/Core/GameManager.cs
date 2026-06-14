@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: Instance, payload, party, currentRunGraph, currentNodeId, currentOpponent, currentOpponentParty, IsRunActive, selectedThreatTier, pendingRunOutcome, currentRunRewards.
 - Inputs: MainTerminal start command, Grid node selections, BattleEndEvent, party data, and reward data.
 - Outputs or effects: Changes scene, updates run state, creates opponents, saves rewards/captures, and publishes or responds to game events.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Start a run, select combat nodes, win/lose battles, and confirm Grid/Arena/RunResult scene flow and rewards.
 */
 using System;

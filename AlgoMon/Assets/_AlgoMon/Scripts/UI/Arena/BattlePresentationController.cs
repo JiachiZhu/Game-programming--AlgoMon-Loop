@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: playerId, enemyId, playerAnimator, enemyAnimator, feedback settings, bitmap font references, feedbackSlots, counterActionSuppressUntil.
 - Inputs: DamageEvent, BattleActionEvent, BattleFeedbackEvent, StatusAppliedEvent, UnitFaintedEvent, CounterEvent, and animation profile data.
 - Outputs or effects: Starts sprite animations, spawns floating feedback text/sprites, and suppresses duplicate counter/hit visuals when needed.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Use attacks, counters, status skills, heals, CP changes, and fainting to confirm the correct visual feedback appears.
 */
 using System.Collections;

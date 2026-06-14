@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: canvas, mapRoot, connectionRoot, nodeRoot, nodeViews, nodePositions, manager, fallbackGenerationSettings, node sprites, palette colors.
 - Inputs: GameManager.currentRunGraph, visited/current node data, button clicks, and debug run settings.
 - Outputs or effects: Rebuilds the map UI, updates hints, selects nodes, publishes navigation events through GameManager flow, and can start debug runs in the editor.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Start a run, click nextAvailable nodes, confirm only valid routes advance and combat nodes enter TheArena.
 */
 using System;

@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: hud, presentation, rechargeSkill, playerConfig, enemyConfig, turnQueue, playerParty, enemyParty, player, enemy, phase, currentRound, battleLogLines.
 - Inputs: Skill/action clicks from BattleHudController, party and opponent data from GameManager, SkillData assets, SubroutineData assets, and timing settings.
 - Outputs or effects: Updates HUD and presentation, publishes battle events, changes battle state, grants defeated enemy rewards, and sends BattleEndEvent.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Test skill use, Recharge, Switch, Flee, ASD counter wins/losses, status effects, victory rewards, defeat flow, and scene transitions.
 */
 using System;

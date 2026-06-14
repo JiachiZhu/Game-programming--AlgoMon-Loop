@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: BaseIvFloor, IvPerLayer, IvPerEncounterGrade, IvPerThreatTier, EncounterSpeciesCatalogResourcePath.
 - Inputs: Run seed, selected GridNode, and ThreatTier.
 - Outputs or effects: Returns an AlgoMonInstance for the current battle opponent.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Enter the same node with the same seed and confirm the generated enemy is consistent.
 */
 using System;

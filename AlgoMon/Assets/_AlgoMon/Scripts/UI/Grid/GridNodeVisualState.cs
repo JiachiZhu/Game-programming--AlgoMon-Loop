@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: Inactive, Current, NextAvailable, Target, Visited.
 - Inputs: GameManager route state and node availability checks.
 - Outputs or effects: Controls colors, labels, and interactability for grid node UI.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Move through a run and confirm nodes change between current, next, target, visited, and inactive.
 */
 public enum GridNodeVisualState

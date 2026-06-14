@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: SkillSlotClicked, ActionClicked, player, enemy, skillButtons, action buttons, skillHoverTitles, skillHoverBodies, announcerTitleText, roundSandclockImage.
 - Inputs: Button clicks, hover events, BattleManager state updates, SkillData, and UI sprites/fonts.
 - Outputs or effects: Updates visible HUD text/images and sends player choices back to BattleManager.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: In battle, verify all four skill slots, Recharge/Switch/Flee icon buttons, HP/CP bars, hover details, and announcer updates.
 */
 using System;

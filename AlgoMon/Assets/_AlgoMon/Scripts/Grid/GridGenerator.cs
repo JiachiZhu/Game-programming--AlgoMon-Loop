@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: settings, rng, StartNodeId, BossNodeId.
 - Inputs: Seed integer and GridGenerationSettings.
 - Outputs or effects: Returns a validated GridGraph or throws an error if generation fails.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Generate multiple seeds and confirm every graph has a reachable boss and forward-only connections.
 */
 using System;

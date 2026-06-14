@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: totalLayers, minIntermediateNodes, maxIntermediateNodes, minOutgoingEdges, maxOutgoingEdges, combatWeight, hackerWeight, eliteWeight, shopWeight, rebootWeight.
 - Inputs: Inspector values or code-created settings.
 - Outputs or effects: CloneNormalized returns safe values used by GridGenerator.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Change weights and layer counts, then generate a run and confirm the map shape changes but remains valid.
 */
 using System;

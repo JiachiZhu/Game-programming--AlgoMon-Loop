@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: ToGridLabel, ToGridLabelUpper, ToGridIcon.
 - Inputs: NodeType enum values.
 - Outputs or effects: Produces text shown by GridNodeButton and GridMapController.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Check every NodeType displays a readable label and icon fallback.
 */
 public static class GridNodeTypeDisplay

@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: body, primaryRenderer, bodyRenderers, shadowRenderer, animationProfile, idle settings, feedback settings, profileClipRoutine, heldProfileClip.
 - Inputs: BattleAnimationProfile data and commands from BattlePresentationController.
 - Outputs or effects: Changes sprite frames, transform movement, scale, rotation, and renderer colors.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Trigger every battle animation state and confirm fallback animation still works when no profile is assigned.
 */
 using System.Collections;

@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: SpriteRoot, ManifestName, TryLoadProfile, BuildProfileFromSpriteFolders.
 - Inputs: AlgoMon codeName, formName, sprite folders, and battle_animation_manifest.json files.
 - Outputs or effects: Returns a BattleAnimationProfile for play mode and standalone builds.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Add frames under Assets/_AlgoMon/Sprites/SPECIES/Form and confirm the profile auto-loads in the editor.
 */
 using System;

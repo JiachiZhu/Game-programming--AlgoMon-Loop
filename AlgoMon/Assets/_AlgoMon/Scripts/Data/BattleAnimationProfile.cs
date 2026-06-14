@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: profileId, mirrorX, entry, idle, attack, defense, status, hit, faint, frames, fps, loop, startFrame, actionFrame, contactFrame, returnFrame.
 - Inputs: Sprite frames and timing values assigned in the Inspector or loaded by BattleAnimationProfileLoader.
 - Outputs or effects: BattleSpriteAnimator uses this data to play species-specific animations.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Assign a profile to an AlgoMon and verify the correct animation plays for idle, attack, hit, and faint.
 */
 using System;

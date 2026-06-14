@@ -6,7 +6,7 @@ Script Audit:
 - Important variables: enterGridButton, geneLabButton, payloadButton, moduleText, detailText, partyPreviewText, statsText, payloadPanel, fallbackStarter, manager.
 - Inputs: Player button clicks, GameManager payload/party data, fallback starter asset, and Time.unscaledTime.
 - Outputs or effects: Updates terminal UI, starts GameManager.BeginRun, and transitions to TheGrid.
-- AI/tutorial/template assistance: AI was used to help audit and document this script; final meaning was checked against the project.
+- AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Open MainTerminal, start a run, inspect payload, and confirm starter party and TheGrid transition work.
 */
 using System;
