@@ -13,6 +13,7 @@ using System.Collections.Generic;
 ///   Dequeue  — O(log N)
 ///   Peek     — O(1)
 /// </summary>
+// Defense note: PriorityQueue is the main priority queue type used by this part of the project.
 public class PriorityQueue<T>
 {
     private readonly List<(T item, float priority)> _heap = new List<(T, float)>();
@@ -20,12 +21,14 @@ public class PriorityQueue<T>
     public int Count => _heap.Count;
     public bool IsEmpty => _heap.Count == 0;
 
+    // Defense note: Runs the enqueue helper used by this script.
     public void Enqueue(T item, float priority)
     {
         _heap.Add((item, priority));
         BubbleUp(_heap.Count - 1);
     }
 
+    // Defense note: Runs the dequeue helper used by this script.
     public T Dequeue()
     {
         if (IsEmpty) throw new InvalidOperationException("PriorityQueue is empty.");
@@ -38,17 +41,20 @@ public class PriorityQueue<T>
         return top;
     }
 
+    // Defense note: Runs the peek helper used by this script.
     public T Peek()
     {
         if (IsEmpty) throw new InvalidOperationException("PriorityQueue is empty.");
         return _heap[0].item;
     }
 
+    // Defense note: Runs the clear helper used by this script.
     public void Clear() => _heap.Clear();
 
     // ----------------------------------------------------------------
     // Heap helpers
 
+    // Defense note: Runs the bubble up helper used by this script.
     private void BubbleUp(int i)
     {
         while (i > 0)
@@ -60,6 +66,7 @@ public class PriorityQueue<T>
         }
     }
 
+    // Defense note: Runs the sift down helper used by this script.
     private void SiftDown(int i)
     {
         int count = _heap.Count;
@@ -78,6 +85,7 @@ public class PriorityQueue<T>
         }
     }
 
+    // Defense note: Runs the swap helper used by this script.
     private void Swap(int a, int b)
     {
         var tmp = _heap[a];

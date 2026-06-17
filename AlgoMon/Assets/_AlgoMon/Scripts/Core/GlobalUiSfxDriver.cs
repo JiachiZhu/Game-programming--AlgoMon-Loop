@@ -23,11 +23,13 @@ using UnityEngine.UI;
 /// onClick, so this is the only place that feedback can come from).
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: GlobalUiSfxDriver is a Unity component attached to a scene object for this feature.
 public sealed class GlobalUiSfxDriver : MonoBehaviour
 {
     private readonly List<RaycastResult> raycastResults = new List<RaycastResult>(16);
     private Selectable hoveredSelectable;
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         EventSystem eventSystem = EventSystem.current;
@@ -53,6 +55,7 @@ public sealed class GlobalUiSfxDriver : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the selectable under pointer helper used by this script.
     private Selectable SelectableUnderPointer(EventSystem eventSystem)
     {
         var pointer = new PointerEventData(eventSystem) { position = Input.mousePosition };
@@ -71,6 +74,7 @@ public sealed class GlobalUiSfxDriver : MonoBehaviour
 /// terminal-zoom toggle's high/low pair) — the generic click is skipped.
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: SuppressUiClickSfx is a Unity component attached to a scene object for this feature.
 public sealed class SuppressUiClickSfx : MonoBehaviour
 {
 }

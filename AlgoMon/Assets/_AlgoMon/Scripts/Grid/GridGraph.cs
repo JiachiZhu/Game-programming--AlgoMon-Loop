@@ -5,6 +5,7 @@ using System.Collections.Generic;
 /// Data-only generated DAG for one run through TheGrid.
 /// </summary>
 [Serializable]
+// Defense note: GridGraph is the main grid graph type used by this part of the project.
 public class GridGraph
 {
     public int seed;
@@ -14,6 +15,7 @@ public class GridGraph
     public string bossNodeId;
     public List<GridNode> nodes = new List<GridNode>();
 
+    // Defense note: Runs the max layer helper used by this script.
     public int MaxLayer()
     {
         int maxLayer = 0;
@@ -30,6 +32,7 @@ public class GridGraph
         return maxLayer;
     }
 
+    // Defense note: Retrieves the node value used by this system.
     public GridNode GetNode(string nodeId)
     {
         if (string.IsNullOrEmpty(nodeId))
@@ -44,6 +47,7 @@ public class GridGraph
         return null;
     }
 
+    // Defense note: Runs the nodes in layer helper used by this script.
     public List<GridNode> NodesInLayer(int layer)
     {
         var result = new List<GridNode>();

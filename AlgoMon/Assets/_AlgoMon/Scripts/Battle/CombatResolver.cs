@@ -24,6 +24,7 @@ using UnityEngine;
 ///   defence =   0 → ×1.00   defence =  50 → ×0.50
 ///   defence = 100 → ×0.33   defence = 150 → ×0.25
 /// </summary>
+// Defense note: CombatResolver is the main combat resolver type used by this part of the project.
 public static class CombatResolver
 {
     // ----------------------------------------------------------------
@@ -49,6 +50,7 @@ public static class CombatResolver
     /// Checks if attacker's instruction counters defender's instruction.
     /// A > S > D > A
     /// </summary>
+    // Defense note: Returns whether this value is counter.
     public static bool IsCounter(InstructionType attacker, InstructionType defender)
     {
         return (attacker == InstructionType.Attack  && defender == InstructionType.Status)
@@ -62,6 +64,7 @@ public static class CombatResolver
     /// BattleManager when the ASD check is resolved.
     /// Returns 0 if the skill has DamageType.None (Defense / Status skills).
     /// </summary>
+    // Defense note: Resolves the damage step and updates dependent state.
     public static int ResolveDamage(
         AlgoMonInstance attacker,
         AlgoMonInstance defender,
@@ -109,6 +112,7 @@ public static class CombatResolver
         return damage;
     }
 
+    // Defense note: Runs the event id or nickname helper used by this script.
     private static string EventIdOrNickname(string eventId, AlgoMonInstance fallback)
     {
         if (!string.IsNullOrWhiteSpace(eventId))
@@ -120,6 +124,7 @@ public static class CombatResolver
     /// Looks up the element multiplier from the 6x6 chart.
     /// Normal type is always neutral (x1.0) against everything.
     /// </summary>
+    // Defense note: Retrieves the element multiplier value used by this system.
     public static float GetElementMultiplier(ElementType attackElement, ElementType defendElement)
     {
         if (attackElement == ElementType.Normal || defendElement == ElementType.Normal)

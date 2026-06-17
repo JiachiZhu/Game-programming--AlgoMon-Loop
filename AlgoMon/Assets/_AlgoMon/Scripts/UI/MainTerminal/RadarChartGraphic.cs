@@ -8,6 +8,7 @@ using UnityEngine.UI;
 /// unit inspector for the 6-axis stat readout.
 /// </summary>
 [RequireComponent(typeof(CanvasRenderer))]
+// Defense note: RadarChartGraphic draws a custom UI graphic procedurally in Unity.
 public class RadarChartGraphic : Graphic
 {
     [SerializeField] private int axisCount = 6;
@@ -25,18 +26,21 @@ public class RadarChartGraphic : Graphic
     public int AxisCount => axisCount;
     public float FillScale => fillScale;
 
+    // Defense note: Updates the values state or visual value.
     public void SetValues(float[] v)
     {
         values = v;
         SetVerticesDirty();
     }
 
+    // Defense note: Runs the axis direction helper used by this script.
     public Vector2 AxisDirection(int index)
     {
         float ang = (startAngleDeg - index * (360f / axisCount)) * Mathf.Deg2Rad;
         return new Vector2(Mathf.Cos(ang), Mathf.Sin(ang));
     }
 
+    // Defense note: Runs the on populate mesh helper used by this script.
     protected override void OnPopulateMesh(VertexHelper vh)
     {
         vh.Clear();
@@ -82,6 +86,7 @@ public class RadarChartGraphic : Graphic
         }
     }
 
+    // Defense note: Adds the vert entry into the target collection or UI.
     private void AddVert(VertexHelper vh, Vector2 pos, Color c)
     {
         UIVertex v = UIVertex.simpleVert;
@@ -90,6 +95,7 @@ public class RadarChartGraphic : Graphic
         vh.AddVert(v);
     }
 
+    // Defense note: Adds the line entry into the target collection or UI.
     private void AddLine(VertexHelper vh, Vector2 a, Vector2 b, Color color)
     {
         Vector2 dir = b - a;

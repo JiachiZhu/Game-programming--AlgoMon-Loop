@@ -15,6 +15,7 @@ MonoBehaviour:
   profileId: Overflux_Base
   mirrorX: 0
   visualScaleMultiplier: 1
+  horizontalScaleMultiplier: 1
   entry:
     frames:
     - {fileID: 21300000, guid: 45c15784881677b4895bba897ea93ac7, type: 3}

@@ -7,6 +7,7 @@ using UnityEngine;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(SpriteRenderer))]
+// Defense note: BattleBackgroundFitter is a Unity component attached to a scene object for this feature.
 public class BattleBackgroundFitter : MonoBehaviour
 {
     [SerializeField] private Camera targetCamera;
@@ -15,18 +16,21 @@ public class BattleBackgroundFitter : MonoBehaviour
     [SerializeField] private bool followCameraCenter = true;
     [SerializeField] private bool fitEveryFrame;
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         ResolveReferences();
         FitToCamera();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         ResolveReferences();
         FitToCamera();
     }
 
+    // Defense note: Unity lifecycle hook that runs the late update step for this component.
     private void LateUpdate()
     {
         if (fitEveryFrame)
@@ -34,6 +38,7 @@ public class BattleBackgroundFitter : MonoBehaviour
     }
 
     [ContextMenu("Fit To Camera")]
+    // Defense note: Runs the fit to camera helper used by this script.
     public void FitToCamera()
     {
         ResolveReferences();
@@ -68,6 +73,7 @@ public class BattleBackgroundFitter : MonoBehaviour
         transform.localScale = new Vector3(scale, scale, 1f);
     }
 
+    // Defense note: Resolves the references step and updates dependent state.
     private void ResolveReferences()
     {
         if (targetCamera == null)

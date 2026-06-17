@@ -5,6 +5,7 @@ using System.Collections.Generic;
 /// Serializable route-map node. Edges are stored as forward outgoing ids only.
 /// </summary>
 [Serializable]
+// Defense note: GridNode is the main grid node type used by this part of the project.
 public class GridNode
 {
     public string id;
@@ -16,10 +17,12 @@ public class GridNode
     public int dangerRating;
     public List<string> outgoingNodeIds = new List<string>();
 
+    // Defense note: Initializes the GridNode instance and its default runtime state.
     public GridNode()
     {
     }
 
+    // Defense note: Initializes the GridNode instance and its default runtime state.
     public GridNode(string id, int layer, int indexInLayer, NodeType nodeType)
     {
         this.id = id;

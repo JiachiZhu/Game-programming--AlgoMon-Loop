@@ -22,6 +22,7 @@ using UnityEngine.UI;
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Button))]
 [RequireComponent(typeof(Image))]
+// Defense note: GridNodeButton wraps button state and click behavior for a UI element.
 public class GridNodeButton : MonoBehaviour,
     IPointerEnterHandler,
     IPointerExitHandler,
@@ -60,12 +61,14 @@ public class GridNodeButton : MonoBehaviour,
 
     public GridNode Node => node;
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         CacheReferences();
         baseScale = transform.localScale;
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         if (baseScale == Vector3.zero)
@@ -76,17 +79,20 @@ public class GridNodeButton : MonoBehaviour,
         ApplyAnimatedVisuals(true);
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         ApplyAnimatedVisuals(false);
     }
 
+    // Defense note: Unity lifecycle hook that runs the on destroy step for this component.
     private void OnDestroy()
     {
         if (button != null)
             button.onClick.RemoveListener(HandleClick);
     }
 
+    // Defense note: Runs the bind helper used by this script.
     public void Bind(GridNode gridNode, Action<GridNode> onClicked, Action<GridNode> onPreviewed = null)
     {
         CacheReferences();
@@ -110,6 +116,7 @@ public class GridNodeButton : MonoBehaviour,
         }
     }
 
+    // Defense note: Updates the visual state or visual value.
     public void SetVisual(
         GridNodeVisualState visualState,
         Color fillColor,
@@ -168,6 +175,7 @@ public class GridNodeButton : MonoBehaviour,
         ApplyAnimatedVisuals(true);
     }
 
+    // Defense note: Runs the cache references helper used by this script.
     private void CacheReferences()
     {
         if (button == null)
@@ -191,29 +199,34 @@ public class GridNodeButton : MonoBehaviour,
             iconImage = FindImage("IconImage");
     }
 
+    // Defense note: Finds the text reference used by this component.
     private Text FindText(string childName)
     {
         Transform child = transform.Find(childName);
         return child != null ? child.GetComponent<Text>() : null;
     }
 
+    // Defense note: Finds the image reference used by this component.
     private Image FindImage(string childName)
     {
         Transform child = transform.Find(childName);
         return child != null ? child.GetComponent<Image>() : null;
     }
 
+    // Defense note: Handles the click event or player interaction.
     private void HandleClick()
     {
         clicked?.Invoke(node);
     }
 
+    // Defense note: Runs the on pointer enter helper used by this script.
     public void OnPointerEnter(PointerEventData eventData)
     {
         hovered = true;
         previewed?.Invoke(node);
     }
 
+    // Defense note: Runs the on pointer exit helper used by this script.
     public void OnPointerExit(PointerEventData eventData)
     {
         hovered = false;
@@ -221,28 +234,33 @@ public class GridNodeButton : MonoBehaviour,
         previewed?.Invoke(null);
     }
 
+    // Defense note: Runs the on select helper used by this script.
     public void OnSelect(BaseEventData eventData)
     {
         focused = true;
         previewed?.Invoke(node);
     }
 
+    // Defense note: Runs the on deselect helper used by this script.
     public void OnDeselect(BaseEventData eventData)
     {
         focused = false;
         pressed = false;
     }
 
+    // Defense note: Runs the on pointer down helper used by this script.
     public void OnPointerDown(PointerEventData eventData)
     {
         pressed = true;
     }
 
+    // Defense note: Runs the on pointer up helper used by this script.
     public void OnPointerUp(PointerEventData eventData)
     {
         pressed = false;
     }
 
+    // Defense note: Applies the animated visuals change to gameplay or UI state.
     private void ApplyAnimatedVisuals(bool immediate)
     {
         if (!hasAnimatedColors)
@@ -272,23 +290,27 @@ public class GridNodeButton : MonoBehaviour,
         SetGraphicColor(coreImage, BoostAlpha(baseCoreColor, CoreBoostFor(currentVisualState, hoverBlend, pulse, nextPulse)), t);
     }
 
+    // Defense note: Updates the text color state or visual value.
     private static void SetTextColor(Text text, Color color)
     {
         if (text != null)
             text.color = color;
     }
 
+    // Defense note: Updates the graphic color state or visual value.
     private static void SetGraphicColor(Graphic graphic, Color targetColor, float t)
     {
         if (graphic != null)
             graphic.color = Color.Lerp(graphic.color, targetColor, t);
     }
 
+    // Defense note: Runs the boost alpha helper used by this script.
     private static Color BoostAlpha(Color color, float boost)
     {
         return new Color(color.r, color.g, color.b, Mathf.Clamp01(color.a + boost));
     }
 
+    // Defense note: Runs the hover scale for helper used by this script.
     private static float HoverScaleFor(GridNodeVisualState visualState, bool interactable)
     {
         if (visualState == GridNodeVisualState.Inactive || visualState == GridNodeVisualState.Unknown)
@@ -300,6 +322,7 @@ public class GridNodeButton : MonoBehaviour,
         return 0.045f;
     }
 
+    // Defense note: Runs the halo boost for helper used by this script.
     private static float HaloBoostFor(GridNodeVisualState visualState, float hover, float pulse, float nextPulse)
     {
         switch (visualState)
@@ -319,6 +342,7 @@ public class GridNodeButton : MonoBehaviour,
         }
     }
 
+    // Defense note: Runs the ring boost for helper used by this script.
     private static float RingBoostFor(GridNodeVisualState visualState, float hover, float pulse, float nextPulse)
     {
         switch (visualState)
@@ -338,6 +362,7 @@ public class GridNodeButton : MonoBehaviour,
         }
     }
 
+    // Defense note: Runs the core boost for helper used by this script.
     private static float CoreBoostFor(GridNodeVisualState visualState, float hover, float pulse, float nextPulse)
     {
         switch (visualState)
@@ -357,6 +382,7 @@ public class GridNodeButton : MonoBehaviour,
         }
     }
 
+    // Defense note: Runs the core color for helper used by this script.
     private static Color CoreColorFor(GridNodeVisualState visualState, Color outlineColor)
     {
         float alpha;
@@ -385,6 +411,7 @@ public class GridNodeButton : MonoBehaviour,
         return new Color(outlineColor.r, outlineColor.g, outlineColor.b, alpha);
     }
 
+    // Defense note: Runs the ring color for helper used by this script.
     private static Color RingColorFor(GridNodeVisualState visualState, Color outlineColor)
     {
         float alpha;
@@ -413,6 +440,7 @@ public class GridNodeButton : MonoBehaviour,
         return new Color(outlineColor.r, outlineColor.g, outlineColor.b, alpha);
     }
 
+    // Defense note: Runs the halo color for helper used by this script.
     private static Color HaloColorFor(GridNodeVisualState visualState, Color outlineColor)
     {
         float alpha;

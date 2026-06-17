@@ -12,9 +12,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "RuntimeUiAssetCatalog", menuName = "AlgoMon/Runtime UI Asset Catalog")]
+// Defense note: RuntimeUiAssetCatalog stores lookup data so runtime systems can find the right assets.
 public class RuntimeUiAssetCatalog : ScriptableObject
 {
     [System.Serializable]
+    // Defense note: Entry is the main entry type used by this part of the project.
     public class Entry
     {
         public string path;
@@ -30,12 +32,16 @@ public class RuntimeUiAssetCatalog : ScriptableObject
 
     private Dictionary<string, Object> lookup;
 
+    // Defense note: Finds the sprite reference used by this component.
     public static Sprite FindSprite(string assetPath) => Find(assetPath) as Sprite;
 
+    // Defense note: Finds the texture reference used by this component.
     public static Texture2D FindTexture(string assetPath) => Find(assetPath) as Texture2D;
 
+    // Defense note: Finds the text reference used by this component.
     public static TextAsset FindText(string assetPath) => Find(assetPath) as TextAsset;
 
+    // Defense note: Runs the find helper used by this script.
     public static Object Find(string assetPath)
     {
         if (string.IsNullOrEmpty(assetPath))
@@ -50,6 +56,7 @@ public class RuntimeUiAssetCatalog : ScriptableObject
         return instance != null ? instance.Lookup(assetPath) : null;
     }
 
+    // Defense note: Runs the lookup helper used by this script.
     private Object Lookup(string assetPath)
     {
         if (lookup == null)
@@ -69,6 +76,7 @@ public class RuntimeUiAssetCatalog : ScriptableObject
         return lookup.TryGetValue(assetPath, out Object asset) ? asset : null;
     }
 
+    // Defense note: Updates the entries for editor state or visual value.
     public void SetEntriesForEditor(Entry[] value)
     {
         entries = value;

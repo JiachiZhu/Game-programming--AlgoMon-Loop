@@ -5,6 +5,7 @@ using UnityEngine;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(SpriteRenderer))]
+// Defense note: BattleLoopingSpriteEffect is a Unity component attached to a scene object for this feature.
 public class BattleLoopingSpriteEffect : MonoBehaviour
 {
     [SerializeField] private SpriteRenderer spriteRenderer;
@@ -16,16 +17,19 @@ public class BattleLoopingSpriteEffect : MonoBehaviour
     private int frameIndex;
     private float frameCursor;
 
+    // Defense note: Runs the reset helper used by this script.
     private void Reset()
     {
         spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         EnsureRenderer();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         EnsureRenderer();
@@ -36,6 +40,7 @@ public class BattleLoopingSpriteEffect : MonoBehaviour
         ApplyFrame();
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         if (!HasFrames())
@@ -56,23 +61,27 @@ public class BattleLoopingSpriteEffect : MonoBehaviour
         ApplyFrame();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on validate step for this component.
     private void OnValidate()
     {
         EnsureRenderer();
         ApplyFrame();
     }
 
+    // Defense note: Returns whether frames exists or is active.
     private bool HasFrames()
     {
         return frames != null && frames.Length > 0;
     }
 
+    // Defense note: Ensures the renderer dependency or state exists before use.
     private void EnsureRenderer()
     {
         if (spriteRenderer == null)
             spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
+    // Defense note: Applies the frame change to gameplay or UI state.
     private void ApplyFrame()
     {
         if (spriteRenderer == null || !HasFrames())

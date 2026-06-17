@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 
+// Defense note: RewardDataQuality defines the valid reward data quality options used by the gameplay systems.
 public enum RewardDataQuality
 {
     None,
@@ -9,6 +10,7 @@ public enum RewardDataQuality
 }
 
 [Serializable]
+// Defense note: EncounterReward is the main encounter reward type used by this part of the project.
 public class EncounterReward
 {
     public NodeType sourceNodeType;
@@ -39,12 +41,14 @@ public class EncounterReward
         }
     }
 
+    // Defense note: Runs the clone helper used by this script.
     public EncounterReward Clone()
     {
         // All fields are value types or strings; switch to a deep copy if reference fields are added.
         return (EncounterReward)MemberwiseClone();
     }
 
+    // Defense note: Runs the to battle log line helper used by this script.
     public string ToBattleLogLine()
     {
         if (!HasAnyGrant)
@@ -62,6 +66,7 @@ public class EncounterReward
         return line;
     }
 
+    // Defense note: Runs the format quality helper used by this script.
     public static string FormatQuality(RewardDataQuality quality)
     {
         switch (quality)
@@ -77,6 +82,7 @@ public class EncounterReward
 }
 
 [Serializable]
+// Defense note: RunRewardSummary is the main run reward summary type used by this part of the project.
 public class RunRewardSummary
 {
     // Legacy save field retained for older serialized data; no longer displayed or accumulated.
@@ -89,6 +95,7 @@ public class RunRewardSummary
     public string grantedSpeciesCodeName;
     public RewardDataQuality grantedBaseDataQuality = RewardDataQuality.None;
 
+    // Defense note: Runs the reset helper used by this script.
     public void Reset()
     {
         algoMonExp = 0;
@@ -100,6 +107,7 @@ public class RunRewardSummary
         grantedBaseDataQuality = RewardDataQuality.None;
     }
 
+    // Defense note: Runs the add helper used by this script.
     public void Add(EncounterReward reward)
     {
         if (reward == null)
@@ -123,6 +131,7 @@ public class RunRewardSummary
             evolutionDataCount++;
     }
 
+    // Defense note: Runs the clone helper used by this script.
     public RunRewardSummary Clone()
     {
         return new RunRewardSummary
@@ -137,6 +146,7 @@ public class RunRewardSummary
         };
     }
 
+    // Defense note: Runs the to compact display helper used by this script.
     public string ToCompactDisplay()
     {
         string baseLine = highQualityBaseDataCount > 0
@@ -148,9 +158,11 @@ public class RunRewardSummary
     }
 }
 
+// Defense note: EncounterRewardCalculator is the main encounter reward calculator type used by this part of the project.
 public static class EncounterRewardCalculator
 {
     // First-pass tuning numbers; final economy balance belongs to Sprint 6.
+    // Defense note: Runs the build helper used by this script.
     public static EncounterReward Build(
         GridNode node,
         AlgoMonInstance defeatedOpponent,
@@ -174,6 +186,7 @@ public static class EncounterRewardCalculator
         return reward;
     }
 
+    // Defense note: Runs the base reward for helper used by this script.
     private static EncounterReward BaseRewardFor(NodeType nodeType, int level, int danger)
     {
         level = Mathf.Clamp(level, 1, AlgoMonInstance.MAX_LEVEL);
@@ -185,19 +198,19 @@ public static class EncounterRewardCalculator
                 return new EncounterReward
                 {
                     algoMonExp = 45 + level * 3,
-                    compute = 18 + danger * 4
+                    compute = 3 + danger
                 };
             case NodeType.Elite:
                 return new EncounterReward
                 {
                     algoMonExp = 35 + level * 3,
-                    compute = 12 + danger * 3
+                    compute = 4 + danger
                 };
             case NodeType.Boss:
                 return new EncounterReward
                 {
                     algoMonExp = 75 + level * 4,
-                    compute = 30 + danger * 5,
+                    compute = 6 + danger * 2,
                     shouldGrantBaseData = true,
                     baseDataQuality = RewardDataQuality.HighQualityBase
                 };
@@ -206,11 +219,12 @@ public static class EncounterRewardCalculator
                 return new EncounterReward
                 {
                     algoMonExp = 20 + level * 2,
-                    compute = 4 + danger
+                    compute = 1 + Mathf.CeilToInt(danger * 0.5f)
                 };
         }
     }
 
+    // Defense note: Applies the multiplier change to gameplay or UI state.
     private static void ApplyMultiplier(EncounterReward reward, float rewardMultiplier)
     {
         float multiplier = Mathf.Max(0f, rewardMultiplier);
@@ -218,6 +232,7 @@ public static class EncounterRewardCalculator
         reward.compute = Mathf.Max(0, Mathf.RoundToInt(reward.compute * multiplier));
     }
 
+    // Defense note: Runs the species code name helper used by this script.
     private static string SpeciesCodeName(AlgoMonInstance defeatedOpponent)
     {
         if (defeatedOpponent != null &&

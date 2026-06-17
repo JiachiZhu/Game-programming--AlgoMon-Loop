@@ -4,6 +4,7 @@ using UnityEngine.UI;
 [ExecuteAlways]
 [DisallowMultipleComponent]
 [RequireComponent(typeof(Text))]
+// Defense note: CyberTextStyle is a Unity component attached to a scene object for this feature.
 public sealed class CyberTextStyle : MonoBehaviour
 {
     [SerializeField] private CyberUiColorRole textRole = CyberUiColorRole.TextPrimary;
@@ -16,22 +17,26 @@ public sealed class CyberTextStyle : MonoBehaviour
     private Text text;
     private string lastSourceText;
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         Apply();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on validate step for this component.
     private void OnValidate()
     {
         Apply();
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         if (text != null && uppercase && text.text != lastSourceText)
             ApplyUppercase();
     }
 
+    // Defense note: Runs the apply helper used by this script.
     public void Apply()
     {
         if (text == null)
@@ -45,6 +50,7 @@ public sealed class CyberTextStyle : MonoBehaviour
         ConfigureShadow();
     }
 
+    // Defense note: Applies the uppercase change to gameplay or UI state.
     private void ApplyUppercase()
     {
         if (text == null)
@@ -55,6 +61,7 @@ public sealed class CyberTextStyle : MonoBehaviour
         lastSourceText = text.text;
     }
 
+    // Defense note: Configures the outline layout, style, or behavior.
     private void ConfigureOutline()
     {
         Outline outline = GetComponent<Outline>();
@@ -73,6 +80,7 @@ public sealed class CyberTextStyle : MonoBehaviour
         outline.useGraphicAlpha = true;
     }
 
+    // Defense note: Configures the shadow layout, style, or behavior.
     private void ConfigureShadow()
     {
         Shadow shadow = FindShadow();
@@ -91,6 +99,7 @@ public sealed class CyberTextStyle : MonoBehaviour
         shadow.useGraphicAlpha = true;
     }
 
+    // Defense note: Finds the shadow reference used by this component.
     private Shadow FindShadow()
     {
         Shadow[] shadows = GetComponents<Shadow>();

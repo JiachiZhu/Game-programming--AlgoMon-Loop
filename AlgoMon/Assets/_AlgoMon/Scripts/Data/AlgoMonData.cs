@@ -6,6 +6,7 @@ using UnityEngine;
 /// Individual stat ceilings (IVs) and growth are stored in AlgoMonInstance.
 /// </summary>
 [CreateAssetMenu(fileName = "New AlgoMon", menuName = "AlgoMon/AlgoMon Data")]
+// Defense note: AlgoMonData is a data definition object that designers configure in Unity.
 public class AlgoMonData : ScriptableObject
 {
     [Header("Identity")]

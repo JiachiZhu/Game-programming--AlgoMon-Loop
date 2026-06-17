@@ -15,5 +15,6 @@ Playtest and verification records for AlgoMon. One file per session, named
 - [2026-06-12 - Build readiness audit](2026-06-12_build-readiness-audit.md) - found and fixed editor-only asset loading that would have broken the first standalone build.
 - [2026-06-12 - Sprint 5 smoke checklist](2026-06-12_smoke-checklist.md) - issue #45 acceptance run, updated after the Sprint 6 final QA pass.
 - [2026-06-13 - Sprint 6 packaged build regression checklist](2026-06-13_build-regression-checklist.md) - final packaged-player pass after subroutine display changes.
-- [2026-06-13 - External first-time playtest plan](2026-06-13_external-playtest-plan.md) - pending feedback session with a player outside the project.
+- [2026-06-13 - External first-time playtest plan](2026-06-13_external-playtest-plan.md) - planned prompts and observation checklist for issue #52.
+- [2026-06-17 - External first-time playtest feedback](2026-06-17_external-playtest-feedback.md) - issue #52 feedback record from two first-time lay players and the resulting action list.
 - [Fixed bugs log](FixedBugsLog.md) - running list of notable bugs, root causes, and fixes across sprints.

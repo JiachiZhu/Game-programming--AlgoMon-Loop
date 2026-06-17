@@ -28,6 +28,7 @@ using UnityEditor;
 ///   - Track current run state (active node, current opponent)
 ///   - Drive scene transitions via EventBus
 /// </summary>
+// Defense note: GameManager coordinates the main state and flow for the game system.
 public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
@@ -42,6 +43,11 @@ public class GameManager : MonoBehaviour
     };
     private const string AlgoMonAssetSearchFolder = "Assets/_AlgoMon/ScriptableObjects/AlgoMons";
     private const string EncounterSpeciesCatalogResourcePath = "EncounterSpeciesCatalog";
+    private const bool DefenseDemoInjectMaxNullbyte = true;
+    private const string DefenseDemoNullbyteInstanceId = "DEFENSE_DEMO_NULLBYTE";
+    private const string DefenseDemoNullbyteCodeName = "Nullbyte";
+    private const int DefenseDemoMaxIv = 255;
+    private const string ComputeBalancePrefsKey = "AlgoMon.Progress.Credits";
 
     [Header("Payload — Full Warehouse (all captured AlgoMons)")]
     public List<AlgoMonInstance> payload = new List<AlgoMonInstance>();
@@ -50,7 +56,7 @@ public class GameManager : MonoBehaviour
     public List<AlgoMonInstance> party = new List<AlgoMonInstance>();
     public const int MaxPartySize = 4;
 
-    // Evolution data persists; compute is run-scoped shop currency.
+    // Evolution data and credits persist; run buffs and shop rolls reset per run.
     [Header("Player Progress")]
     // Legacy save field retained for older serialized data. User EXP is no longer awarded or displayed.
     public int playerExp;
@@ -99,11 +105,13 @@ public class GameManager : MonoBehaviour
     // ----------------------------------------------------------------
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    // Defense note: Runs the bootstrap helper used by this script.
     private static void Bootstrap()
     {
         EnsureInstance();
     }
 
+    // Defense note: Ensures the instance dependency or state exists before use.
     public static GameManager EnsureInstance()
     {
         if (Instance != null)
@@ -113,6 +121,7 @@ public class GameManager : MonoBehaviour
         return managerObject.AddComponent<GameManager>();
     }
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -124,17 +133,22 @@ public class GameManager : MonoBehaviour
         DontDestroyOnLoad(gameObject);
 
         EnsureRewardContainers();
+        LoadPersistentProgress();
         SubscribePersistentEvents();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on destroy step for this component.
     private void OnDestroy()
     {
+        if (Instance == this)
+            SavePersistentProgress();
         UnsubscribePersistentEvents();
     }
 
     // ----------------------------------------------------------------
     // Payload management (warehouse — no cap)
 
+    // Defense note: Adds the to payload entry into the target collection or UI.
     public void AddToPayload(AlgoMonInstance mon)
     {
         if (mon == null)
@@ -146,6 +160,7 @@ public class GameManager : MonoBehaviour
             payload.Add(mon);
     }
 
+    // Defense note: Removes the from payload entry from the target collection or UI.
     public void RemoveFromPayload(AlgoMonInstance mon)
     {
         EnsureRewardContainers();
@@ -153,6 +168,7 @@ public class GameManager : MonoBehaviour
         RemoveMonFromList(party, mon);
     }
 
+    // Defense note: Ensures the roster state dependency or state exists before use.
     public void EnsureRosterState()
     {
         EnsureRewardContainers();
@@ -161,6 +177,7 @@ public class GameManager : MonoBehaviour
     // ----------------------------------------------------------------
     // Party management (active squad — max 4)
 
+    // Defense note: Adds the to party entry into the target collection or UI.
     public bool AddToParty(AlgoMonInstance mon)
     {
         if (mon == null)
@@ -181,12 +198,14 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Removes the from party entry from the target collection or UI.
     public void RemoveFromParty(AlgoMonInstance mon)
     {
         EnsureRewardContainers();
         RemoveMonFromList(party, mon);
     }
 
+    // Defense note: Attempts to replace party member and reports success or failure.
     public bool TryReplacePartyMember(int index, AlgoMonInstance mon)
     {
         if (mon == null)
@@ -211,23 +230,25 @@ public class GameManager : MonoBehaviour
     // ----------------------------------------------------------------
     // Run lifecycle
 
+    // Defense note: Begins the run flow and initializes its state.
     public void BeginRun()
     {
         int seed = (int)(DateTime.UtcNow.Ticks & int.MaxValue);
         BeginRun(seed);
     }
 
+    // Defense note: Begins the run flow and initializes its state.
     public void BeginRun(int seed)
     {
         BeginRun(seed, null);
     }
 
+    // Defense note: Begins the run flow and initializes its state.
     public void BeginRun(int seed, GridGenerationSettings gridSettings)
     {
         ClearRunResult();
         EnsureRewardContainers();
         currentRunRewards.Reset();
-        computeBalance = 0;
         if (currentRunBuffs != null)
             currentRunBuffs.Clear();
         ResetShopState();
@@ -260,6 +281,7 @@ public class GameManager : MonoBehaviour
         currentOpponentParty.Clear();
     }
 
+    // Defense note: Ends the run flow and clears its runtime state.
     public void EndRun()
     {
         IsRunActive = false;
@@ -272,7 +294,6 @@ public class GameManager : MonoBehaviour
         currentThreatTier = ThreatTierRules.MinTier;
         currentRewardMultiplier = 1f;
         currentBossSpeciesCodeName = SelectedBossSpeciesCodeName;
-        computeBalance = 0;
         if (currentRunBuffs != null)
             currentRunBuffs.Clear();
         ResetShopState();
@@ -281,6 +302,7 @@ public class GameManager : MonoBehaviour
         lastEncounterReward = new EncounterReward();
     }
 
+    // Defense note: Clears the run result state so it can be rebuilt safely.
     public void ClearRunResult()
     {
         pendingRunOutcome = RunOutcome.None;
@@ -325,6 +347,7 @@ public class GameManager : MonoBehaviour
         get { return NormalizeBossSpeciesCodeName(currentBossSpeciesCodeName); }
     }
 
+    // Defense note: Attempts to set selected threat tier and reports success or failure.
     public bool TrySetSelectedThreatTier(int tier)
     {
         if (!ThreatTierRules.CanEnterTier(tier, highestUnlockedThreatTier))
@@ -334,6 +357,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Attempts to set selected boss species and reports success or failure.
     public bool TrySetSelectedBossSpecies(string speciesCodeName)
     {
         if (IsRunActive || !TryNormalizeBossSpeciesCodeName(speciesCodeName, out string normalized))
@@ -344,12 +368,14 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Updates the highest unlocked threat tier state or visual value.
     public void SetHighestUnlockedThreatTier(int tier)
     {
         highestUnlockedThreatTier = ThreatTierRules.ToInt(ThreatTierRules.ClampTier(tier));
         selectedThreatTier = ThreatTierRules.ToInt(ThreatTierRules.ClampSelectableTier(selectedThreatTier, highestUnlockedThreatTier));
     }
 
+    // Defense note: Attempts to select run node and reports success or failure.
     public bool TrySelectRunNode(string nodeId)
     {
         if (!IsNodeAvailable(nodeId))
@@ -362,6 +388,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Retrieves the available node ids value used by this system.
     public List<string> GetAvailableNodeIds()
     {
         if (currentRunGraph == null || string.IsNullOrEmpty(currentNodeId))
@@ -382,6 +409,7 @@ public class GameManager : MonoBehaviour
         return available;
     }
 
+    // Defense note: Returns whether this value is node available.
     public bool IsNodeAvailable(string nodeId)
     {
         if (currentRunGraph == null || string.IsNullOrEmpty(nodeId))
@@ -393,16 +421,19 @@ public class GameManager : MonoBehaviour
         return available.Contains(nodeId);
     }
 
+    // Defense note: Returns whether this value is node visited.
     public bool IsNodeVisited(string nodeId)
     {
         return !string.IsNullOrEmpty(nodeId) && visitedNodeIds.Contains(nodeId);
     }
 
+    // Defense note: Attempts to register capture and reports success or failure.
     public bool TryRegisterCapture(AlgoMonInstance mon, out AlgoMonInstance captured)
     {
         return TryRegisterCapture(mon, RewardDataQuality.Base, out captured);
     }
 
+    // Defense note: Attempts to register capture and reports success or failure.
     public bool TryRegisterCapture(AlgoMonInstance mon, RewardDataQuality quality, out AlgoMonInstance captured)
     {
         captured = null;
@@ -418,22 +449,26 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Registers the capture data so other systems can use it.
     public AlgoMonInstance RegisterCapture(AlgoMonInstance mon)
     {
         TryRegisterCapture(mon, out AlgoMonInstance captured);
         return captured;
     }
 
+    // Defense note: Checks whether persist capture is currently allowed.
     private static bool CanPersistCapture(AlgoMonInstance mon)
     {
         return mon != null && CanPersistSpecies(mon.data, mon.usesTransientData);
     }
 
+    // Defense note: Checks whether afford compute is currently allowed.
     public bool CanAffordCompute(int amount)
     {
         return amount <= 0 || computeBalance >= amount;
     }
 
+    // Defense note: Attempts to spend compute and reports success or failure.
     public bool TrySpendCompute(int amount)
     {
         if (amount <= 0)
@@ -442,14 +477,17 @@ public class GameManager : MonoBehaviour
             return false;
 
         computeBalance -= amount;
+        SavePersistentProgress();
         return true;
     }
 
+    // Defense note: Returns whether run buff exists or is active.
     public bool HasRunBuff(RunBuffType buffType)
     {
         return currentRunBuffs != null && currentRunBuffs.Contains(buffType);
     }
 
+    // Defense note: Checks whether purchase shop offer is currently allowed.
     public bool CanPurchaseShopOffer(RunShopOffer offer, out string reason)
     {
         reason = string.Empty;
@@ -489,6 +527,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Attempts to purchase shop offer and reports success or failure.
     public bool TryPurchaseShopOffer(RunShopOffer offer, out string message)
     {
         if (!CanPurchaseShopOffer(offer, out message))
@@ -505,6 +544,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Ensures the shop offers for node dependency or state exists before use.
     public void EnsureShopOffersForNode(string nodeId)
     {
         EnsureRewardContainers();
@@ -522,6 +562,7 @@ public class GameManager : MonoBehaviour
         GenerateShopOffers();
     }
 
+    // Defense note: Runs the current shop offers helper used by this script.
     public List<RunShopOffer> CurrentShopOffers()
     {
         EnsureRewardContainers();
@@ -545,6 +586,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Checks whether refresh shop offers is currently allowed.
     public bool CanRefreshShopOffers(out string reason)
     {
         reason = string.Empty;
@@ -564,6 +606,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Attempts to refresh shop offers and reports success or failure.
     public bool TryRefreshShopOffers(out string message)
     {
         if (!CanRefreshShopOffers(out message))
@@ -627,12 +670,14 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the current run buff summary helper used by this script.
     public string CurrentRunBuffSummary()
     {
         EnsureRewardContainers();
         return RunShopCatalog.BuildActiveSummary(currentRunBuffs);
     }
 
+    // Defense note: Runs the evolution data count for helper used by this script.
     public int EvolutionDataCountFor(string speciesCodeName)
     {
         if (evolutionDataSpeciesCodes == null || string.IsNullOrWhiteSpace(speciesCodeName))
@@ -648,6 +693,7 @@ public class GameManager : MonoBehaviour
         return count;
     }
 
+    // Defense note: Runs the evolvable payload count helper used by this script.
     public int EvolvablePayloadCount()
     {
         EnsureRewardContainers();
@@ -666,6 +712,7 @@ public class GameManager : MonoBehaviour
         return count;
     }
 
+    // Defense note: Runs the first fusion candidate index for helper used by this script.
     public int FirstFusionCandidateIndexFor(int targetIndex)
     {
         EnsureRewardContainers();
@@ -680,6 +727,7 @@ public class GameManager : MonoBehaviour
         return -1;
     }
 
+    // Defense note: Checks whether fuse payload is currently allowed.
     public bool CanFusePayload(int targetIndex, int materialIndex, out string reason)
     {
         reason = string.Empty;
@@ -729,6 +777,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Attempts to fuse payload and reports success or failure.
     public bool TryFusePayload(int targetIndex, int materialIndex, out string message)
     {
         if (!CanFusePayload(targetIndex, materialIndex, out message))
@@ -748,6 +797,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the reconcile party after fusion helper used by this script.
     private void ReconcilePartyAfterFusion(
         AlgoMonInstance target,
         AlgoMonInstance material,
@@ -772,6 +822,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Checks whether evolve payload is currently allowed.
     public bool CanEvolvePayload(int targetIndex, out string reason)
     {
         reason = string.Empty;
@@ -805,6 +856,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Attempts to evolve payload and reports success or failure.
     public bool TryEvolvePayload(int targetIndex, out string message)
     {
         if (!CanEvolvePayload(targetIndex, out message))
@@ -821,6 +873,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the grant current encounter reward helper used by this script.
     public EncounterReward GrantCurrentEncounterReward(AlgoMonInstance defeatedOpponent)
     {
         EnsureRewardContainers();
@@ -843,6 +896,7 @@ public class GameManager : MonoBehaviour
         return reward;
     }
 
+    // Defense note: Applies the run reward buffs change to gameplay or UI state.
     private void ApplyRunRewardBuffs(EncounterReward reward)
     {
         if (reward == null)
@@ -855,12 +909,14 @@ public class GameManager : MonoBehaviour
         reward.algoMonExp = Mathf.Max(0, Mathf.RoundToInt(reward.algoMonExp * expMultiplier));
     }
 
+    // Defense note: Applies the encounter reward change to gameplay or UI state.
     private void ApplyEncounterReward(EncounterReward reward, AlgoMonInstance defeatedOpponent)
     {
         if (reward == null)
             return;
 
         computeBalance += reward.compute;
+        SavePersistentProgress();
         GrantPartyExp(reward.algoMonExp);
 
         if (reward.shouldGrantBaseData &&
@@ -870,6 +926,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the grant party exp helper used by this script.
     private void GrantPartyExp(int amount)
     {
         if (amount <= 0 || party == null)
@@ -891,6 +948,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the on node selected helper used by this script.
     private void OnNodeSelected(NodeSelectedEvent e)
     {
         if (!IsRunActive || e.Node == null)
@@ -932,6 +990,7 @@ public class GameManager : MonoBehaviour
             () => GoTo(GameScene.TheArena));
     }
 
+    // Defense note: Builds the battle transition encounter label data or UI structure.
     private static string BuildBattleTransitionEncounterLabel(GridNode node)
     {
         if (node == null)
@@ -940,6 +999,7 @@ public class GameManager : MonoBehaviour
         return $"{BattleTransitionNodeTypeLabel(node.nodeType)} // {node.id.ToUpperInvariant()}";
     }
 
+    // Defense note: Builds the battle transition risk label data or UI structure.
     private static string BuildBattleTransitionRiskLabel(GridNode node)
     {
         if (node == null)
@@ -950,6 +1010,7 @@ public class GameManager : MonoBehaviour
         return $"D{danger} // LV {level:00} // {BattleTransitionNodeTypeLabel(node.nodeType)}";
     }
 
+    // Defense note: Runs the battle transition node type label helper used by this script.
     private static string BattleTransitionNodeTypeLabel(NodeType nodeType)
     {
         switch (nodeType)
@@ -967,6 +1028,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the current run has early hacker dependency or state exists before use.
     public bool EnsureCurrentRunHasEarlyHacker()
     {
         if (!IsRunActive || currentRunGraph == null)
@@ -983,6 +1045,7 @@ public class GameManager : MonoBehaviour
         return changed;
     }
 
+    // Defense note: Runs the on battle end helper used by this script.
     private void OnBattleEnd(BattleEndEvent e)
     {
         if (!IsRunActive)
@@ -1004,6 +1067,20 @@ public class GameManager : MonoBehaviour
         GoTo(GameScene.RunResult);
     }
 
+    // Defense note: Ends the active grid run from a node-screen flee action.
+    public bool TryFleeCurrentRun()
+    {
+        if (!IsRunActive)
+            return false;
+
+        GridNode completedNode = CurrentRunNode();
+        RecordRunResult(RunOutcome.Defeat, completedNode);
+        EndRun();
+        GoTo(GameScene.RunResult);
+        return true;
+    }
+
+    // Defense note: Runs the current run node helper used by this script.
     private GridNode CurrentRunNode()
     {
         if (currentRunGraph == null || string.IsNullOrEmpty(currentNodeId))
@@ -1012,6 +1089,7 @@ public class GameManager : MonoBehaviour
         return currentRunGraph.GetNode(currentNodeId);
     }
 
+    // Defense note: Runs the record run result helper used by this script.
     private void RecordRunResult(RunOutcome outcome, GridNode completedNode)
     {
         pendingRunOutcome = outcome;
@@ -1025,11 +1103,13 @@ public class GameManager : MonoBehaviour
         completedRunRewards = currentRunRewards.Clone();
     }
 
+    // Defense note: Returns whether this value is encounter node.
     private static bool IsEncounterNode(NodeType type)
     {
         return ThreatTierRules.IsEncounterNode(type);
     }
 
+    // Defense note: Runs the average party level helper used by this script.
     private int AveragePartyLevel()
     {
         if (party == null || party.Count == 0)
@@ -1050,6 +1130,7 @@ public class GameManager : MonoBehaviour
         return count > 0 ? Mathf.RoundToInt(total / (float)count) : 0;
     }
 
+    // Defense note: Generates the shop offers content from current settings.
     private void GenerateShopOffers()
     {
         EnsureRewardContainers();
@@ -1084,6 +1165,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Adds the random offer entry into the target collection or UI.
     private void AddRandomOffer(
         List<RunShopOffer> source,
         List<RunShopOffer> sharedCandidatePool,
@@ -1103,6 +1185,7 @@ public class GameManager : MonoBehaviour
             RemoveOffer(sharedCandidatePool, offer.BuffType);
     }
 
+    // Defense note: Removes the offer entry from the target collection or UI.
     private static void RemoveOffer(List<RunShopOffer> offers, RunBuffType type)
     {
         if (offers == null)
@@ -1115,6 +1198,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the shop roll seed helper used by this script.
     private int ShopRollSeed()
     {
         unchecked
@@ -1126,6 +1210,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the stable hash helper used by this script.
     private static int StableHash(string value)
     {
         unchecked
@@ -1140,6 +1225,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the reset shop state helper used by this script.
     private void ResetShopState()
     {
         if (currentShopOfferTypes != null)
@@ -1148,6 +1234,7 @@ public class GameManager : MonoBehaviour
         currentShopRefreshCount = 0;
     }
 
+    // Defense note: Ensures the reward containers dependency or state exists before use.
     private void EnsureRewardContainers()
     {
         if (payload == null)
@@ -1172,6 +1259,129 @@ public class GameManager : MonoBehaviour
         EnsurePartyPayloadLinks();
     }
 
+    // Defense note: Loads permanent player progress kept outside the current run.
+    private void LoadPersistentProgress()
+    {
+        int fallback = Mathf.Max(0, computeBalance);
+        computeBalance = Mathf.Max(0, PlayerPrefs.GetInt(ComputeBalancePrefsKey, fallback));
+    }
+
+    // Defense note: Saves permanent credits after earning or spending them.
+    private void SavePersistentProgress()
+    {
+        computeBalance = Mathf.Max(0, computeBalance);
+        PlayerPrefs.SetInt(ComputeBalancePrefsKey, computeBalance);
+        PlayerPrefs.Save();
+    }
+
+    // Defense note: Adds the temporary defense demo Nullbyte to payload after normal roster setup.
+    public void EnsureDefenseDemoNullbyteInPayload()
+    {
+        EnsureRewardContainers();
+        EnsureDefenseDemoNullbyte();
+    }
+
+    // Defense note: Returns whether a mon is the temporary defense demo Nullbyte.
+    public static bool IsDefenseDemoNullbyteInstance(AlgoMonInstance mon)
+    {
+        return IsDefenseDemoNullbyte(mon);
+    }
+
+    // Defense note: Ensures the temporary defense demo Nullbyte exists in payload only.
+    private void EnsureDefenseDemoNullbyte()
+    {
+        if (!DefenseDemoInjectMaxNullbyte || payload == null)
+            return;
+
+        AlgoMonInstance demoMon = FindDefenseDemoNullbyte(payload);
+        bool createdDemoMon = false;
+        if (demoMon == null)
+        {
+            AlgoMonData species = FindRewardSpeciesByCodeName(DefenseDemoNullbyteCodeName);
+            if (species == null)
+                return;
+
+            demoMon = CreateDefenseDemoNullbyte(species);
+            if (demoMon == null)
+                return;
+
+            payload.Add(demoMon);
+            createdDemoMon = true;
+        }
+
+        MaxOutDefenseDemoNullbyte(demoMon, createdDemoMon);
+    }
+
+    // Defense note: Creates the temporary defense demo Nullbyte instance used for presentation testing.
+    private static AlgoMonInstance CreateDefenseDemoNullbyte(AlgoMonData species)
+    {
+        AlgoMonInstance mon = AlgoMonInstance.CreateRewardBase(
+            species,
+            RewardDataQuality.HighQualityBase,
+            int.MaxValue);
+        MaxOutDefenseDemoNullbyte(mon, true);
+        return mon;
+    }
+
+    // Defense note: Maxes the temporary defense demo Nullbyte's level and IVs while keeping normal learnset loading.
+    private static void MaxOutDefenseDemoNullbyte(AlgoMonInstance mon, bool initializeLoadout)
+    {
+        if (mon == null)
+            return;
+
+        mon.nickname = DefenseDemoNullbyteCodeName;
+        mon.instanceId = DefenseDemoNullbyteInstanceId;
+        mon.dataQuality = RewardDataQuality.HighQualityBase;
+        mon.battleFormName = "Base";
+        mon.fusedBaseCopies = 0;
+        mon.level = AlgoMonInstance.MAX_LEVEL;
+        mon.exp = 0;
+        mon.iv_Battery = DefenseDemoMaxIv;
+        mon.iv_ClockSpeed = DefenseDemoMaxIv;
+        mon.iv_ComputingPower = DefenseDemoMaxIv;
+        mon.iv_Throughput = DefenseDemoMaxIv;
+        mon.iv_Firewall = DefenseDemoMaxIv;
+        mon.iv_Encryption = DefenseDemoMaxIv;
+        mon.EnsurePersistentRuntimeState();
+        if (mon.knownSkills == null)
+            mon.knownSkills = new List<SkillData>();
+        if (mon.fusionSourceInstanceIds == null)
+            mon.fusionSourceInstanceIds = new List<string>();
+
+        mon.knownSkills.RemoveAll(skill => skill == null);
+        bool needsLoadoutInitialization = initializeLoadout || mon.knownSkills.Count == 0;
+
+        if (needsLoadoutInitialization)
+        {
+            mon.knownSkills.Clear();
+            mon.EnsureKnownSkillsFromLearnset();
+        }
+    }
+
+    // Defense note: Finds the fixed temporary defense demo Nullbyte in a runtime list.
+    private static AlgoMonInstance FindDefenseDemoNullbyte(List<AlgoMonInstance> mons)
+    {
+        if (mons == null)
+            return null;
+
+        for (int i = 0; i < mons.Count; i++)
+        {
+            AlgoMonInstance mon = mons[i];
+            if (IsDefenseDemoNullbyte(mon))
+                return mon;
+        }
+
+        return null;
+    }
+
+    // Defense note: Returns whether a mon is the temporary defense demo Nullbyte.
+    private static bool IsDefenseDemoNullbyte(AlgoMonInstance mon)
+    {
+        return mon != null &&
+               string.Equals(mon.instanceId, DefenseDemoNullbyteInstanceId, StringComparison.Ordinal);
+    }
+
+    // Defense note: Ensures the mon state dependency or state exists before use.
     private static void EnsureMonState(List<AlgoMonInstance> mons)
     {
         if (mons == null)
@@ -1184,6 +1394,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the party payload links dependency or state exists before use.
     private void EnsurePartyPayloadLinks()
     {
         if (payload == null || party == null)
@@ -1201,6 +1412,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the payload entry dependency or state exists before use.
     private AlgoMonInstance EnsurePayloadEntry(AlgoMonInstance mon)
     {
         if (mon == null || payload == null)
@@ -1215,6 +1427,7 @@ public class GameManager : MonoBehaviour
         return mon;
     }
 
+    // Defense note: Attempts to register reward base and reports success or failure.
     private bool TryRegisterRewardBase(
         EncounterReward reward,
         AlgoMonInstance defeatedOpponent,
@@ -1236,6 +1449,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Attempts to resolve reward species and reports success or failure.
     private bool TryResolveRewardSpecies(
         EncounterReward reward,
         AlgoMonInstance defeatedOpponent,
@@ -1257,6 +1471,7 @@ public class GameManager : MonoBehaviour
         return species != null;
     }
 
+    // Defense note: Runs the reward talent seed helper used by this script.
     private int RewardTalentSeed(EncounterReward reward, AlgoMonData species)
     {
         unchecked
@@ -1270,6 +1485,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // Defense note: Checks whether persist species is currently allowed.
     private static bool CanPersistSpecies(AlgoMonData data, bool usesTransientData)
     {
         if (data == null || usesTransientData)
@@ -1282,6 +1498,7 @@ public class GameManager : MonoBehaviour
 #endif
     }
 
+    // Defense note: Finds the reward species by code name reference used by this component.
     private static AlgoMonData FindRewardSpeciesByCodeName(string codeName)
     {
         string normalized = NormalizeSpeciesKey(codeName);
@@ -1313,6 +1530,7 @@ public class GameManager : MonoBehaviour
         return null;
     }
 
+    // Defense note: Finds the species in pool reference used by this component.
     private static AlgoMonData FindSpeciesInPool(AlgoMonData[] pool, string normalizedCodeName)
     {
         if (pool == null)
@@ -1331,6 +1549,7 @@ public class GameManager : MonoBehaviour
         return null;
     }
 
+    // Defense note: Attempts to get payload mon and reports success or failure.
     private bool TryGetPayloadMon(int index, out AlgoMonInstance mon)
     {
         mon = null;
@@ -1341,12 +1560,14 @@ public class GameManager : MonoBehaviour
         return mon != null;
     }
 
+    // Defense note: Returns whether this value is in party.
     public bool IsInParty(AlgoMonInstance mon)
     {
         EnsureRewardContainers();
         return IndexOfMon(party, mon) >= 0;
     }
 
+    // Defense note: Runs the index of mon helper used by this script.
     private static int IndexOfMon(List<AlgoMonInstance> mons, AlgoMonInstance mon)
     {
         if (mons == null || mon == null)
@@ -1370,6 +1591,7 @@ public class GameManager : MonoBehaviour
         return -1;
     }
 
+    // Defense note: Removes the mon from list entry from the target collection or UI.
     private static bool RemoveMonFromList(List<AlgoMonInstance> mons, AlgoMonInstance mon)
     {
         int index = IndexOfMon(mons, mon);
@@ -1380,6 +1602,7 @@ public class GameManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the same species helper used by this script.
     private static bool SameSpecies(AlgoMonInstance a, AlgoMonInstance b)
     {
         return a != null &&
@@ -1388,6 +1611,7 @@ public class GameManager : MonoBehaviour
                string.Equals(a.SpeciesCodeName, b.SpeciesCodeName, StringComparison.OrdinalIgnoreCase);
     }
 
+    // Defense note: Runs the display name for helper used by this script.
     private static string DisplayNameFor(AlgoMonInstance mon)
     {
         if (mon == null)
@@ -1397,11 +1621,13 @@ public class GameManager : MonoBehaviour
         return !string.IsNullOrWhiteSpace(mon.SpeciesCodeName) ? mon.SpeciesCodeName : "AlgoMon";
     }
 
+    // Defense note: Runs the normalize species key helper used by this script.
     private static string NormalizeSpeciesKey(string codeName)
     {
         return string.IsNullOrWhiteSpace(codeName) ? string.Empty : codeName.Trim();
     }
 
+    // Defense note: Runs the normalize boss species code name helper used by this script.
     private static string NormalizeBossSpeciesCodeName(string speciesCodeName)
     {
         return TryNormalizeBossSpeciesCodeName(speciesCodeName, out string normalized)
@@ -1409,6 +1635,7 @@ public class GameManager : MonoBehaviour
             : BossSpeciesCodeNames[0];
     }
 
+    // Defense note: Attempts to normalize boss species code name and reports success or failure.
     private static bool TryNormalizeBossSpeciesCodeName(string speciesCodeName, out string normalized)
     {
         normalized = string.Empty;
@@ -1431,6 +1658,7 @@ public class GameManager : MonoBehaviour
     // ----------------------------------------------------------------
     // Scene transitions
 
+    // Defense note: Subscribes to the persistent events events used by this object.
     private void SubscribePersistentEvents()
     {
         EventBus.Unsubscribe<SceneTransitionEvent>(OnSceneTransition);
@@ -1442,6 +1670,7 @@ public class GameManager : MonoBehaviour
         EventBus.Subscribe<BattleEndEvent>(OnBattleEnd);
     }
 
+    // Defense note: Unsubscribes from the persistent events events to avoid stale callbacks.
     private void UnsubscribePersistentEvents()
     {
         EventBus.Unsubscribe<SceneTransitionEvent>(OnSceneTransition);
@@ -1449,6 +1678,7 @@ public class GameManager : MonoBehaviour
         EventBus.Unsubscribe<BattleEndEvent>(OnBattleEnd);
     }
 
+    // Defense note: Runs the on scene transition helper used by this script.
     private void OnSceneTransition(SceneTransitionEvent e)
     {
         EventBus.Clear();
@@ -1457,6 +1687,7 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>Convenience wrapper so other systems don't need to know scene names.</summary>
+    // Defense note: Runs the go to helper used by this script.
     public static void GoTo(GameScene destination)
     {
         EventBus.Publish(new SceneTransitionEvent { Destination = destination });

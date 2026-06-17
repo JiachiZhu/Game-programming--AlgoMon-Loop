@@ -5,6 +5,7 @@
 
 // --- Battle Events ---
 
+// Defense note: DamageEvent is a lightweight event payload passed through EventBus.
 public struct DamageEvent
 {
     public string AttackerId;
@@ -16,6 +17,7 @@ public struct DamageEvent
     public float ElementMultiplier;
 }
 
+// Defense note: CounterEvent is a lightweight event payload passed through EventBus.
 public struct CounterEvent
 {
     public string CounterId;    // unit that won the ASD counter
@@ -29,6 +31,7 @@ public struct CounterEvent
     public InstructionType CounteredInstructionType;
 }
 
+// Defense note: BattleEndEvent is a lightweight event payload passed through EventBus.
 public struct BattleEndEvent
 {
     public bool PlayerWon;
@@ -38,12 +41,14 @@ public struct BattleEndEvent
 /// Raised when a unit's Subroutine (passive) fires. The presentation layer pops
 /// an above-sprite callout so the player sees the passive act, not just a log line.
 /// </summary>
+// Defense note: SubroutineTriggeredEvent is a lightweight event payload passed through EventBus.
 public struct SubroutineTriggeredEvent
 {
     public string OwnerId;          // presentation id of the unit whose subroutine fired
     public string SubroutineName;
 }
 
+// Defense note: BattleActionEvent is a lightweight event payload passed through EventBus.
 public struct BattleActionEvent
 {
     public string ActorId;
@@ -55,11 +60,13 @@ public struct BattleActionEvent
     public bool WasCountered;
 }
 
+// Defense note: UnitFaintedEvent is a lightweight event payload passed through EventBus.
 public struct UnitFaintedEvent
 {
     public string UnitId;
 }
 
+// Defense note: StatusAppliedEvent is a lightweight event payload passed through EventBus.
 public struct StatusAppliedEvent
 {
     public string SourceId;
@@ -70,6 +77,7 @@ public struct StatusAppliedEvent
     public int Duration;
 }
 
+// Defense note: BattleFeedbackEvent is a lightweight event payload passed through EventBus.
 public struct BattleFeedbackEvent
 {
     public string TargetId;
@@ -80,6 +88,7 @@ public struct BattleFeedbackEvent
 
 // --- Navigation Events ---
 
+// Defense note: NodeSelectedEvent is a lightweight event payload passed through EventBus.
 public struct NodeSelectedEvent
 {
     public string NodeId;
@@ -90,6 +99,7 @@ public struct NodeSelectedEvent
     public bool ReturnedToStart;
 }
 
+// Defense note: SceneTransitionEvent is a lightweight event payload passed through EventBus.
 public struct SceneTransitionEvent
 {
     public GameScene Destination;
@@ -97,8 +107,10 @@ public struct SceneTransitionEvent
 
 // --- Enums ---
 
+// Defense note: DamageType defines the valid damage type options used by the gameplay systems.
 public enum DamageType { None, Computing, Throughput }
 
+// Defense note: BattleFeedbackType defines the valid battle feedback type options used by the gameplay systems.
 public enum BattleFeedbackType { Damage, Heal, CPGain, CPDrain, Status, Counter }
 
 /// <summary>
@@ -106,6 +118,7 @@ public enum BattleFeedbackType { Damage, Heal, CPGain, CPDrain, Status, Counter 
 /// Used by baseStatusTarget, and by BattleManager when interpreting
 /// counterSelfStatus on skills marked as opponent-targeted in their description.
 /// </summary>
+// Defense note: StatusTarget defines the valid status target options used by the gameplay systems.
 public enum StatusTarget { Self, Opponent }
 
 /// <summary>
@@ -116,7 +129,9 @@ public enum StatusTarget { Self, Opponent }
 ///   Turns        — counts down each turn; also cleared on swap.
 ///                  Use StatusDuration field to set the turn count.
 /// </summary>
+// Defense note: StatusDurationType defines the valid status duration type options used by the gameplay systems.
 public enum StatusDurationType { Permanent, WhileOnField, Turns }
+// Defense note: NodeType defines the valid node type options used by the gameplay systems.
 public enum NodeType
 {
     Combat,
@@ -128,7 +143,9 @@ public enum NodeType
     Reboot,
     Hacker
 }
+// Defense note: GameScene defines the valid game scene options used by the gameplay systems.
 public enum GameScene  { MainTerminal, TheGrid, TheArena, RunResult, TheLab }
+// Defense note: RunOutcome defines the valid run outcome options used by the gameplay systems.
 public enum RunOutcome { None, Victory, Defeat }
 
 /// <summary>
@@ -153,6 +170,7 @@ public enum RunOutcome { None, Victory, Defeat }
 /// Legacy placeholders (from initial design, may be repurposed):
 ///   Overclock, Throttle, Corrupted
 /// </summary>
+// Defense note: StatusType defines the valid status type options used by the gameplay systems.
 public enum StatusType
 {
     // --- Active debuffs ---
@@ -183,6 +201,7 @@ public enum StatusType
 ///   Status  beats Defense  (S > D)
 ///   Defense beats Attack   (D > A)
 /// </summary>
+// Defense note: InstructionType defines the valid instruction type options used by the gameplay systems.
 public enum InstructionType { Attack, Status, Defense }
 
 /// <summary>
@@ -195,12 +214,14 @@ public enum InstructionType { Attack, Status, Defense }
 ///   Electric > Water,  Ground > Electric          (chain)
 ///   Ice > Grass,  Fire > Ice                      (extras)
 /// </summary>
+// Defense note: ElementType defines the valid element type options used by the gameplay systems.
 public enum ElementType    { Normal, Water, Fire, Grass, Ice, Electric, Ground }
 
 /// <summary>
 /// Conditions that activate a species' built-in Subroutine (passive ability).
 /// BattleManager checks these each time the relevant moment occurs.
 /// </summary>
+// Defense note: SubroutineTrigger defines the valid subroutine trigger options used by the gameplay systems.
 public enum SubroutineTrigger
 {
     OnBattleStart,      // activates once when the battle begins

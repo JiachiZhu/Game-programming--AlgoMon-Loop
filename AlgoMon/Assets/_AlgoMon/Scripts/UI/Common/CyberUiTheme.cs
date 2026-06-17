@@ -1,5 +1,6 @@
 using UnityEngine;
 
+// Defense note: CyberUiColorRole defines the valid cyber ui color role options used by the gameplay systems.
 public enum CyberUiColorRole
 {
     Background,
@@ -16,6 +17,7 @@ public enum CyberUiColorRole
     TextSecondary
 }
 
+// Defense note: CyberUiTheme is the main cyber ui theme type used by this part of the project.
 public static class CyberUiTheme
 {
     public static readonly Color Background = FromRgb(0x05, 0x08, 0x12);
@@ -31,6 +33,7 @@ public static class CyberUiTheme
     public static readonly Color TextPrimary = FromRgb(0xF3, 0xF7, 0xFF);
     public static readonly Color TextSecondary = FromRgb(0xA8, 0xB6, 0xCE);
 
+    // Defense note: Runs the color for helper used by this script.
     public static Color ColorFor(CyberUiColorRole role)
     {
         switch (role)
@@ -63,17 +66,20 @@ public static class CyberUiTheme
         }
     }
 
+    // Defense note: Runs the with alpha helper used by this script.
     public static Color WithAlpha(Color color, float alpha)
     {
         color.a = Mathf.Clamp01(alpha);
         return color;
     }
 
+    // Defense note: Runs the dim helper used by this script.
     public static Color Dim(Color color, float amount)
     {
         return Color.Lerp(color, Background, Mathf.Clamp01(amount));
     }
 
+    // Defense note: Runs the from rgb helper used by this script.
     private static Color FromRgb(byte r, byte g, byte b)
     {
         return new Color32(r, g, b, 255);

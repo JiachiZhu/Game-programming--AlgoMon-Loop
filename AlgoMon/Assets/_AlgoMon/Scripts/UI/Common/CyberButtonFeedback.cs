@@ -3,6 +3,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
+// Defense note: CyberButtonFeedback is a Unity component attached to a scene object for this feature.
 public sealed class CyberButtonFeedback : MonoBehaviour,
     IPointerEnterHandler,
     IPointerExitHandler,
@@ -59,6 +60,7 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
 
     private bool IsInteractable => selectable == null || selectable.interactable;
 
+    // Defense note: Runs the reset helper used by this script.
     private void Reset()
     {
         selectable = GetComponent<Selectable>();
@@ -67,6 +69,7 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
         labelGraphic = GetComponentInChildren<Text>();
     }
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         if (selectable == null)
@@ -85,12 +88,14 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
         ApplyImmediate();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         baseScale = transform.localScale;
         ApplyImmediate();
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         CyberButtonVisualState state = ResolveState();
@@ -112,43 +117,51 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
         transform.localScale = Vector3.Lerp(transform.localScale, baseScale * targetScale, t);
     }
 
+    // Defense note: Runs the on pointer enter helper used by this script.
     public void OnPointerEnter(PointerEventData eventData)
     {
         hovered = true;
     }
 
+    // Defense note: Runs the on pointer exit helper used by this script.
     public void OnPointerExit(PointerEventData eventData)
     {
         hovered = false;
         pressed = false;
     }
 
+    // Defense note: Runs the on pointer down helper used by this script.
     public void OnPointerDown(PointerEventData eventData)
     {
         pressed = true;
     }
 
+    // Defense note: Runs the on pointer up helper used by this script.
     public void OnPointerUp(PointerEventData eventData)
     {
         pressed = false;
     }
 
+    // Defense note: Runs the on select helper used by this script.
     public void OnSelect(BaseEventData eventData)
     {
         focused = true;
     }
 
+    // Defense note: Runs the on deselect helper used by this script.
     public void OnDeselect(BaseEventData eventData)
     {
         focused = false;
         pressed = false;
     }
 
+    // Defense note: Updates the selected state or visual value.
     public void SetSelected(bool isSelected)
     {
         Selected = isSelected;
     }
 
+    // Defense note: Applies the immediate change to gameplay or UI state.
     private void ApplyImmediate()
     {
         CyberButtonVisualState state = ResolveState();
@@ -159,6 +172,7 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
         ApplyColors();
     }
 
+    // Defense note: Applies the colors change to gameplay or UI state.
     private void ApplyColors()
     {
         if (frame != null)
@@ -185,6 +199,7 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Resolves the state step and updates dependent state.
     private CyberButtonVisualState ResolveState()
     {
         if (!IsInteractable)
@@ -198,6 +213,7 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
         return CyberButtonVisualState.Normal;
     }
 
+    // Defense note: Runs the fill for helper used by this script.
     private Color FillFor(CyberButtonVisualState state)
     {
         Color roleColor = CyberUiTheme.ColorFor(accentRole);
@@ -217,6 +233,7 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Runs the border for helper used by this script.
     private Color BorderFor(CyberButtonVisualState state)
     {
         Color roleColor = CyberUiTheme.ColorFor(accentRole);
@@ -236,6 +253,7 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Runs the accent for helper used by this script.
     private Color AccentFor(CyberButtonVisualState state)
     {
         Color roleColor = CyberUiTheme.ColorFor(accentRole);
@@ -254,6 +272,7 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Runs the text for helper used by this script.
     private static Color TextFor(CyberButtonVisualState state)
     {
         switch (state)
@@ -272,6 +291,7 @@ public sealed class CyberButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: CyberButtonVisualState defines the valid cyber button visual state options used by the gameplay systems.
     private enum CyberButtonVisualState
     {
         Normal,

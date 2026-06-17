@@ -9,6 +9,7 @@ Script Audit:
 - AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Move through a run and confirm nodes change between current, next, target, visited, and inactive.
 */
+// Defense note: GridNodeVisualState defines the valid grid node visual state options used by the gameplay systems.
 public enum GridNodeVisualState
 {
     Inactive,

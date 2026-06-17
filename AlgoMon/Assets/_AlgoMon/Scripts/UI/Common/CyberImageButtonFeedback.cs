@@ -4,6 +4,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
+// Defense note: CyberImageButtonFeedback is a Unity component attached to a scene object for this feature.
 public sealed class CyberImageButtonFeedback : MonoBehaviour,
     IPointerEnterHandler,
     IPointerExitHandler,
@@ -84,11 +85,13 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
     private Color AccentColor => useCustomAccentColor ? customAccentColor : CyberUiTheme.ColorFor(accentRole);
     private bool IsInteractable => selectable == null || selectable.interactable;
 
+    // Defense note: Runs the reset helper used by this script.
     private void Reset()
     {
         AutoBindTargets();
     }
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         AutoBindTargets();
@@ -96,6 +99,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         ApplyImmediate();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         hovered = false;
@@ -107,6 +111,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         ApplyImmediate();
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         CyberImageButtonVisualState state = ResolveState();
@@ -125,12 +130,14 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         transform.localScale = Vector3.Lerp(transform.localScale, baseScale * ScaleMultiplierFor(state), t);
     }
 
+    // Defense note: Runs the on pointer enter helper used by this script.
     public void OnPointerEnter(PointerEventData eventData)
     {
         hovered = true;
         ApplyImmediate();
     }
 
+    // Defense note: Runs the on pointer exit helper used by this script.
     public void OnPointerExit(PointerEventData eventData)
     {
         hovered = false;
@@ -138,24 +145,28 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         ApplyImmediate();
     }
 
+    // Defense note: Runs the on pointer down helper used by this script.
     public void OnPointerDown(PointerEventData eventData)
     {
         pressed = true;
         ApplyImmediate();
     }
 
+    // Defense note: Runs the on pointer up helper used by this script.
     public void OnPointerUp(PointerEventData eventData)
     {
         pressed = false;
         ApplyImmediate();
     }
 
+    // Defense note: Runs the on select helper used by this script.
     public void OnSelect(BaseEventData eventData)
     {
         focused = true;
         ApplyImmediate();
     }
 
+    // Defense note: Runs the on deselect helper used by this script.
     public void OnDeselect(BaseEventData eventData)
     {
         focused = false;
@@ -163,6 +174,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         ApplyImmediate();
     }
 
+    // Defense note: Runs the auto bind targets helper used by this script.
     private void AutoBindTargets()
     {
         if (selectable == null)
@@ -189,6 +201,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
             accentGraphics = FindAccentGraphics();
     }
 
+    // Defense note: Finds the accent graphics reference used by this component.
     private Graphic[] FindAccentGraphics()
     {
         var graphics = new List<Graphic>();
@@ -212,6 +225,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         return graphics.ToArray();
     }
 
+    // Defense note: Runs the capture base colors helper used by this script.
     private void CaptureBaseColors()
     {
         baseScale = transform.localScale;
@@ -234,6 +248,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         initialized = true;
     }
 
+    // Defense note: Applies the immediate change to gameplay or UI state.
     private void ApplyImmediate()
     {
         CyberImageButtonVisualState state = ResolveState();
@@ -247,6 +262,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         transform.localScale = baseScale * ScaleMultiplierFor(state);
     }
 
+    // Defense note: Applies the colors change to gameplay or UI state.
     private void ApplyColors()
     {
         if (frameGraphic != null)
@@ -263,6 +279,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Resolves the state step and updates dependent state.
     private CyberImageButtonVisualState ResolveState()
     {
         if (!IsInteractable)
@@ -276,6 +293,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         return CyberImageButtonVisualState.Normal;
     }
 
+    // Defense note: Runs the frame color for helper used by this script.
     private Color FrameColorFor(CyberImageButtonVisualState state)
     {
         Color accent = AccentColor;
@@ -295,6 +313,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Runs the glow color for helper used by this script.
     private Color GlowColorFor(CyberImageButtonVisualState state)
     {
         Color accent = AccentColor;
@@ -319,6 +338,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         return CyberUiTheme.WithAlpha(Color.Lerp(accent, Color.white, state == CyberImageButtonVisualState.Pressed ? 0.28f : 0.08f), alpha);
     }
 
+    // Defense note: Runs the label color for helper used by this script.
     private Color LabelColorFor(CyberImageButtonVisualState state)
     {
         switch (state)
@@ -335,6 +355,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Runs the accent graphic color for helper used by this script.
     private Color AccentGraphicColorFor(CyberImageButtonVisualState state, int index)
     {
         Color baseColor = baseAccentColors != null && index < baseAccentColors.Length ? baseAccentColors[index] : AccentColor;
@@ -355,6 +376,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Runs the blend helper used by this script.
     private static Color Blend(Color from, Color to, float amount, float alpha)
     {
         Color color = Color.Lerp(from, to, Mathf.Clamp01(amount));
@@ -362,6 +384,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         return color;
     }
 
+    // Defense note: Runs the scale multiplier for helper used by this script.
     private float ScaleMultiplierFor(CyberImageButtonVisualState state)
     {
         if (state == CyberImageButtonVisualState.Pressed)
@@ -371,6 +394,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
         return 1f;
     }
 
+    // Defense note: Ensures the accent buffers dependency or state exists before use.
     private void EnsureAccentBuffers()
     {
         int count = AccentCount;
@@ -382,6 +406,7 @@ public sealed class CyberImageButtonFeedback : MonoBehaviour,
 
     private int AccentCount => accentGraphics != null ? accentGraphics.Length : 0;
 
+    // Defense note: CyberImageButtonVisualState defines the valid cyber image button visual state options used by the gameplay systems.
     private enum CyberImageButtonVisualState
     {
         Normal,

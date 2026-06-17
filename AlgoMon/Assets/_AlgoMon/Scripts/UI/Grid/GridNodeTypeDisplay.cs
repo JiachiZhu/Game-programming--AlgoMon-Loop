@@ -9,8 +9,10 @@ Script Audit:
 - AI/tutorial/template assistance: AI tools (Codex/Cursor/Claude/ChatGPT) assisted with parts of this script (implementation, refactoring, and/or documentation); the author reviewed, tested, and validated the logic. See AI_USE.md.
 - Testing notes: Check every NodeType displays a readable label and icon fallback.
 */
+// Defense note: GridNodeTypeDisplay is the main grid node type display type used by this part of the project.
 public static class GridNodeTypeDisplay
 {
+    // Defense note: Runs the to grid label helper used by this script.
     public static string ToGridLabel(this NodeType nodeType)
     {
         switch (nodeType)
@@ -36,11 +38,13 @@ public static class GridNodeTypeDisplay
         }
     }
 
+    // Defense note: Runs the to grid label upper helper used by this script.
     public static string ToGridLabelUpper(this NodeType nodeType)
     {
         return nodeType.ToGridLabel().ToUpperInvariant();
     }
 
+    // Defense note: Runs the to grid icon helper used by this script.
     public static string ToGridIcon(this NodeType nodeType)
     {
         switch (nodeType)

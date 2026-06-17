@@ -18,6 +18,7 @@ using UnityEngine;
 /// </summary>
 [DisallowMultipleComponent]
 [RequireComponent(typeof(BattleSpriteAnimator))]
+// Defense note: BattleAlgoMonView presents one piece of gameplay data in the UI.
 public class BattleAlgoMonView : MonoBehaviour
 {
     [Header("Identity")]
@@ -62,6 +63,7 @@ public class BattleAlgoMonView : MonoBehaviour
         }
     }
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         BindAnimator();
@@ -69,6 +71,7 @@ public class BattleAlgoMonView : MonoBehaviour
             ApplyResolvedProfile(ResolveInspectorProfile());
     }
 
+    // Defense note: Unity lifecycle hook that runs the on validate step for this component.
     private void OnValidate()
     {
         if (string.IsNullOrWhiteSpace(formName))
@@ -77,6 +80,7 @@ public class BattleAlgoMonView : MonoBehaviour
         CacheMissingBindings();
     }
 
+    // Defense note: Applies the combatant change to gameplay or UI state.
     public void ApplyCombatant(
         string nextCombatantId,
         BattleAnimationProfile resolvedProfile,
@@ -95,6 +99,7 @@ public class BattleAlgoMonView : MonoBehaviour
         ApplyResolvedProfile(resolvedProfile != null || !useInspectorFallback ? resolvedProfile : ResolveInspectorProfile());
     }
 
+    // Defense note: Updates the data state or visual value.
     public void SetData(AlgoMonData nextData, string nextFormName = null)
     {
         data = nextData;
@@ -107,6 +112,7 @@ public class BattleAlgoMonView : MonoBehaviour
         ApplyResolvedProfile(ResolveInspectorProfile());
     }
 
+    // Defense note: Runs the bind animator helper used by this script.
     private void BindAnimator()
     {
         CacheMissingBindings();
@@ -116,6 +122,7 @@ public class BattleAlgoMonView : MonoBehaviour
         animator.ConfigureSpriteBindings(body, primaryRenderer, bodyRenderers, shadowRenderer);
     }
 
+    // Defense note: Runs the cache missing bindings helper used by this script.
     private void CacheMissingBindings()
     {
         if (animator == null)
@@ -131,6 +138,7 @@ public class BattleAlgoMonView : MonoBehaviour
             bodyRenderers = ResolveBodyRenderers();
     }
 
+    // Defense note: Resolves the inspector profile step and updates dependent state.
     private BattleAnimationProfile ResolveInspectorProfile()
     {
         if (animationProfileOverride != null)
@@ -147,6 +155,7 @@ public class BattleAlgoMonView : MonoBehaviour
         return BattleAnimationProfileLoader.TryLoadProfile(resolvedCodeName, FormName);
     }
 
+    // Defense note: Applies the resolved profile change to gameplay or UI state.
     private void ApplyResolvedProfile(BattleAnimationProfile profile)
     {
         if (primaryRenderer != null && profile == null && usePortraitAsFallbackSprite && data != null && data.portrait != null)
@@ -160,6 +169,7 @@ public class BattleAlgoMonView : MonoBehaviour
             animator.SetAnimationProfile(profile);
     }
 
+    // Defense note: Finds the child transform reference used by this component.
     private Transform FindChildTransform(params string[] nameFragments)
     {
         Transform[] children = GetComponentsInChildren<Transform>(true);
@@ -179,12 +189,14 @@ public class BattleAlgoMonView : MonoBehaviour
         return transform.childCount > 0 ? transform.GetChild(0) : null;
     }
 
+    // Defense note: Finds the child renderer reference used by this component.
     private SpriteRenderer FindChildRenderer(params string[] nameFragments)
     {
         Transform child = FindChildTransform(nameFragments);
         return child != null ? child.GetComponent<SpriteRenderer>() : null;
     }
 
+    // Defense note: Resolves the primary renderer step and updates dependent state.
     private SpriteRenderer ResolvePrimaryRenderer()
     {
         if (body != null)
@@ -204,6 +216,7 @@ public class BattleAlgoMonView : MonoBehaviour
         return null;
     }
 
+    // Defense note: Resolves the body renderers step and updates dependent state.
     private SpriteRenderer[] ResolveBodyRenderers()
     {
         SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>(true);

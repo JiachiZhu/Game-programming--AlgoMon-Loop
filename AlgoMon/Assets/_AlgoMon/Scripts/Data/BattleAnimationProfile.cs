@@ -12,6 +12,7 @@ Script Audit:
 using System;
 using UnityEngine;
 
+// Defense note: BattleAnimationState defines the valid battle animation state options used by the gameplay systems.
 public enum BattleAnimationState
 {
     Idle,
@@ -24,6 +25,7 @@ public enum BattleAnimationState
 }
 
 [Serializable]
+// Defense note: BattleAnimationClipData is a data definition object that designers configure in Unity.
 public class BattleAnimationClipData
 {
     [Tooltip("Animation frames in playback order.")]
@@ -71,6 +73,7 @@ public class BattleAnimationClipData
     public int ReturnFrameIndex => ToZeroBasedIndex(returnFrame);
     public int StartFrameIndex => ToZeroBasedIndex(startFrame);
 
+    // Defense note: Runs the to zero based index helper used by this script.
     private int ToZeroBasedIndex(int oneBasedFrame)
     {
         if (oneBasedFrame <= 0 || FrameCount <= 0)
@@ -81,6 +84,7 @@ public class BattleAnimationClipData
 }
 
 [CreateAssetMenu(fileName = "BattleAnimationProfile", menuName = "AlgoMon/Battle Animation Profile")]
+// Defense note: BattleAnimationProfile is the main battle animation profile type used by this part of the project.
 public class BattleAnimationProfile : ScriptableObject
 {
     public string profileId;
@@ -92,6 +96,10 @@ public class BattleAnimationProfile : ScriptableObject
     [Min(0.1f)]
     public float visualScaleMultiplier = 1f;
 
+    [Tooltip("Species/form-specific horizontal scale applied after visual height normalization. Use to restore wide silhouettes without changing height.")]
+    [Min(0.1f)]
+    public float horizontalScaleMultiplier = 1f;
+
     [Header("Core States")]
     public BattleAnimationClipData entry = new BattleAnimationClipData { fps = 8f };
     public BattleAnimationClipData idle = new BattleAnimationClipData { loop = true, fps = 8f };
@@ -101,6 +109,7 @@ public class BattleAnimationProfile : ScriptableObject
     public BattleAnimationClipData hit = new BattleAnimationClipData { fps = 12f };
     public BattleAnimationClipData faint = new BattleAnimationClipData { fps = 10f, holdLastFrame = true };
 
+    // Defense note: Runs the clip for helper used by this script.
     public BattleAnimationClipData ClipFor(BattleAnimationState state)
     {
         switch (state)

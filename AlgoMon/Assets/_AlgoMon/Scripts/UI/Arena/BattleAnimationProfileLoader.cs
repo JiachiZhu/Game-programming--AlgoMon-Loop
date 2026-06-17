@@ -17,11 +17,13 @@ using UnityEngine;
 using UnityEditor;
 #endif
 
+// Defense note: BattleAnimationProfileLoader loads runtime assets or data needed by the presentation layer.
 public static class BattleAnimationProfileLoader
 {
     private const string SpriteRoot = "Assets/_AlgoMon/Sprites";
     private const string ManifestName = "battle_animation_manifest.json";
 
+    // Defense note: Attempts to load profile and reports success or failure.
     public static BattleAnimationProfile TryLoadProfile(string codeName, string formName)
     {
 #if UNITY_EDITOR
@@ -33,6 +35,7 @@ public static class BattleAnimationProfileLoader
     }
 
 #if UNITY_EDITOR
+    // Defense note: Builds the profile from sprite folders data or UI structure.
     public static BattleAnimationProfile BuildProfileFromSpriteFolders(string codeName, string formName)
     {
         if (string.IsNullOrWhiteSpace(codeName))
@@ -59,6 +62,7 @@ public static class BattleAnimationProfileLoader
         return HasAnyFrames(profile) ? profile : null;
     }
 
+    // Defense note: Returns whether any frames exists or is active.
     private static bool HasAnyFrames(BattleAnimationProfile profile)
     {
         return profile != null &&
@@ -71,6 +75,7 @@ public static class BattleAnimationProfileLoader
                 (profile.faint != null && profile.faint.HasFrames));
     }
 
+    // Defense note: Applies the manifest change to gameplay or UI state.
     private static void ApplyManifest(BattleAnimationProfile profile, string root)
     {
         string manifestAssetPath = $"{root}/{ManifestName}";
@@ -88,6 +93,8 @@ public static class BattleAnimationProfileLoader
         profile.mirrorX = manifest.mirrorX;
         if (manifest.visualScaleMultiplier > 0f)
             profile.visualScaleMultiplier = manifest.visualScaleMultiplier;
+        if (manifest.horizontalScaleMultiplier > 0f)
+            profile.horizontalScaleMultiplier = manifest.horizontalScaleMultiplier;
 
         ApplyClipManifest(profile.entry, manifest.entry);
         ApplyClipManifest(profile.idle, manifest.idle);
@@ -98,6 +105,7 @@ public static class BattleAnimationProfileLoader
         ApplyClipManifest(profile.faint, manifest.faint);
     }
 
+    // Defense note: Applies the clip manifest change to gameplay or UI state.
     private static void ApplyClipManifest(BattleAnimationClipData clip, BattleAnimationClipManifest manifest)
     {
         if (clip == null || manifest == null)
@@ -119,6 +127,7 @@ public static class BattleAnimationProfileLoader
         clip.holdLastFrame = manifest.holdLastFrame;
     }
 
+    // Defense note: Loads the clip frames asset or data needed at runtime.
     private static void LoadClipFrames(BattleAnimationClipData clip, string root, string actionName)
     {
         if (clip == null)
@@ -153,6 +162,7 @@ public static class BattleAnimationProfileLoader
         clip.frames = frames;
     }
 
+    // Defense note: Ensures the sprite importer dependency or state exists before use.
     private static void EnsureSpriteImporter(string assetPath)
     {
         TextureImporter importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
@@ -166,11 +176,13 @@ public static class BattleAnimationProfileLoader
     }
 
     [Serializable]
+    // Defense note: BattleAnimationProfileManifest is the main battle animation profile manifest type used by this part of the project.
     private class BattleAnimationProfileManifest
     {
         public string profileId;
         public bool mirrorX;
         public float visualScaleMultiplier = 1f;
+        public float horizontalScaleMultiplier = 1f;
         public BattleAnimationClipManifest entry;
         public BattleAnimationClipManifest idle;
         public BattleAnimationClipManifest attack;
@@ -181,6 +193,7 @@ public static class BattleAnimationProfileLoader
     }
 
     [Serializable]
+    // Defense note: BattleAnimationClipManifest is the main battle animation clip manifest type used by this part of the project.
     private class BattleAnimationClipManifest
     {
         public float fps = -1f;

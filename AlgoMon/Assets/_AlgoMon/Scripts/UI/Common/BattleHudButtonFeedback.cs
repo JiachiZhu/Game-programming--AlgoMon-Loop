@@ -11,6 +11,7 @@ using UnityEngine.UI;
 /// runtime-built; nothing here is serialized into the prefab.
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: BattleHudButtonFeedback is a Unity component attached to a scene object for this feature.
 public sealed class BattleHudButtonFeedback : MonoBehaviour,
     IPointerEnterHandler,
     IPointerExitHandler,
@@ -59,6 +60,7 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
 
     private bool IsInteractable => selectable == null || selectable.interactable;
 
+    // Defense note: Runs the configure helper used by this script.
     public void Configure(Selectable targetSelectable, float hover, float press)
     {
         selectable = targetSelectable != null ? targetSelectable : GetComponent<Selectable>();
@@ -76,6 +78,7 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
         ApplyImmediate();
     }
 
+    // Defense note: Updates the background state or visual value.
     public void SetBackground(Graphic graphic, Color normal, Color hover, Color pressedColor, Color disabled)
     {
         background = graphic;
@@ -87,6 +90,7 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
         ApplyImmediate();
     }
 
+    // Defense note: Updates the icon state or visual value.
     public void SetIcon(Graphic graphic, Color normal, Color hover, Color disabled)
     {
         icon = graphic;
@@ -97,6 +101,7 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
         ApplyImmediate();
     }
 
+    // Defense note: Updates the overlay state or visual value.
     public void SetOverlay(Image overlayImage, Color color, float hoverAlpha, float pressedAlpha, float flashAlpha)
     {
         overlay = overlayImage;
@@ -112,6 +117,7 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
     /// Fades a CanvasGroup (the whole button content) between a normal and a
     /// disabled alpha so unavailable slots read as dimmed.
     /// </summary>
+    // Defense note: Updates the dim group state or visual value.
     public void SetDimGroup(CanvasGroup group, float normalAlpha, float disabledAlpha)
     {
         dimGroup = group;
@@ -121,6 +127,7 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
         ApplyImmediate();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         hovered = false;
@@ -130,6 +137,7 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
             ApplyImmediate();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on disable step for this component.
     private void OnDisable()
     {
         hovered = false;
@@ -139,6 +147,7 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
             scaleTarget.localScale = baseScale;
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         if (!configured)
@@ -200,6 +209,7 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Applies the immediate change to gameplay or UI state.
     private void ApplyImmediate()
     {
         if (scaleTarget != null)
@@ -223,17 +233,20 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
             dimGroup.alpha = IsInteractable ? dimNormalAlpha : dimDisabledAlpha;
     }
 
+    // Defense note: Runs the on pointer enter helper used by this script.
     public void OnPointerEnter(PointerEventData eventData)
     {
         hovered = true;
     }
 
+    // Defense note: Runs the on pointer exit helper used by this script.
     public void OnPointerExit(PointerEventData eventData)
     {
         hovered = false;
         pressed = false;
     }
 
+    // Defense note: Runs the on pointer down helper used by this script.
     public void OnPointerDown(PointerEventData eventData)
     {
         if (!IsInteractable)
@@ -242,6 +255,7 @@ public sealed class BattleHudButtonFeedback : MonoBehaviour,
         releaseTimer = 0f;
     }
 
+    // Defense note: Runs the on pointer up helper used by this script.
     public void OnPointerUp(PointerEventData eventData)
     {
         if (pressed)

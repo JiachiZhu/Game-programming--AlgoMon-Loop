@@ -15,6 +15,7 @@ MonoBehaviour:
   profileId: Recursix_Base
   mirrorX: 1
   visualScaleMultiplier: 1
+  horizontalScaleMultiplier: 1
   entry:
     frames:
     - {fileID: 21300000, guid: c41c8ed4aa7f409c9e1696e49f647a1c, type: 3}

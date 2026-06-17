@@ -28,6 +28,7 @@ using System.Collections.Generic;
 ///   6. if alive: re-enqueue for next round
 ///   7. repeat from step 2
 /// </summary>
+// Defense note: TurnQueue is the main turn queue type used by this part of the project.
 public class TurnQueue
 {
     private readonly PriorityQueue<AlgoMonInstance> _queue =
@@ -43,6 +44,7 @@ public class TurnQueue
     /// Adds a combatant using ClockSpeed as priority (skill priority = 0 assumed).
     /// Use the overload below when the declared skill has a non-zero priority.
     /// </summary>
+    // Defense note: Runs the enqueue helper used by this script.
     public void Enqueue(AlgoMonInstance mon) =>
         _queue.Enqueue(mon, mon.ClockSpeed);
 
@@ -51,22 +53,27 @@ public class TurnQueue
     /// BattleManager should pass: skill.priority * 10000f + mon.ClockSpeed
     /// so that skill priority tiers are respected before ClockSpeed tiebreak.
     /// </summary>
+    // Defense note: Runs the enqueue helper used by this script.
     public void Enqueue(AlgoMonInstance mon, float effectivePriority) =>
         _queue.Enqueue(mon, effectivePriority);
 
     /// <summary>Removes and returns the next combatant to act.</summary>
+    // Defense note: Runs the dequeue helper used by this script.
     public AlgoMonInstance Dequeue() => _queue.Dequeue();
 
     /// <summary>Returns the next combatant without removing them.</summary>
+    // Defense note: Runs the peek helper used by this script.
     public AlgoMonInstance Peek() => _queue.Peek();
 
     /// <summary>Removes all combatants.</summary>
+    // Defense note: Runs the clear helper used by this script.
     public void Clear() => _queue.Clear();
 
     /// <summary>
     /// Clears the queue and loads a fresh set of combatants.
     /// Call once at the start of every battle.
     /// </summary>
+    // Defense note: Runs the initialize helper used by this script.
     public void Initialize(IEnumerable<AlgoMonInstance> combatants)
     {
         Clear();
@@ -79,6 +86,7 @@ public class TurnQueue
     /// counter unit this round, regardless of ClockSpeed.
     /// Re-inserts countered with priority just below counter's ClockSpeed.
     /// </summary>
+    // Defense note: Runs the force after helper used by this script.
     public void ForceAfter(AlgoMonInstance countered, AlgoMonInstance counter)
     {
         ForceAfter(countered, counter, counter.ClockSpeed);
@@ -88,6 +96,7 @@ public class TurnQueue
     /// ASD counter override for callers that already computed the countering
     /// unit's effective priority for this round.
     /// </summary>
+    // Defense note: Runs the force after helper used by this script.
     public void ForceAfter(AlgoMonInstance countered, AlgoMonInstance counter, float counterPriority)
     {
         float overridePriority = counterPriority - 0.5f;

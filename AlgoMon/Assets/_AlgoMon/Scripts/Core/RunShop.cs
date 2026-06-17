@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using UnityEngine;
 
+// Defense note: RunBuffType defines the valid run buff type options used by the gameplay systems.
 public enum RunBuffType
 {
     PacketAccelerator,
@@ -15,8 +16,10 @@ public enum RunBuffType
 }
 
 [Serializable]
+// Defense note: RunShopOffer is the main run shop offer type used by this part of the project.
 public sealed class RunShopOffer
 {
+    // Defense note: Initializes the RunShopOffer instance and its default runtime state.
     public RunShopOffer(
         RunBuffType buffType,
         string displayName,
@@ -67,6 +70,7 @@ public sealed class RunShopOffer
     }
 }
 
+// Defense note: RunShopCatalog stores lookup data so runtime systems can find the right assets.
 public static class RunShopCatalog
 {
     public const int OfferSlots = 3;
@@ -165,6 +169,7 @@ public static class RunShopCatalog
         get { return offers; }
     }
 
+    // Defense note: Runs the find helper used by this script.
     public static RunShopOffer Find(RunBuffType type)
     {
         for (int i = 0; i < offers.Length; i++)
@@ -176,16 +181,19 @@ public static class RunShopCatalog
         return null;
     }
 
+    // Defense note: Runs the outgoing damage multiplier helper used by this script.
     public static float OutgoingDamageMultiplier(List<RunBuffType> activeBuffs)
     {
         return Mathf.Max(0f, 1f + Sum(activeBuffs, offer => offer.OutgoingDamageBonus));
     }
 
+    // Defense note: Runs the incoming damage multiplier helper used by this script.
     public static float IncomingDamageMultiplier(List<RunBuffType> activeBuffs)
     {
         return Mathf.Max(0.1f, 1f + Sum(activeBuffs, offer => offer.IncomingDamageBonus));
     }
 
+    // Defense note: Runs the skill cost reduction helper used by this script.
     public static int SkillCostReduction(List<RunBuffType> activeBuffs)
     {
         int total = 0;
@@ -202,16 +210,19 @@ public static class RunShopCatalog
         return total;
     }
 
+    // Defense note: Runs the clock speed multiplier helper used by this script.
     public static float ClockSpeedMultiplier(List<RunBuffType> activeBuffs)
     {
         return Mathf.Max(0.1f, 1f + Sum(activeBuffs, offer => offer.ClockSpeedBonus));
     }
 
+    // Defense note: Runs the exp reward multiplier helper used by this script.
     public static float ExpRewardMultiplier(List<RunBuffType> activeBuffs)
     {
         return Mathf.Max(0f, 1f + Sum(activeBuffs, offer => offer.ExpRewardBonus));
     }
 
+    // Defense note: Builds the active summary data or UI structure.
     public static string BuildActiveSummary(List<RunBuffType> activeBuffs)
     {
         if (activeBuffs == null || activeBuffs.Count == 0)
@@ -237,6 +248,7 @@ public static class RunShopCatalog
         return builder.Length > 0 ? builder.ToString() : "No run buffs active.";
     }
 
+    // Defense note: Runs the sum helper used by this script.
     private static float Sum(List<RunBuffType> activeBuffs, Func<RunShopOffer, float> selector)
     {
         float total = 0f;

@@ -9,6 +9,7 @@ using UnityEditor;
 #endif
 
 [System.Serializable]
+// Defense note: NicoBitmapFontReference is the main nico bitmap font reference type used by this part of the project.
 public sealed class NicoBitmapFontReference
 {
     [SerializeField] private string fontName;
@@ -21,10 +22,12 @@ public sealed class NicoBitmapFontReference
     private TextAsset cachedMetrics;
     private NicoBitmapFont cachedFont;
 
+    // Defense note: Initializes the NicoBitmapFontReference instance and its default runtime state.
     public NicoBitmapFontReference()
     {
     }
 
+    // Defense note: Initializes the NicoBitmapFontReference instance and its default runtime state.
     public NicoBitmapFontReference(string fontName, Color tint)
     {
         this.fontName = fontName;
@@ -35,11 +38,13 @@ public sealed class NicoBitmapFontReference
     public bool HasFontName => !string.IsNullOrWhiteSpace(fontName);
     public bool HasAssignedAssets => atlas != null && metrics != null;
 
+    // Defense note: Attempts to get assigned font and reports success or failure.
     public bool TryGetAssignedFont(out NicoBitmapFont font)
     {
         return TryGetFont(atlas, metrics, out font);
     }
 
+    // Defense note: Attempts to get catalog font and reports success or failure.
     public bool TryGetCatalogFont(string rootAssetPath, out NicoBitmapFont font)
     {
         font = null;
@@ -57,6 +62,7 @@ public sealed class NicoBitmapFontReference
     }
 
 #if UNITY_EDITOR
+    // Defense note: Attempts to get editor auto font and reports success or failure.
     public bool TryGetEditorAutoFont(string rootAssetPath, out NicoBitmapFont font)
     {
         font = null;
@@ -76,6 +82,7 @@ public sealed class NicoBitmapFontReference
         return TryGetFont(loadedAtlas, loadedMetrics, out font);
     }
 
+    // Defense note: Ensures the editor atlas import settings dependency or state exists before use.
     private static void EnsureEditorAtlasImportSettings(string atlasPath)
     {
         TextureImporter importer = AssetImporter.GetAtPath(atlasPath) as TextureImporter;
@@ -112,6 +119,7 @@ public sealed class NicoBitmapFontReference
     }
 #endif
 
+    // Defense note: Attempts to get font and reports success or failure.
     private bool TryGetFont(Texture2D sourceAtlas, TextAsset sourceMetrics, out NicoBitmapFont font)
     {
         font = null;
@@ -135,6 +143,7 @@ public sealed class NicoBitmapFontReference
     }
 }
 
+// Defense note: NicoBitmapFont is the main nico bitmap font type used by this part of the project.
 public sealed class NicoBitmapFont
 {
     private static readonly Regex LuaCommonRegex =
@@ -152,6 +161,7 @@ public sealed class NicoBitmapFont
     private readonly float worldScale;
     private readonly Color tint;
 
+    // Defense note: Initializes the NicoBitmapFont instance and its default runtime state.
     private NicoBitmapFont(Texture2D atlas, Dictionary<int, Glyph> glyphs, int lineHeight, float worldScale, Color tint)
     {
         this.atlas = atlas;
@@ -161,6 +171,7 @@ public sealed class NicoBitmapFont
         this.tint = tint;
     }
 
+    // Defense note: Attempts to create and reports success or failure.
     public static bool TryCreate(Texture2D atlas, string metricsText, float worldScale, Color tint, out NicoBitmapFont font)
     {
         font = null;
@@ -174,6 +185,7 @@ public sealed class NicoBitmapFont
         return true;
     }
 
+    // Defense note: Creates the renderers object used by the scene or runtime.
     public List<SpriteRenderer> CreateRenderers(Transform root, string label, int sortingOrder)
     {
         List<SpriteRenderer> renderers = new List<SpriteRenderer>();
@@ -224,6 +236,7 @@ public sealed class NicoBitmapFont
         return renderers;
     }
 
+    // Defense note: Attempts to parse metrics and reports success or failure.
     private static bool TryParseMetrics(
         string metricsText,
         out Dictionary<int, Glyph> parsedGlyphs,
@@ -235,6 +248,7 @@ public sealed class NicoBitmapFont
         return TryParseLuaMetrics(metricsText, out parsedGlyphs, out parsedLineHeight);
     }
 
+    // Defense note: Attempts to parse lua metrics and reports success or failure.
     private static bool TryParseLuaMetrics(
         string metricsText,
         out Dictionary<int, Glyph> parsedGlyphs,
@@ -265,6 +279,7 @@ public sealed class NicoBitmapFont
         return parsedGlyphs.Count > 0;
     }
 
+    // Defense note: Attempts to parse xml metrics and reports success or failure.
     private static bool TryParseXmlMetrics(
         string metricsText,
         out Dictionary<int, Glyph> parsedGlyphs,
@@ -310,6 +325,7 @@ public sealed class NicoBitmapFont
         return parsedGlyphs.Count > 0;
     }
 
+    // Defense note: Runs the parse attribute helper used by this script.
     private static int ParseAttribute(XmlNode node, string attributeName, int fallback)
     {
         XmlAttribute attribute = node.Attributes?[attributeName];
@@ -321,6 +337,7 @@ public sealed class NicoBitmapFont
             : fallback;
     }
 
+    // Defense note: Runs the parse int helper used by this script.
     private static int ParseInt(string rawValue)
     {
         return int.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
@@ -328,11 +345,13 @@ public sealed class NicoBitmapFont
             : 0;
     }
 
+    // Defense note: Runs the split lines helper used by this script.
     private static List<string> SplitLines(string label)
     {
         return new List<string>(label.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'));
     }
 
+    // Defense note: Runs the glyph for helper used by this script.
     private Glyph GlyphFor(int code)
     {
         if (glyphs.TryGetValue(code, out Glyph glyph))
@@ -342,6 +361,7 @@ public sealed class NicoBitmapFont
         return new Glyph(0, 0, 0, 0, 0, 0, lineHeight / 2);
     }
 
+    // Defense note: Runs the measure line helper used by this script.
     private float MeasureLine(string line)
     {
         float width = 0f;
@@ -350,6 +370,7 @@ public sealed class NicoBitmapFont
         return width;
     }
 
+    // Defense note: Runs the sprite for helper used by this script.
     private Sprite SpriteFor(int code, Glyph glyph)
     {
         if (spriteCache.TryGetValue(code, out Sprite sprite))
@@ -365,6 +386,7 @@ public sealed class NicoBitmapFont
         return sprite;
     }
 
+    // Defense note: Glyph groups small runtime values that are passed around together.
     private struct Glyph
     {
         public readonly int X;
@@ -375,6 +397,7 @@ public sealed class NicoBitmapFont
         public readonly int YOffset;
         public readonly int XAdvance;
 
+        // Defense note: Initializes the Glyph instance and its default runtime state.
         public Glyph(int x, int y, int width, int height, int xOffset, int yOffset, int xAdvance)
         {
             X = x;

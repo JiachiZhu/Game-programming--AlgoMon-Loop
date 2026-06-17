@@ -29,22 +29,28 @@ using UnityEngine.UI;
 /// once in Start and can be called again after intentional hierarchy changes.
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: BattleHudController controls the battle hud UI or gameplay flow.
 public class BattleHudController : MonoBehaviour
 {
+    // Defense note: Side defines the valid side options used by the gameplay systems.
     public enum Side          { Player, Enemy }
+    // Defense note: ActionButton defines the valid action button options used by the gameplay systems.
     public enum ActionButton  { Recharge, Switch, Flee }
 
     /// <summary>
     /// Tone of a status chip on the combatant cards: green = ready/counter,
     /// blue = shields/buffs, red = damage/ailments, gray = informational.
     /// </summary>
+    // Defense note: StatusChipTone defines the valid status chip tone options used by the gameplay systems.
     public enum StatusChipTone { Ready, Buff, Harm, Info }
 
+    // Defense note: StatusChip groups small runtime values that are passed around together.
     public struct StatusChip
     {
         public string Label;
         public StatusChipTone Tone;
 
+        // Defense note: Initializes the StatusChip instance and its default runtime state.
         public StatusChip(string label, StatusChipTone tone)
         {
             Label = label;
@@ -196,6 +202,7 @@ public class BattleHudController : MonoBehaviour
     private readonly Color announcerFramePulseColor = new Color(0.18f, 0.72f, 0.92f, 0.96f);
 
     // --- Per-side refs ---
+    // Defense note: CombatantRefs groups small runtime values that are passed around together.
     private struct CombatantRefs
     {
         public Text    NameText;
@@ -215,6 +222,7 @@ public class BattleHudController : MonoBehaviour
     private CombatantRefs player;
     private CombatantRefs enemy;
 
+    // Defense note: CombatantDisplayState groups small runtime values that are passed around together.
     private struct CombatantDisplayState
     {
         public bool BatteryInitialized;
@@ -272,6 +280,7 @@ public class BattleHudController : MonoBehaviour
     private static readonly KeyCode[] SkillHotkeysKeypad =
         { KeyCode.Keypad1, KeyCode.Keypad2, KeyCode.Keypad3, KeyCode.Keypad4 };
 
+    // Defense note: SwitchSlotDetail groups small runtime values that are passed around together.
     private struct SwitchSlotDetail
     {
         public bool HasData;
@@ -301,6 +310,7 @@ public class BattleHudController : MonoBehaviour
 
     // Per-side subroutine card text, shown in the skill detail panel when the
     // player hovers or clicks a combatant card. Pushed in by BattleManager.
+    // Defense note: SubroutineCardData groups small runtime values that are passed around together.
     private struct SubroutineCardData { public bool Has; public string Title; public string Body; }
     private SubroutineCardData playerSubroutine;
     private SubroutineCardData enemySubroutine;
@@ -357,12 +367,14 @@ public class BattleHudController : MonoBehaviour
     private Text actionBannerText;
     private Coroutine actionBannerRoutine;
 
+    // Defense note: Unity lifecycle hook that runs the start step for this component.
     private void Start()
     {
         if (!IsBound)
             Bind();
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         UpdateResourceDisplays();
@@ -372,6 +384,7 @@ public class BattleHudController : MonoBehaviour
         HandleSkillHotkeys();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on destroy step for this component.
     private void OnDestroy()
     {
         UnhookButtons();
@@ -383,6 +396,7 @@ public class BattleHudController : MonoBehaviour
     /// BattleHud.prefab keeps stable CP / BP / Counter tag roots on every
     /// skill slot, and SetSkillSlot toggles them from live SkillData.
     /// </summary>
+    // Defense note: Runs the bind helper used by this script.
     public void Bind()
     {
         UnhookButtons();
@@ -465,6 +479,7 @@ public class BattleHudController : MonoBehaviour
     /// current label so basic hover works out of the box; BattleManager can
     /// override per slot via SetSkillHover / SetActionHover.
     /// </summary>
+    // Defense note: Runs the wire hover previews helper used by this script.
     private void WireHoverPreviews()
     {
         for (int i = 0; i < MaxSkillSlots; i++)
@@ -496,6 +511,7 @@ public class BattleHudController : MonoBehaviour
         WireHoverInternal(fleeButton,     () => actionHoverTitles[2], () => actionHoverBodies[2]);
     }
 
+    // Defense note: Applies the action hover defaults change to gameplay or UI state.
     private void ApplyActionHoverDefaults()
     {
         // Mirrors the placeholder copy baked into BattleHud.prefab.
@@ -520,6 +536,7 @@ public class BattleHudController : MonoBehaviour
     /// hover/press feedback. The square button visuals (frame, strip, icon
     /// sprite) are authored in BattleHud.prefab; this only animates them.
     /// </summary>
+    // Defense note: Ensures the action button presentation dependency or state exists before use.
     private void EnsureActionButtonPresentation(Button button, string label)
     {
         if (button == null)
@@ -575,6 +592,7 @@ public class BattleHudController : MonoBehaviour
         feedback.SetOverlay(pressOverlay, accent, 0.06f, 0.16f, 0.45f);
     }
 
+    // Defense note: Runs the action accent color helper used by this script.
     private static Color ActionAccentColor(string label)
     {
         string key = string.IsNullOrEmpty(label) ? string.Empty : label.ToUpperInvariant();
@@ -587,6 +605,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Configures the action grid layout layout, style, or behavior.
     private void ConfigureActionGridLayout()
     {
         Transform gridTransform = FindTransform("SafeArea/CommandPanel/ActionPanel/ActionGrid");
@@ -615,6 +634,7 @@ public class BattleHudController : MonoBehaviour
         ConfigureActionButtonLayoutElement(fleeButton);
     }
 
+    // Defense note: Configures the action button layout element layout, style, or behavior.
     private static void ConfigureActionButtonLayoutElement(Button button)
     {
         if (button == null)
@@ -632,6 +652,7 @@ public class BattleHudController : MonoBehaviour
         element.flexibleHeight = 0f;
     }
 
+    // Defense note: Runs the wire hover internal helper used by this script.
     private void WireHoverInternal(
         Button button,
         Func<string> titleGetter,
@@ -669,6 +690,7 @@ public class BattleHudController : MonoBehaviour
         trigger.triggers.Add(exit);
     }
 
+    // Defense note: Shows the cp preview UI or feedback state.
     private void ShowCPPreview(int cost)
     {
         cpPreviewCost = Mathf.Clamp(cost, 0, MaxCP);
@@ -676,6 +698,7 @@ public class BattleHudController : MonoBehaviour
         ApplyCPVisual(player, playerDisplay.DisplayCP, playerDisplay.TargetCPMax, true);
     }
 
+    // Defense note: Clears the cp preview state so it can be rebuilt safely.
     private void ClearCPPreview()
     {
         if (!cpPreviewActive && cpPreviewCost <= 0)
@@ -688,17 +711,20 @@ public class BattleHudController : MonoBehaviour
 
     // ----- Public API -----
 
+    // Defense note: Updates the round state or visual value.
     public void SetRound(int round)
     {
         if (roundText != null) roundText.text = $"Round {round}";
     }
 
+    // Defense note: Updates the battle state state or visual value.
     public void SetBattleState(string text)
     {
         if (battleStateText != null) battleStateText.text = text;
         SetRoundSandclockActive(string.Equals(text, PlayerTurnStateText, StringComparison.OrdinalIgnoreCase));
     }
 
+    // Defense note: Updates the battle announcement state or visual value.
     public void SetBattleAnnouncement(string title, string body)
     {
         // No-op: the top announcer board was replaced by above-sprite action
@@ -706,6 +732,7 @@ public class BattleHudController : MonoBehaviour
         // Retained so existing BattleManager calls stay valid.
     }
 
+    // Defense note: Shows the post battle panel UI or feedback state.
     public void ShowPostBattlePanel(string title, string body, string continueLabel = "CONTINUE")
     {
         EnsurePostBattlePanel();
@@ -727,6 +754,7 @@ public class BattleHudController : MonoBehaviour
         postBattlePanel.transform.SetAsLastSibling();
     }
 
+    // Defense note: Hides the post battle panel UI or feedback state.
     public void HidePostBattlePanel()
     {
         if (postBattlePanel != null)
@@ -738,6 +766,7 @@ public class BattleHudController : MonoBehaviour
     /// animations play unobstructed. The combatant status cards are intentionally
     /// left untouched so HP/CP/Battery changes stay visible during the hit.
     /// </summary>
+    // Defense note: Updates the action ui hidden state or visual value.
     public void SetActionUiHidden(bool hidden)
     {
         if (commandPanelGroup == null)
@@ -749,6 +778,7 @@ public class BattleHudController : MonoBehaviour
         ApplyGroupHidden(topBarGroup, hidden);
     }
 
+    // Defense note: Ensures the canvas group dependency or state exists before use.
     private CanvasGroup EnsureCanvasGroup(string path)
     {
         Transform target = FindTransform(path);
@@ -761,6 +791,7 @@ public class BattleHudController : MonoBehaviour
         return group;
     }
 
+    // Defense note: Applies the group hidden change to gameplay or UI state.
     private static void ApplyGroupHidden(CanvasGroup group, bool hidden)
     {
         if (group == null)
@@ -777,6 +808,7 @@ public class BattleHudController : MonoBehaviour
     /// TitleBanner sprite. Lives on the HUD root so it stays visible while the
     /// command bar / top bar fade out during the action.
     /// </summary>
+    // Defense note: Plays the action banner animation, audio, or feedback.
     public void PlayActionBanner(Side side, int cp, string actorName, string skillName)
     {
         BuildActionBanner();
@@ -806,6 +838,7 @@ public class BattleHudController : MonoBehaviour
         actionBannerRoutine = StartCoroutine(ActionBannerRoutine());
     }
 
+    // Defense note: Builds the action banner data or UI structure.
     private void BuildActionBanner()
     {
         if (actionBannerRoot != null)
@@ -849,16 +882,19 @@ public class BattleHudController : MonoBehaviour
     // low-left (its body tops out around viewport y 0.55), so the player banner
     // rides just above it; the enemy sprite sits high-right (body up to ~0.80),
     // so the enemy banner drops to the ground strip below it.
+    // Defense note: Runs the action banner anchor min helper used by this script.
     private static Vector2 ActionBannerAnchorMin(Side side)
     {
         return side == Side.Player ? new Vector2(0.050f, 0.585f) : new Vector2(0.560f, 0.360f);
     }
 
+    // Defense note: Runs the action banner anchor max helper used by this script.
     private static Vector2 ActionBannerAnchorMax(Side side)
     {
         return side == Side.Player ? new Vector2(0.410f, 0.665f) : new Vector2(0.920f, 0.440f);
     }
 
+    // Defense note: Runs the action banner routine helper used by this script.
     private IEnumerator ActionBannerRoutine()
     {
         const float inDuration = 0.16f;
@@ -900,6 +936,7 @@ public class BattleHudController : MonoBehaviour
     /// letterbox that replays the winner's Status animation as a portrait beside
     /// the "NAME / COUNTER!" text, giving clear "counter succeeded" feedback.
     /// </summary>
+    // Defense note: Plays the counter banner animation, audio, or feedback.
     public void PlayCounterBanner(Side side, string actorName, Sprite[] statusFrames, float statusFps)
     {
         BuildCounterCutIn();
@@ -940,6 +977,7 @@ public class BattleHudController : MonoBehaviour
     /// Recolours the counter cut-in (edges, flash, band tint, label) to the
     /// winning side's palette: cyan for the player, red for the enemy.
     /// </summary>
+    // Defense note: Applies the counter cut in side change to gameplay or UI state.
     private void ApplyCounterCutInSide(Side side)
     {
         bool enemy = side == Side.Enemy;
@@ -962,6 +1000,7 @@ public class BattleHudController : MonoBehaviour
             counterBannerText.color = enemy ? new Color(1f, 0.82f, 0.5f, 1f) : new Color(1f, 0.95f, 0.55f, 1f);
     }
 
+    // Defense note: Builds the counter cut in data or UI structure.
     private void BuildCounterCutIn()
     {
         if (counterCutInRoot != null)
@@ -1017,6 +1056,7 @@ public class BattleHudController : MonoBehaviour
         EnsureShadow(counterBannerText.gameObject, new Color(0f, 0f, 0f, 0.8f), new Vector2(2f, -2f));
     }
 
+    // Defense note: Runs the counter cut in routine helper used by this script.
     private IEnumerator CounterCutInRoutine()
     {
         const float inDuration = 0.12f;
@@ -1064,6 +1104,7 @@ public class BattleHudController : MonoBehaviour
         counterCutInRoutine = null;
     }
 
+    // Defense note: Runs the advance counter status helper used by this script.
     private void AdvanceCounterStatus(ref float timer, ref int index, float dt)
     {
         if (counterStatusImage == null || counterStatusFrames == null || counterStatusFrames.Length < 2)
@@ -1080,6 +1121,7 @@ public class BattleHudController : MonoBehaviour
             counterStatusImage.sprite = frame;
     }
 
+    // Defense note: Updates the flash alpha state or visual value.
     private void SetFlashAlpha(float alpha)
     {
         if (counterFlashImage == null)
@@ -1089,6 +1131,7 @@ public class BattleHudController : MonoBehaviour
         counterFlashImage.color = c;
     }
 
+    // Defense note: Updates the round sandclock active state or visual value.
     public void SetRoundSandclockActive(bool active)
     {
         roundSandclockPlaying = active;
@@ -1100,6 +1143,7 @@ public class BattleHudController : MonoBehaviour
         ApplyRoundSandclockState();
     }
 
+    // Defense note: Updates the combatant state or visual value.
     public void SetCombatant(Side side, string name, int level)
     {
         ref CombatantRefs refs = ref RefsFor(side);
@@ -1112,6 +1156,7 @@ public class BattleHudController : MonoBehaviour
     /// the player clicks the card's SUBROUTINE button. Pass null to clear. The body is
     /// built with the shared skill formatter so key values are highlighted.
     /// </summary>
+    // Defense note: Updates the subroutine state or visual value.
     public void SetSubroutine(Side side, SubroutineData subroutine)
     {
         SubroutineCardData card = default;
@@ -1134,6 +1179,7 @@ public class BattleHudController : MonoBehaviour
             refs.SubroutineButton.gameObject.SetActive(card.Has);
     }
 
+    // Defense note: Runs the wire combatant subroutine helper used by this script.
     private void WireCombatantSubroutine(Side side, string panelPath)
     {
         Transform panel = FindTransform(panelPath);
@@ -1150,6 +1196,7 @@ public class BattleHudController : MonoBehaviour
     private static Sprite sharedPanelButtonNormal;
     private static Sprite sharedPanelButtonHoverGlow;
 
+    // Defense note: Runs the shared panel button sprite helper used by this script.
     private static Sprite SharedPanelButtonSprite(string assetPath, ref Sprite cache)
     {
         if (cache != null)
@@ -1176,6 +1223,7 @@ public class BattleHudController : MonoBehaviour
     /// If the prefab has no authored button (e.g. someone removed it), a styled one
     /// is built at runtime as a fallback.
     /// </summary>
+    // Defense note: Ensures the subroutine button dependency or state exists before use.
     private void EnsureSubroutineButton(Side side, Transform panel)
     {
         Transform existing = panel.Find("SubroutineButton");
@@ -1218,6 +1266,7 @@ public class BattleHudController : MonoBehaviour
     /// Runtime fallback that builds a SUBROUTINE button matching the authored one,
     /// used only if the prefab has none. Mirrors the payload skill-loadout button art.
     /// </summary>
+    // Defense note: Builds the subroutine button fallback data or UI structure.
     private Button BuildSubroutineButtonFallback(Transform panel, out Image hoverGlow)
     {
         // Open the header gap: trim the name, push the level to the far right.
@@ -1297,6 +1346,7 @@ public class BattleHudController : MonoBehaviour
         return button;
     }
 
+    // Defense note: Shows the subroutine detail UI or feedback state.
     private void ShowSubroutineDetail(Side side)
     {
         SubroutineCardData card = side == Side.Player ? playerSubroutine : enemySubroutine;
@@ -1305,6 +1355,7 @@ public class BattleHudController : MonoBehaviour
         ShowSkillDetail(card.Title, card.Body);
     }
 
+    // Defense note: Updates the battery state or visual value.
     public void SetBattery(Side side, int current, int max)
     {
         ref CombatantRefs refs = ref RefsFor(side);
@@ -1354,6 +1405,7 @@ public class BattleHudController : MonoBehaviour
         ApplyBatteryVisual(refs, display.DisplayBattery, display.GhostBattery, safeMax);
     }
 
+    // Defense note: Updates the cp state or visual value.
     public void SetCP(Side side, int current, int max)
     {
         ref CombatantRefs refs = ref RefsFor(side);
@@ -1380,6 +1432,7 @@ public class BattleHudController : MonoBehaviour
             RefreshCPAffordability();
     }
 
+    // Defense note: Updates the status state or visual value.
     public void SetStatus(Side side, string statusText)
     {
         ref CombatantRefs refs = ref RefsFor(side);
@@ -1391,6 +1444,7 @@ public class BattleHudController : MonoBehaviour
     /// asset. Every slot has CP / BP / Counter roots; this method fills and
     /// toggles them according to the skill's current data.
     /// </summary>
+    // Defense note: Updates the skill slot state or visual value.
     public void SetSkillSlot(int index, SkillData skill)
     {
         if (!IndexInRange(index)) return;
@@ -1433,6 +1487,7 @@ public class BattleHudController : MonoBehaviour
         skillHoverBodies[index] = BuildSkillDetailFallback(skill);
     }
 
+    // Defense note: Updates the switch slot state or visual value.
     public void SetSwitchSlot(
         int index,
         string displayName,
@@ -1501,6 +1556,7 @@ public class BattleHudController : MonoBehaviour
             subroutine);
     }
 
+    // Defense note: Updates the skill slot available state or visual value.
     public void SetSkillSlotAvailable(int index, bool available)
     {
         if (!IndexInRange(index)) return;
@@ -1513,6 +1569,7 @@ public class BattleHudController : MonoBehaviour
     /// the displayed body should differ from `SkillData.description` (e.g. to
     /// show live CP cost, current Burn stacks, etc.).
     /// </summary>
+    // Defense note: Updates the skill hover state or visual value.
     public void SetSkillHover(int index, string title, string body)
     {
         if (!IndexInRange(index)) return;
@@ -1520,6 +1577,7 @@ public class BattleHudController : MonoBehaviour
         skillHoverBodies[index] = body  ?? string.Empty;
     }
 
+    // Defense note: Updates the skill cp cost state or visual value.
     public void SetSkillCPCost(int index, int cpCost)
     {
         if (!IndexInRange(index)) return;
@@ -1529,6 +1587,7 @@ public class BattleHudController : MonoBehaviour
         RefreshCPAffordability();
     }
 
+    // Defense note: Updates the action hover state or visual value.
     public void SetActionHover(ActionButton button, string title, string body)
     {
         int idx = ActionIndex(button);
@@ -1537,6 +1596,7 @@ public class BattleHudController : MonoBehaviour
         actionHoverBodies[idx] = body  ?? string.Empty;
     }
 
+    // Defense note: Updates the action button available state or visual value.
     public void SetActionButtonAvailable(ActionButton button, bool available)
     {
         Button target = ButtonFor(button);
@@ -1544,6 +1604,7 @@ public class BattleHudController : MonoBehaviour
             target.interactable = available;
     }
 
+    // Defense note: Runs the button for helper used by this script.
     private Button ButtonFor(ActionButton button)
     {
         switch (button)
@@ -1555,6 +1616,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the action index helper used by this script.
     private static int ActionIndex(ActionButton button)
     {
         switch (button)
@@ -1566,6 +1628,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Clears the skill slot state so it can be rebuilt safely.
     public void ClearSkillSlot(int index)
     {
         if (!IndexInRange(index)) return;
@@ -1590,6 +1653,7 @@ public class BattleHudController : MonoBehaviour
         skillHoverBodies[index] = string.Empty;
     }
 
+    // Defense note: Clears the all skill slots state so it can be rebuilt safely.
     public void ClearAllSkillSlots()
     {
         for (int i = 0; i < MaxSkillSlots; i++)
@@ -1601,6 +1665,7 @@ public class BattleHudController : MonoBehaviour
     /// temporarily replace this text and restore it on pointer exit, so battle
     /// logs and validation messages stay visible after the mouse moves away.
     /// </summary>
+    // Defense note: Updates the skill detail state or visual value.
     public void SetSkillDetail(string title, string body)
     {
         restingDetailTitle = title ?? string.Empty;
@@ -1622,12 +1687,14 @@ public class BattleHudController : MonoBehaviour
         return ref enemyDisplay;
     }
 
+    // Defense note: Updates the resource displays state each time it changes.
     private void UpdateResourceDisplays()
     {
         UpdateResourceDisplay(player, ref playerDisplay, true);
         UpdateResourceDisplay(enemy, ref enemyDisplay, false);
     }
 
+    // Defense note: Updates the round sandclock animation state each time it changes.
     private void UpdateRoundSandclockAnimation()
     {
         if (roundSandclockImage == null)
@@ -1652,6 +1719,7 @@ public class BattleHudController : MonoBehaviour
             roundSandclockImage.sprite = frame;
     }
 
+    // Defense note: Applies the round sandclock state change to gameplay or UI state.
     private void ApplyRoundSandclockState()
     {
         if (roundSandclockImage == null)
@@ -1665,12 +1733,14 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the should round sandclock play helper used by this script.
     private bool ShouldRoundSandclockPlay()
     {
         return roundSandclockPlaying ||
             (battleStateText != null && string.Equals(battleStateText.text, PlayerTurnStateText, StringComparison.OrdinalIgnoreCase));
     }
 
+    // Defense note: Ensures the battle announcer dependency or state exists before use.
     private void EnsureBattleAnnouncer()
     {
         // The top announcer board is retired: action narration now appears as an
@@ -1681,6 +1751,7 @@ public class BattleHudController : MonoBehaviour
             root.gameObject.SetActive(false);
     }
 
+    // Defense note: Ensures the post battle panel dependency or state exists before use.
     private void EnsurePostBattlePanel()
     {
         Transform root = FindTransform("SafeArea/PostBattleRewardPanel");
@@ -1708,6 +1779,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Creates the post battle panel object used by the scene or runtime.
     private Transform CreatePostBattlePanel()
     {
         Transform safeArea = FindTransform("SafeArea");
@@ -1777,11 +1849,13 @@ public class BattleHudController : MonoBehaviour
         return root;
     }
 
+    // Defense note: Handles the post battle continue clicked event or player interaction.
     private void HandlePostBattleContinueClicked()
     {
         PostBattleContinueClicked?.Invoke();
     }
 
+    // Defense note: Creates the battle announcer object used by the scene or runtime.
     private Transform CreateBattleAnnouncer()
     {
         Transform safeArea = FindTransform("SafeArea");
@@ -1818,6 +1892,7 @@ public class BattleHudController : MonoBehaviour
         return root;
     }
 
+    // Defense note: Configures the round sandclock layout layout, style, or behavior.
     private void ConfigureRoundSandclockLayout()
     {
         if (roundSandclockImage == null)
@@ -1830,6 +1905,7 @@ public class BattleHudController : MonoBehaviour
         roundSandclockImage.preserveAspect = true;
     }
 
+    // Defense note: Configures the battle announcer layout layout, style, or behavior.
     private static void ConfigureBattleAnnouncerLayout(RectTransform root)
     {
         if (root == null)
@@ -1842,6 +1918,7 @@ public class BattleHudController : MonoBehaviour
         root.SetAsLastSibling();
     }
 
+    // Defense note: Creates the announcer text object used by the scene or runtime.
     private Text CreateAnnouncerText(
         string objectName,
         Transform parent,
@@ -1878,6 +1955,7 @@ public class BattleHudController : MonoBehaviour
         return text;
     }
 
+    // Defense note: Runs the announcer font helper used by this script.
     private Font AnnouncerFont()
     {
         if (announcerFont == null)
@@ -1887,6 +1965,7 @@ public class BattleHudController : MonoBehaviour
         return announcerFont;
     }
 
+    // Defense note: Runs the readable hud font helper used by this script.
     private Font ReadableHudFont()
     {
         if (readableHudFont == null)
@@ -1896,6 +1975,7 @@ public class BattleHudController : MonoBehaviour
         return readableHudFont;
     }
 
+    // Defense note: Runs the ellipsize helper used by this script.
     private static string Ellipsize(string value, int maxCharacters)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -1910,6 +1990,7 @@ public class BattleHudController : MonoBehaviour
         return trimmed.Substring(0, maxCharacters - 3).TrimEnd() + "...";
     }
 
+    // Defense note: Runs the announcer panel sprite helper used by this script.
     private Sprite AnnouncerPanelSprite()
     {
         if (announcerPanelSprite == null)
@@ -1917,6 +1998,7 @@ public class BattleHudController : MonoBehaviour
         return announcerPanelSprite;
     }
 
+    // Defense note: Runs the skill button frame sprite helper used by this script.
     private Sprite SkillButtonFrameSprite()
     {
         if (skillButtonFrameSprite == null)
@@ -1924,6 +2006,7 @@ public class BattleHudController : MonoBehaviour
         return skillButtonFrameSprite;
     }
 
+    // Defense note: Runs the skill inset frame sprite helper used by this script.
     private Sprite SkillInsetFrameSprite()
     {
         if (skillInsetFrameSprite == null)
@@ -1931,6 +2014,7 @@ public class BattleHudController : MonoBehaviour
         return skillInsetFrameSprite;
     }
 
+    // Defense note: Runs the skill tag frame sprite helper used by this script.
     private Sprite SkillTagFrameSprite()
     {
         if (skillTagFrameSprite == null)
@@ -1938,6 +2022,7 @@ public class BattleHudController : MonoBehaviour
         return skillTagFrameSprite;
     }
 
+    // Defense note: Runs the skill panel backdrop sprite helper used by this script.
     private Sprite SkillPanelBackdropSprite()
     {
         if (skillPanelBackdropSprite == null)
@@ -1945,6 +2030,7 @@ public class BattleHudController : MonoBehaviour
         return skillPanelBackdropSprite;
     }
 
+    // Defense note: Runs the announcement banner sprite helper used by this script.
     private Sprite AnnouncementBannerSprite()
     {
         if (announcementBannerSprite == null)
@@ -1957,6 +2043,7 @@ public class BattleHudController : MonoBehaviour
     /// player, the red one for the enemy. Falls back to the shared TitleBanner if
     /// a decorator sprite is missing.
     /// </summary>
+    // Defense note: Runs the action banner sprite helper used by this script.
     private Sprite ActionBannerSprite(Side side)
     {
         if (side == Side.Player)
@@ -1972,6 +2059,7 @@ public class BattleHudController : MonoBehaviour
     }
 
 
+    // Defense note: Runs the zap icon sprite helper used by this script.
     private Sprite ZapIconSprite()
     {
         if (zapIconSprite == null)
@@ -1979,6 +2067,7 @@ public class BattleHudController : MonoBehaviour
         return zapIconSprite;
     }
 
+    // Defense note: Ensures the skill panel presentation dependency or state exists before use.
     private void EnsureSkillPanelPresentation()
     {
         Image panelImage = Find<Image>("SafeArea/CommandPanel/SkillPanel");
@@ -2025,6 +2114,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Configures the skill grid for panel backdrop layout, style, or behavior.
     private void ConfigureSkillGridForPanelBackdrop()
     {
         Transform grid = FindTransform("SafeArea/CommandPanel/SkillPanel/SkillGrid");
@@ -2068,6 +2158,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the skill slot presentation dependency or state exists before use.
     private void EnsureSkillSlotPresentation(int index, Transform root)
     {
         if (!IndexInRange(index) || root == null)
@@ -2288,6 +2379,7 @@ public class BattleHudController : MonoBehaviour
         slotFeedback.SetDimGroup(slotGroup, 1f, 0.4f);
     }
 
+    // Defense note: Applies the skill slot layout change to gameplay or UI state.
     private void ApplySkillSlotLayout(int index)
     {
         if (!IndexInRange(index))
@@ -2311,6 +2403,7 @@ public class BattleHudController : MonoBehaviour
             switchPortraitImages[index].gameObject.SetActive(false);
     }
 
+    // Defense note: Applies the switch slot layout change to gameplay or UI state.
     private void ApplySwitchSlotLayout(int index)
     {
         if (!IndexInRange(index))
@@ -2331,6 +2424,7 @@ public class BattleHudController : MonoBehaviour
             skillElementBadges[index].gameObject.SetActive(false);
     }
 
+    // Defense note: Updates the switch portrait state or visual value.
     private void SetSwitchPortrait(int index, Sprite sprite)
     {
         if (!IndexInRange(index) || switchPortraitImages[index] == null)
@@ -2342,6 +2436,7 @@ public class BattleHudController : MonoBehaviour
         switchPortraitImages[index].color = Color.white;
     }
 
+    // Defense note: Updates the switch element chip state or visual value.
     private void SetSwitchElementChip(int index, bool visible, ElementType elementType)
     {
         if (!IndexInRange(index))
@@ -2359,6 +2454,7 @@ public class BattleHudController : MonoBehaviour
             skillCPTexts[index].gameObject.SetActive(!visible || icon == null);
     }
 
+    // Defense note: Runs the layout skill tags helper used by this script.
     private void LayoutSkillTags(int index, bool showCP, bool showPower, bool showCounter)
     {
         if (!IndexInRange(index))
@@ -2386,6 +2482,7 @@ public class BattleHudController : MonoBehaviour
             PositionSkillTag(skillCounterTagObjects[index], new Vector2(0.630f, y0), new Vector2(0.805f, y1));
     }
 
+    // Defense note: Runs the layout switch tags helper used by this script.
     private void LayoutSwitchTags(int index)
     {
         if (!IndexInRange(index))
@@ -2396,12 +2493,14 @@ public class BattleHudController : MonoBehaviour
         PositionSkillTag(skillCounterTagObjects[index], new Vector2(0.635f, 0.150f), new Vector2(0.930f, 0.445f));
     }
 
+    // Defense note: Runs the position skill tag helper used by this script.
     private static void PositionSkillTag(GameObject tagObject, ref float x, float width, float gap, float y0, float y1)
     {
         PositionSkillTag(tagObject, new Vector2(x, y0), new Vector2(x + width, y1));
         x += width + gap;
     }
 
+    // Defense note: Runs the position skill tag helper used by this script.
     private static void PositionSkillTag(GameObject tagObject, Vector2 anchorMin, Vector2 anchorMax)
     {
         RectTransform rect = tagObject != null ? tagObject.GetComponent<RectTransform>() : null;
@@ -2409,6 +2508,7 @@ public class BattleHudController : MonoBehaviour
             SetStretchRect(rect, anchorMin, anchorMax);
     }
 
+    // Defense note: Configures the skill name text layout, style, or behavior.
     private void ConfigureSkillNameText(Text text, bool hasPanelBackdrop)
     {
         if (text == null)
@@ -2429,6 +2529,7 @@ public class BattleHudController : MonoBehaviour
         EnsureShadow(text.gameObject, new Color(0f, 0f, 0f, 0.9f), new Vector2(1.4f, -1.4f));
     }
 
+    // Defense note: Configures the switch name text layout, style, or behavior.
     private void ConfigureSwitchNameText(Text text)
     {
         if (text == null)
@@ -2447,6 +2548,7 @@ public class BattleHudController : MonoBehaviour
         EnsureShadow(text.gameObject, new Color(0f, 0f, 0f, 0.9f), new Vector2(1.4f, -1.4f));
     }
 
+    // Defense note: Configures the skill tag layout, style, or behavior.
     private void ConfigureSkillTag(GameObject tagObject, Text text, Vector2 anchorMin, Vector2 anchorMax)
     {
         if (tagObject == null)
@@ -2487,6 +2589,7 @@ public class BattleHudController : MonoBehaviour
         EnsureShadow(text.gameObject, new Color(0f, 0f, 0f, 0.65f), new Vector2(1f, -1f));
     }
 
+    // Defense note: Updates the skill slot badges state or visual value.
     private void SetSkillSlotBadges(int index, SkillData skill)
     {
         if (!IndexInRange(index))
@@ -2552,6 +2655,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the type strip state or visual value.
     private void SetTypeStrip(int index, bool visible, Color strip)
     {
         if (!IndexInRange(index) || skillTypeStrips[index] == null)
@@ -2570,6 +2674,7 @@ public class BattleHudController : MonoBehaviour
     /// slots can preview strong / weak matchups.
     /// BattleManager calls this from RefreshHud, so enemy switches re-evaluate.
     /// </summary>
+    // Defense note: Updates the opposing element state or visual value.
     public void SetOpposingElement(ElementType elementType)
     {
         opposingElement = elementType;
@@ -2578,6 +2683,7 @@ public class BattleHudController : MonoBehaviour
             ApplySkillEffectiveness(i);
     }
 
+    // Defense note: Applies the skill effectiveness change to gameplay or UI state.
     private void ApplySkillEffectiveness(int index)
     {
         if (!IndexInRange(index))
@@ -2613,6 +2719,7 @@ public class BattleHudController : MonoBehaviour
             skillEffectivenessTexts[index].gameObject.SetActive(false);
     }
 
+    // Defense note: Runs the position effectiveness indicator helper used by this script.
     private void PositionEffectivenessIndicator(int index)
     {
         if (!IndexInRange(index) || skillEffectivenessTagObjects[index] == null)
@@ -2633,6 +2740,7 @@ public class BattleHudController : MonoBehaviour
     /// dimmed row also says WHY it is unavailable. Driven by the player-side
     /// CP value; switch slots keep cost 0 and never flag.
     /// </summary>
+    // Defense note: Refreshes the cp affordability display from current data.
     private void RefreshCPAffordability()
     {
         int currentCP = playerDisplay.CPInitialized ? playerDisplay.TargetCP : int.MaxValue;
@@ -2647,6 +2755,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the tint skill tag helper used by this script.
     private static void TintSkillTag(GameObject tagObject, Color borderTint)
     {
         Image image = tagObject != null ? tagObject.GetComponent<Image>() : null;
@@ -2658,6 +2767,7 @@ public class BattleHudController : MonoBehaviour
         image.color = borderTint;
     }
 
+    // Defense note: Handles the skill hotkeys event or player interaction.
     private void HandleSkillHotkeys()
     {
         // Only while the command bar is visible/interactable (player's turn) and
@@ -2680,6 +2790,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the element icon sprite helper used by this script.
     private Sprite ElementIconSprite(ElementType elementType)
     {
         int index = (int)elementType;
@@ -2691,6 +2802,7 @@ public class BattleHudController : MonoBehaviour
         return elementIconSprites[index];
     }
 
+    // Defense note: Runs the instruction icon sprite helper used by this script.
     private Sprite InstructionIconSprite(InstructionType instructionType)
     {
         int index = (int)instructionType;
@@ -2702,6 +2814,7 @@ public class BattleHudController : MonoBehaviour
         return instructionIconSprites[index];
     }
 
+    // Defense note: Runs the skill select frame sprite helper used by this script.
     private Sprite SkillSelectFrameSprite()
     {
         if (skillSelectFrameSprite == null)
@@ -2709,6 +2822,7 @@ public class BattleHudController : MonoBehaviour
         return skillSelectFrameSprite;
     }
 
+    // Defense note: Runs the instruction short label helper used by this script.
     private static string InstructionShortLabel(InstructionType instructionType)
     {
         switch (instructionType)
@@ -2720,6 +2834,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the instruction text color helper used by this script.
     private static Color InstructionTextColor(InstructionType instructionType)
     {
         switch (instructionType)
@@ -2731,6 +2846,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the instruction strip color helper used by this script.
     private static Color InstructionStripColor(InstructionType instructionType)
     {
         switch (instructionType)
@@ -2742,6 +2858,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the element short label helper used by this script.
     private static string ElementShortLabel(ElementType elementType)
     {
         switch (elementType)
@@ -2757,6 +2874,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the element switch label helper used by this script.
     private static string ElementSwitchLabel(ElementType elementType)
     {
         switch (elementType)
@@ -2772,6 +2890,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the element badge color helper used by this script.
     private static Color ElementBadgeColor(ElementType elementType)
     {
         switch (elementType)
@@ -2787,6 +2906,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the child image dependency or state exists before use.
     private Image EnsureChildImage(Transform parent, string childName)
     {
         Transform child = parent.Find(childName);
@@ -2808,6 +2928,7 @@ public class BattleHudController : MonoBehaviour
         return image;
     }
 
+    // Defense note: Ensures the child text dependency or state exists before use.
     private Text EnsureChildText(Transform parent, string childName, int fontSize, TextAnchor alignment)
     {
         Transform child = parent.Find(childName);
@@ -2840,6 +2961,7 @@ public class BattleHudController : MonoBehaviour
         return text;
     }
 
+    // Defense note: Configures the framed image layout, style, or behavior.
     private static void ConfigureFramedImage(Image image, Sprite sprite, Color fallbackColor)
     {
         if (image == null)
@@ -2859,6 +2981,7 @@ public class BattleHudController : MonoBehaviour
         image.color = fallbackColor;
     }
 
+    // Defense note: Configures the transparent image layout, style, or behavior.
     private static void ConfigureTransparentImage(Image image)
     {
         if (image == null)
@@ -2875,6 +2998,7 @@ public class BattleHudController : MonoBehaviour
     /// corners. Purely procedural so no art asset or scene edit is needed and
     /// the look is identical across every battle panel.
     /// </summary>
+    // Defense note: Runs the hud panel sprite helper used by this script.
     private static Sprite HudPanelSprite()
     {
         if (hudPanelSprite == null)
@@ -2890,6 +3014,7 @@ public class BattleHudController : MonoBehaviour
     /// border to a different pixel count per chip, making equal chips render
     /// with visibly different edge thickness.
     /// </summary>
+    // Defense note: Runs the chip frame sprite helper used by this script.
     private static Sprite ChipFrameSprite()
     {
         if (chipFrameSprite == null)
@@ -2898,6 +3023,7 @@ public class BattleHudController : MonoBehaviour
         return chipFrameSprite;
     }
 
+    // Defense note: Builds the chamfered panel sprite data or UI structure.
     private static Sprite BuildChamferedPanelSprite(Color fill, Color edge, string spriteName, FilterMode filterMode = FilterMode.Point)
     {
         const int size = 28;
@@ -2957,6 +3083,7 @@ public class BattleHudController : MonoBehaviour
     /// Skins a panel background Image with the shared cyber-glass chrome and a
     /// soft cyan outline glow. Leaves raycast/interaction state untouched.
     /// </summary>
+    // Defense note: Applies the panel chrome change to gameplay or UI state.
     private static void ApplyPanelChrome(Image image)
     {
         if (image == null)
@@ -2970,6 +3097,7 @@ public class BattleHudController : MonoBehaviour
         EnsureGlow(image.gameObject);
     }
 
+    // Defense note: Clears the panel chrome state so it can be rebuilt safely.
     private static void ClearPanelChrome(Image image)
     {
         if (image == null)
@@ -2982,6 +3110,7 @@ public class BattleHudController : MonoBehaviour
             glow.enabled = false;
     }
 
+    // Defense note: Ensures the glow dependency or state exists before use.
     private static void EnsureGlow(GameObject target)
     {
         if (target == null)
@@ -2996,6 +3125,7 @@ public class BattleHudController : MonoBehaviour
         glow.enabled = true;
     }
 
+    // Defense note: Applies the unified panel chrome change to gameplay or UI state.
     private void ApplyUnifiedPanelChrome()
     {
         ApplyPanelChrome(Find<Image>("SafeArea/TopBar"));
@@ -3023,6 +3153,7 @@ public class BattleHudController : MonoBehaviour
     /// same cyber-glass chrome as the panels, but with a thinner border so the
     /// chip stays legible at row scale.
     /// </summary>
+    // Defense note: Configures the chrome chip layout, style, or behavior.
     private static void ConfigureChromeChip(Image image, float pixelsPerUnitMultiplier)
     {
         if (image == null)
@@ -3040,6 +3171,7 @@ public class BattleHudController : MonoBehaviour
     /// colour, position, octagon nesting) are authored in BattleHud.prefab now;
     /// this only styles the CP well. Purely cosmetic; no value/logic touched.
     /// </summary>
+    // Defense note: Runs the style combatant card helper used by this script.
     private void StyleCombatantCard(string root)
     {
         // CP: frame the well and flatten cells into solid pixel squares.
@@ -3062,6 +3194,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the shadow dependency or state exists before use.
     private static void EnsureShadow(GameObject target, Color color, Vector2 distance)
     {
         if (target == null)
@@ -3074,6 +3207,7 @@ public class BattleHudController : MonoBehaviour
         shadow.effectDistance = distance;
     }
 
+    // Defense note: Updates the stretch rect state or visual value.
     private static void SetStretchRect(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
     {
         if (rect == null)
@@ -3085,6 +3219,7 @@ public class BattleHudController : MonoBehaviour
         rect.offsetMax = Vector2.zero;
     }
 
+    // Defense note: Updates the fixed left rect state or visual value.
     private static void SetFixedLeftRect(RectTransform rect, float left, float size)
     {
         if (rect == null)
@@ -3097,6 +3232,7 @@ public class BattleHudController : MonoBehaviour
         rect.sizeDelta = new Vector2(size, size);
     }
 
+    // Defense note: Configures the announcer frame layout, style, or behavior.
     private void ConfigureAnnouncerFrame()
     {
         if (announcerFrame == null)
@@ -3108,6 +3244,7 @@ public class BattleHudController : MonoBehaviour
         ApplyPanelChrome(announcerFrame);
     }
 
+    // Defense note: Updates the announcer pulse state each time it changes.
     private void UpdateAnnouncerPulse()
     {
         if (announcerFrame == null || announcerPulseSeconds <= 0f)
@@ -3120,6 +3257,7 @@ public class BattleHudController : MonoBehaviour
         ApplyAnnouncerFrameColor(pulse);
     }
 
+    // Defense note: Applies the announcer frame color change to gameplay or UI state.
     private void ApplyAnnouncerFrameColor(float pulse)
     {
         if (announcerFrame == null)
@@ -3136,6 +3274,7 @@ public class BattleHudController : MonoBehaviour
         announcerFrame.color = Color.Lerp(announcerFrameBaseColor, announcerFramePulseColor, clampedPulse);
     }
 
+    // Defense note: Updates the resource display state each time it changes.
     private void UpdateResourceDisplay(CombatantRefs refs, ref CombatantDisplayState display, bool allowCPPreview)
     {
         if (display.BatteryInitialized)
@@ -3172,6 +3311,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the smooth to helper used by this script.
     private static float SmoothTo(float current, float target, float speed, float deltaTime)
     {
         if (speed <= 0f)
@@ -3182,6 +3322,7 @@ public class BattleHudController : MonoBehaviour
         return Mathf.Abs(value - target) <= 0.01f ? target : value;
     }
 
+    // Defense note: Applies the battery visual change to gameplay or UI state.
     private void ApplyBatteryVisual(CombatantRefs refs, float current, float ghost, int max)
     {
         // The fill's sprite, colour, Filled-mode and position are authored in the
@@ -3198,6 +3339,7 @@ public class BattleHudController : MonoBehaviour
         ApplyLowBatteryWarning(refs, ratio);
     }
 
+    // Defense note: Applies the low battery warning change to gameplay or UI state.
     private void ApplyLowBatteryWarning(CombatantRefs refs, float ratio)
     {
         bool danger = ratio <= lowBatteryDangerRatio;
@@ -3226,6 +3368,7 @@ public class BattleHudController : MonoBehaviour
             refs.BatteryValueText.color = danger ? BatteryDangerText : Color.white;
     }
 
+    // Defense note: Applies the cp visual change to gameplay or UI state.
     private void ApplyCPVisual(CombatantRefs refs, float current, int max, bool allowPreview = false)
     {
         if (refs.CPDots == null)
@@ -3267,6 +3410,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the bind combatant helper used by this script.
     private CombatantRefs BindCombatant(string root)
     {
         var refs = new CombatantRefs
@@ -3296,6 +3440,7 @@ public class BattleHudController : MonoBehaviour
     /// short tone-coloured labels (READY / FW +2 / BRN ...) laid out after the
     /// "Status" prefix. All runtime-built with the procedural chip frame.
     /// </summary>
+    // Defense note: Ensures the status chip pool dependency or state exists before use.
     private void EnsureStatusChipPool(ref CombatantRefs refs)
     {
         if (refs.StatusText == null)
@@ -3343,6 +3488,7 @@ public class BattleHudController : MonoBehaviour
     /// "Status" label. Order is caller-defined; chips beyond the pool (or the
     /// row width) collapse into a gray "+n" overflow chip.
     /// </summary>
+    // Defense note: Updates the status chips state or visual value.
     public void SetStatusChips(Side side, IReadOnlyList<StatusChip> chips)
     {
         ref CombatantRefs refs = ref RefsFor(side);
@@ -3396,6 +3542,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the count valid chips helper used by this script.
     private static int CountValidChips(IReadOnlyList<StatusChip> chips, int startIndex)
     {
         int valid = 0;
@@ -3407,6 +3554,7 @@ public class BattleHudController : MonoBehaviour
         return valid;
     }
 
+    // Defense note: Applies the status chip change to gameplay or UI state.
     private float ApplyStatusChip(Image chip, Text label, string text, StatusChipTone tone, float x, float height)
     {
         if (chip == null || label == null)
@@ -3425,6 +3573,7 @@ public class BattleHudController : MonoBehaviour
         return width;
     }
 
+    // Defense note: Runs the chip border color helper used by this script.
     private static Color ChipBorderColor(StatusChipTone tone)
     {
         switch (tone)
@@ -3436,6 +3585,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the chip text color helper used by this script.
     private static Color ChipTextColor(StatusChipTone tone)
     {
         switch (tone)
@@ -3447,6 +3597,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the combatant element icon dependency or state exists before use.
     private void EnsureCombatantElementIcon(ref CombatantRefs refs)
     {
         if (refs.NameText == null)
@@ -3465,6 +3616,7 @@ public class BattleHudController : MonoBehaviour
     /// status card. Placement measures the rendered name width, so it hugs
     /// short names and clamps inside the band for long ones.
     /// </summary>
+    // Defense note: Updates the combatant element state or visual value.
     public void SetCombatantElement(Side side, ElementType elementType)
     {
         ref CombatantRefs refs = ref RefsFor(side);
@@ -3497,6 +3649,7 @@ public class BattleHudController : MonoBehaviour
     /// Best-fit may render long strings smaller than measured; callers clamp,
     /// so an overestimate only pins the icon to the band's right edge.
     /// </summary>
+    // Defense note: Runs the measure text width helper used by this script.
     private static float MeasureTextWidth(Text text)
     {
         if (text == null || string.IsNullOrEmpty(text.text) || text.font == null)
@@ -3516,6 +3669,7 @@ public class BattleHudController : MonoBehaviour
     /// and a low-battery warning wash just above it. Both are plain filled
     /// rectangles matching the fill's rect, so the prefab stays untouched.
     /// </summary>
+    // Defense note: Ensures the battery feedback layers dependency or state exists before use.
     private void EnsureBatteryFeedbackLayers(ref CombatantRefs refs)
     {
         if (refs.BatteryFill == null)
@@ -3565,6 +3719,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Configures the battery layer layout, style, or behavior.
     private static void ConfigureBatteryLayer(
         Image layer,
         RectTransform fillRect,
@@ -3596,6 +3751,7 @@ public class BattleHudController : MonoBehaviour
     /// 1x1 white sprite for the runtime battery layers. Image ignores
     /// Filled-mode clipping with a null sprite, so a real sprite is required.
     /// </summary>
+    // Defense note: Runs the white pixel sprite helper used by this script.
     private static Sprite WhitePixelSprite()
     {
         if (whitePixelSprite != null)
@@ -3613,6 +3769,7 @@ public class BattleHudController : MonoBehaviour
         return whitePixelSprite;
     }
 
+    // Defense note: Runs the effectiveness triangle sprite helper used by this script.
     private static Sprite EffectivenessTriangleSprite(bool up)
     {
         Sprite cached = up ? triangleUpSprite : triangleDownSprite;
@@ -3651,6 +3808,7 @@ public class BattleHudController : MonoBehaviour
         return sprite;
     }
 
+    // Defense note: Configures the combatant text hierarchy layout, style, or behavior.
     private void ConfigureCombatantTextHierarchy(CombatantRefs refs)
     {
         ConfigureCombatantText(refs.NameText, 23, 18, 24, TextAnchor.MiddleLeft, Color.white);
@@ -3660,6 +3818,7 @@ public class BattleHudController : MonoBehaviour
         ConfigureCombatantText(refs.StatusText, 14, 11, 15, TextAnchor.MiddleLeft, new Color(0.78f, 0.86f, 0.94f, 0.82f));
     }
 
+    // Defense note: Configures the combatant text layout, style, or behavior.
     private void ConfigureCombatantText(
         Text text,
         int fontSize,
@@ -3684,6 +3843,7 @@ public class BattleHudController : MonoBehaviour
         EnsureShadow(text.gameObject, new Color(0f, 0f, 0f, 0.78f), new Vector2(1.2f, -1.2f));
     }
 
+    // Defense note: Finds the cp dots reference used by this component.
     private static Image[] FindCPDots(Transform cpRow)
     {
         var dots = new System.Collections.Generic.List<Image>(MaxCP);
@@ -3698,6 +3858,7 @@ public class BattleHudController : MonoBehaviour
         return dots.ToArray();
     }
 
+    // Defense note: Finds the child recursive reference used by this component.
     private static Transform FindChildRecursive(Transform root, string childName)
     {
         if (root == null)
@@ -3717,6 +3878,7 @@ public class BattleHudController : MonoBehaviour
         return null;
     }
 
+    // Defense note: Runs the unhook buttons helper used by this script.
     private void UnhookButtons()
     {
         for (int i = 0; i < MaxSkillSlots; i++)
@@ -3731,36 +3893,44 @@ public class BattleHudController : MonoBehaviour
             postBattleContinueButton.onClick.RemoveListener(HandlePostBattleContinueClicked);
     }
 
+    // Defense note: Runs the index in range helper used by this script.
     private static bool IndexInRange(int index) => index >= 0 && index < MaxSkillSlots;
 
+    // Defense note: Runs the find helper used by this script.
     private T Find<T>(string path) where T : Component
     {
         Transform t = FindTransform(path);
         return t != null ? t.GetComponent<T>() : null;
     }
 
+    // Defense note: Finds the transform reference used by this component.
     private Transform FindTransform(string path) => transform.Find(path);
 
+    // Defense note: Finds the text reference used by this component.
     private Text FindText(string path) => Find<Text>(path);
 
+    // Defense note: Finds the skill detail panel transform reference used by this component.
     private Transform FindSkillDetailPanelTransform()
     {
         Transform panel = FindTransform(SkillDetailPanelPath);
         return panel != null ? panel : FindTransform(LegacySkillDetailPanelPath);
     }
 
+    // Defense note: Finds the skill detail panel image reference used by this component.
     private Image FindSkillDetailPanelImage()
     {
         Image image = Find<Image>(SkillDetailPanelPath);
         return image != null ? image : Find<Image>(LegacySkillDetailPanelPath);
     }
 
+    // Defense note: Finds the skill detail text reference used by this component.
     private Text FindSkillDetailText(string childName)
     {
         Text text = FindText($"{SkillDetailPanelPath}/{childName}");
         return text != null ? text : FindText($"{LegacySkillDetailPanelPath}/{childName}");
     }
 
+    // Defense note: Runs the write skill detail helper used by this script.
     private void WriteSkillDetail(string title, string body)
     {
         if (switchDetailRoot != null)
@@ -3771,12 +3941,14 @@ public class BattleHudController : MonoBehaviour
         if (skillDetailBody  != null) skillDetailBody.text  = body  ?? string.Empty;
     }
 
+    // Defense note: Shows the skill detail UI or feedback state.
     private void ShowSkillDetail(string title, string body)
     {
         WriteSkillDetail(title, body);
         BringSkillDetailPanelForward();
     }
 
+    // Defense note: Shows the skill slot detail UI or feedback state.
     private void ShowSkillSlotDetail(int index)
     {
         if (IndexInRange(index) && switchSlotDetails[index].HasData)
@@ -3788,6 +3960,7 @@ public class BattleHudController : MonoBehaviour
         ShowSkillDetail(skillHoverTitles[index] ?? string.Empty, skillHoverBodies[index] ?? string.Empty);
     }
 
+    // Defense note: Shows the switch detail UI or feedback state.
     private void ShowSwitchDetail(int index)
     {
         if (!IndexInRange(index) || !switchSlotDetails[index].HasData)
@@ -3836,6 +4009,7 @@ public class BattleHudController : MonoBehaviour
         BringSkillDetailPanelForward();
     }
 
+    // Defense note: Configures the skill detail panel layout, style, or behavior.
     private void ConfigureSkillDetailPanel()
     {
         if (skillDetailPanel == null)
@@ -3857,6 +4031,7 @@ public class BattleHudController : MonoBehaviour
         group.blocksRaycasts = false;
     }
 
+    // Defense note: Ensures the switch detail presentation dependency or state exists before use.
     private void EnsureSwitchDetailPresentation()
     {
         if (skillDetailPanel == null)
@@ -3914,6 +4089,7 @@ public class BattleHudController : MonoBehaviour
         ConfigureSwitchDetailText(switchDetailStatusText, 13, 9, 13, TextAnchor.MiddleLeft, new Color(0.86f, 0.93f, 1f, 0.90f));
     }
 
+    // Defense note: Ensures the switch detail bar dependency or state exists before use.
     private Image EnsureSwitchDetailBar(Transform parent, string name, Vector2 anchorMin, Vector2 anchorMax, Color fillColor)
     {
         Image track = EnsureChildImage(parent, name);
@@ -3931,6 +4107,7 @@ public class BattleHudController : MonoBehaviour
         return fill;
     }
 
+    // Defense note: Updates the switch detail bar fill state or visual value.
     private static void SetSwitchDetailBarFill(Image fill, float normalized)
     {
         if (fill == null)
@@ -3942,6 +4119,7 @@ public class BattleHudController : MonoBehaviour
         fill.enabled = right > 0.0251f;
     }
 
+    // Defense note: Configures the switch detail text layout, style, or behavior.
     private void ConfigureSwitchDetailText(
         Text text,
         int fontSize,
@@ -3968,6 +4146,7 @@ public class BattleHudController : MonoBehaviour
         EnsureShadow(text.gameObject, new Color(0f, 0f, 0f, 0.85f), new Vector2(1.1f, -1.1f));
     }
 
+    // Defense note: Hides the skill detail panel UI or feedback state.
     private void HideSkillDetailPanel()
     {
         if (skillDetailPanel == null)
@@ -3988,6 +4167,7 @@ public class BattleHudController : MonoBehaviour
         group.blocksRaycasts = false;
     }
 
+    // Defense note: Runs the bring skill detail panel forward helper used by this script.
     private void BringSkillDetailPanelForward()
     {
         if (skillDetailPanel == null)
@@ -4003,6 +4183,7 @@ public class BattleHudController : MonoBehaviour
             group.alpha = 1f;
     }
 
+    // Defense note: Configures the skill detail text layout, style, or behavior.
     private void ConfigureSkillDetailText()
     {
         if (skillDetailTitle != null)
@@ -4039,6 +4220,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the skill detail fallback data or UI structure.
     private static string BuildSkillDetailFallback(SkillData skill)
     {
         if (skill == null)
@@ -4066,6 +4248,7 @@ public class BattleHudController : MonoBehaviour
             SkillDetailTextFormatter.BuildReadableDescription(skill));
     }
 
+    // Defense note: Builds the switch detail text data or UI structure.
     private static string BuildSwitchDetailText(
         ElementType elementType,
         int level,
@@ -4101,6 +4284,7 @@ public class BattleHudController : MonoBehaviour
         return body;
     }
 
+    // Defense note: Builds the compact resource bar data or UI structure.
     private static string BuildCompactResourceBar(int current, int max, int segments)
     {
         int safeSegments = Mathf.Max(1, segments);
@@ -4110,6 +4294,7 @@ public class BattleHudController : MonoBehaviour
         return "[" + new string('#', filled) + new string('-', safeSegments - filled) + "]";
     }
 
+    // Defense note: Runs the instruction detail label helper used by this script.
     private static string InstructionDetailLabel(InstructionType instructionType)
     {
         switch (instructionType)
@@ -4121,6 +4306,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the element detail label helper used by this script.
     private static string ElementDetailLabel(ElementType elementType)
     {
         switch (elementType)
@@ -4136,6 +4322,7 @@ public class BattleHudController : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the tag state or visual value.
     private static void SetTag(GameObject tagObject, Text text, bool visible, string value)
     {
         if (text != null) text.text = value;
@@ -4152,6 +4339,7 @@ public class BattleHudController : MonoBehaviour
         group.blocksRaycasts = false;
     }
 
+    // Defense note: Finds the text deep reference used by this component.
     private Text FindTextDeep(string root, string subPath)
     {
         Transform rootT = transform.Find(root);

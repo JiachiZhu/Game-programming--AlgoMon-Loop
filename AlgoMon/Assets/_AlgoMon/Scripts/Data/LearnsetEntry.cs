@@ -11,6 +11,7 @@ using UnityEngine;
 /// is reached (up to MaxSkillSlots; player chooses which to replace if full).
 /// </summary>
 [Serializable]
+// Defense note: LearnsetEntry groups small runtime values that are passed around together.
 public struct LearnsetEntry
 {
     public SkillData skill;

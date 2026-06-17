@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 
+// Defense note: GridValidator validates grid data and reports rule errors.
 public static class GridValidator
 {
+    // Defense note: Runs the validate helper used by this script.
     public static GridValidationResult Validate(GridGraph graph)
     {
         var result = new GridValidationResult();
@@ -31,6 +33,7 @@ public static class GridValidator
         return result;
     }
 
+    // Defense note: Returns whether this value is boss reachable.
     public static bool IsBossReachable(GridGraph graph)
     {
         if (graph == null || string.IsNullOrEmpty(graph.bossNodeId))
@@ -40,6 +43,7 @@ public static class GridValidator
         return reachable.Contains(graph.bossNodeId);
     }
 
+    // Defense note: Retrieves the reachable node ids value used by this system.
     public static HashSet<string> GetReachableNodeIds(GridGraph graph)
     {
         var reachable = new HashSet<string>();
@@ -108,6 +112,7 @@ public static class GridValidator
         return byId;
     }
 
+    // Defense note: Validates the special nodes rules and records any errors.
     private static void ValidateSpecialNodes(
         GridGraph graph,
         Dictionary<string, GridNode> byId,
@@ -141,6 +146,7 @@ public static class GridValidator
         }
     }
 
+    // Defense note: Validates the edges rules and records any errors.
     private static void ValidateEdges(Dictionary<string, GridNode> byId, GridValidationResult result)
     {
         foreach (GridNode node in byId.Values)
@@ -173,6 +179,7 @@ public static class GridValidator
         }
     }
 
+    // Defense note: Validates the reachability rules and records any errors.
     private static void ValidateReachability(
         GridGraph graph,
         Dictionary<string, GridNode> byId,

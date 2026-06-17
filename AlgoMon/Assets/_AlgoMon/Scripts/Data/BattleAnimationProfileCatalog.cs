@@ -11,9 +11,11 @@ Script Audit:
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "BattleAnimationProfileCatalog", menuName = "AlgoMon/Battle Animation Profile Catalog")]
+// Defense note: BattleAnimationProfileCatalog stores lookup data so runtime systems can find the right assets.
 public class BattleAnimationProfileCatalog : ScriptableObject
 {
     [System.Serializable]
+    // Defense note: Entry is the main entry type used by this part of the project.
     public class Entry
     {
         public string codeName;
@@ -28,6 +30,7 @@ public class BattleAnimationProfileCatalog : ScriptableObject
     private static BattleAnimationProfileCatalog instance;
     private static bool searched;
 
+    // Defense note: Runs the find helper used by this script.
     public static BattleAnimationProfile Find(string codeName, string formName)
     {
         if (string.IsNullOrWhiteSpace(codeName))
@@ -61,6 +64,7 @@ public class BattleAnimationProfileCatalog : ScriptableObject
         return null;
     }
 
+    // Defense note: Runs the normalize form helper used by this script.
     private static string NormalizeForm(string formName)
     {
         if (string.IsNullOrWhiteSpace(formName))
@@ -73,6 +77,7 @@ public class BattleAnimationProfileCatalog : ScriptableObject
         return trimmed;
     }
 
+    // Defense note: Updates the entries for editor state or visual value.
     public void SetEntriesForEditor(Entry[] value)
     {
         entries = value;

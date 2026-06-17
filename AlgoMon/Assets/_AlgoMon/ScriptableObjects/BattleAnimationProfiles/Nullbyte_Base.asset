@@ -15,6 +15,7 @@ MonoBehaviour:
   profileId: Nullbyte_Base
   mirrorX: 0
   visualScaleMultiplier: 1
+  horizontalScaleMultiplier: 1
   entry:
     frames:
     - {fileID: 21300000, guid: 70aa6ad84243451dbd7e7ad1d455642d, type: 3}

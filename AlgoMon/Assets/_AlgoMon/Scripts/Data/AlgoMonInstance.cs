@@ -15,6 +15,7 @@ using UnityEngine;
 ///   actualStat = Floor(iv * (level / MAX_LEVEL))
 /// </summary>
 [Serializable]
+// Defense note: AlgoMonInstance stores one live/captured instance and its mutable progression state.
 public class AlgoMonInstance
 {
     public const int MAX_LEVEL = ThreatTierRules.SprintLevelCap;
@@ -86,6 +87,7 @@ public class AlgoMonInstance
         get { return !IsEvolvedForm; }
     }
 
+    // Defense note: Runs the exp required for next level helper used by this script.
     public static int ExpRequiredForNextLevel(int currentLevel)
     {
         int clampedLevel = Mathf.Clamp(currentLevel, 1, MAX_LEVEL - 1);
@@ -123,6 +125,7 @@ public class AlgoMonInstance
         get { return $"{FusionProgress}/{FusionCopiesForEvolution}"; }
     }
 
+    // Defense note: Ensures the persistent runtime state dependency or state exists before use.
     public void EnsurePersistentRuntimeState()
     {
         if (string.IsNullOrWhiteSpace(instanceId))
@@ -142,6 +145,7 @@ public class AlgoMonInstance
     /// and adds it to knownSkills if a slot is available.
     /// Returns the list of newly learned skills (for UI prompt / replace flow).
     /// </summary>
+    // Defense note: Runs the check learnset at current level helper used by this script.
     public List<SkillData> CheckLearnsetAtCurrentLevel()
     {
         var newSkills = new List<SkillData>();
@@ -164,6 +168,7 @@ public class AlgoMonInstance
     /// Fills empty active skill slots from every learnset entry already unlocked.
     /// Useful when a runtime instance is created from a species asset.
     /// </summary>
+    // Defense note: Ensures the known skills from learnset dependency or state exists before use.
     public void EnsureKnownSkillsFromLearnset()
     {
         if (data == null || data.learnset == null)
@@ -189,6 +194,7 @@ public class AlgoMonInstance
     /// Copies persistent capture data without sharing mutable runtime lists.
     /// ScriptableObject references remain shared read-only blueprints.
     /// </summary>
+    // Defense note: Runs the clone helper used by this script.
     public AlgoMonInstance Clone()
     {
         EnsurePersistentRuntimeState();
@@ -237,6 +243,7 @@ public class AlgoMonInstance
 
     private const int DefaultSpeciesBase = 100;
 
+    // Defense note: Runs the base stat helper used by this script.
     private int BaseStat(System.Func<AlgoMonData, int> selector)
     {
         if (data == null)
@@ -245,6 +252,7 @@ public class AlgoMonInstance
         return value > 0 ? value : DefaultSpeciesBase;
     }
 
+    // Defense note: Runs the calc helper used by this script.
     private int Calc(int iv, int speciesBase)
     {
         float levelFactor = Mathf.Clamp01(level / (float)MAX_LEVEL);
@@ -258,6 +266,7 @@ public class AlgoMonInstance
     /// Greedy IV inheritance used in the Gene Lab.
     /// Child takes the best hardware ceiling from either parent per dimension.
     /// </summary>
+    // Defense note: Runs the merge helper used by this script.
     public static AlgoMonInstance Merge(AlgoMonInstance a, AlgoMonInstance b, AlgoMonData childData)
     {
         var child = new AlgoMonInstance
@@ -280,6 +289,7 @@ public class AlgoMonInstance
         return child;
     }
 
+    // Defense note: Creates the reward base object used by the scene or runtime.
     public static AlgoMonInstance CreateRewardBase(AlgoMonData species, RewardDataQuality quality, int seed)
     {
         if (species == null)
@@ -313,6 +323,7 @@ public class AlgoMonInstance
         return mon;
     }
 
+    // Defense note: Runs the fuse from helper used by this script.
     public void FuseFrom(AlgoMonInstance material)
     {
         if (material == null)
@@ -354,6 +365,7 @@ public class AlgoMonInstance
         }
     }
 
+    // Defense note: Runs the evolve helper used by this script.
     public bool Evolve()
     {
         EnsurePersistentRuntimeState();
@@ -364,6 +376,7 @@ public class AlgoMonInstance
         return true;
     }
 
+    // Defense note: Runs the record fusion source helper used by this script.
     private void RecordFusionSource(string sourceId)
     {
         if (string.IsNullOrWhiteSpace(sourceId))
@@ -374,6 +387,7 @@ public class AlgoMonInstance
             fusionSourceInstanceIds.Add(sourceId);
     }
 
+    // Defense note: Runs the roll talent helper used by this script.
     private static int RollTalent(System.Random rng, int min, int max, int bonus)
     {
         if (rng == null)
@@ -383,6 +397,7 @@ public class AlgoMonInstance
     }
 
     /// <summary>Adds EXP and handles level-up.</summary>
+    // Defense note: Runs the gain exp helper used by this script.
     public void GainExp(int amount)
     {
         if (level >= MAX_LEVEL) return;

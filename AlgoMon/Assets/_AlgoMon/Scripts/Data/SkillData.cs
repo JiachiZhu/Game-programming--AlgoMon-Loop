@@ -13,6 +13,7 @@ using UnityEngine;
 /// except for fields marked [BattleManager: special].
 /// </summary>
 [CreateAssetMenu(fileName = "New Skill", menuName = "AlgoMon/Skill Data")]
+// Defense note: SkillData is a data definition object that designers configure in Unity.
 public class SkillData : ScriptableObject
 {
     // =========================================================================

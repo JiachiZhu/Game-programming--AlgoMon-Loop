@@ -35,8 +35,14 @@ MonoBehaviour:
     asset: {fileID: 21300000, guid: 775c9db23556fdd41b4c41efa07a655d, type: 3}
   - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/deco_misc_03.png
     asset: {fileID: 21300000, guid: 4e49bcecfa28b0e4a9df9e5a072a80b4, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/icon_datapack.png
+    asset: {fileID: 21300000, guid: 06372890eff5c7e40b5c1205efc2496f, type: 3}
   - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/icon_skill_06.png
     asset: {fileID: 21300000, guid: 8854770b2f0991545bc82aad82d13d7d, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/icon_skill_example.png
+    asset: {fileID: 21300000, guid: a4bf8f41d33af41429f5f5e174cb0e5f, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/icon_tech_01.png
+    asset: {fileID: 21300000, guid: eb1cbcfc68c07a24fb995700ca4fe98b, type: 3}
   - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/progress_bar_striped_frame.png
     asset: {fileID: 21300000, guid: 20043c85f98951c4caa1a65e79cdbbc3, type: 3}
   - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/CyberpunkHUD/progress_fill_striped_texture.png
@@ -77,6 +83,12 @@ MonoBehaviour:
     asset: {fileID: 21300000, guid: 84bbc12f36526004f8d45432cdec6728, type: 3}
   - path: Assets/_AlgoMon/Sprites/UI/Grid/Icons/cpu.png
     asset: {fileID: 21300000, guid: ddcc20db0b595604086f3a53bf05cb35, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/Arena/Icons/icon_flee.png
+    asset: {fileID: 21300000, guid: 22d5e28bdb8f8514b8fdc12fc7b6e734, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/Arena/Icons/icon_switch.png
+    asset: {fileID: 21300000, guid: d4fceae9278843e49849fff26f62f416, type: 3}
+  - path: Assets/_AlgoMon/Sprites/UI/Arena/Icons/zap.png
+    asset: {fileID: 21300000, guid: bb1bf3274a41ea840953052bc1228a18, type: 3}
   - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonE_Unpressed.png
     asset: {fileID: 2800000, guid: 14febac8170541c2b9b2943e1bf1d761, type: 3}
   - path: Assets/_AlgoMon/Sprites/UI/MainTerminal/PixelUIHUD/Buttons/Blue/ButtonF_Pressed.png

@@ -26,8 +26,10 @@ using UnityEditor.SceneManagement;
 /// GameManager.TrySelectRunNode.
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: GridMapController controls the grid map UI or gameplay flow.
 public class GridMapController : MonoBehaviour
 {
+    // Defense note: GridConnectionVisualState defines the valid grid connection visual state options used by the gameplay systems.
     private enum GridConnectionVisualState
     {
         CurrentPath,
@@ -42,6 +44,7 @@ public class GridMapController : MonoBehaviour
     private const string CyberHudSpriteRoot = MainTerminalSpriteRoot + "/Components/CyberpunkHUD";
     private const string PixelHudSpriteRoot = MainTerminalSpriteRoot + "/PixelUIHUD";
     private const string GridIconSpriteRoot = "Assets/_AlgoMon/Sprites/UI/Grid/Icons";
+    private const string ArenaFleeIconSpritePath = "Assets/_AlgoMon/Sprites/UI/Arena/Icons/icon_flee.png";
 
     [Header("Scene References")]
     [SerializeField] private Canvas canvas;
@@ -53,6 +56,7 @@ public class GridMapController : MonoBehaviour
     [SerializeField] private Text hintText;
     [SerializeField] private Text legendText;
     [SerializeField] private Button newRunButton;
+    [SerializeField] private Button fleeRunButton;
 
     [Header("Editor Debug")]
     [SerializeField] private bool beginRunIfMissing;
@@ -91,6 +95,7 @@ public class GridMapController : MonoBehaviour
     [SerializeField] private Sprite gridConnectorSprite;
     [SerializeField] private Sprite gridConnectorHeadSprite;
     [SerializeField] private Sprite gridButtonFrameSprite;
+    [SerializeField] private Sprite fleeActionIconSprite;
     [SerializeField] private Sprite decisionPanelSkinSprite;
     [SerializeField] private Sprite routeGraphBackgroundSprite;
 
@@ -115,6 +120,11 @@ public class GridMapController : MonoBehaviour
     private readonly List<GameObject> spawnedObjects = new List<GameObject>();
     private readonly Dictionary<string, Vector2> nodePositions = new Dictionary<string, Vector2>();
     private readonly List<Button> shopOfferButtons = new List<Button>();
+    private static readonly Color FleeButtonAccent = new Color(1.00f, 0.23f, 0.53f, 1f);
+    private static readonly Color FleeButtonFill = new Color(0.055f, 0.050f, 0.075f, 0.96f);
+    private static readonly Color FleeButtonFillHover = new Color(0.100f, 0.060f, 0.100f, 0.98f);
+    private static readonly Color FleeButtonFillPressed = new Color(0.145f, 0.070f, 0.120f, 1f);
+    private static readonly Color FleeButtonFillDisabled = new Color(0.045f, 0.050f, 0.062f, 0.88f);
 
     private GameManager manager;
     private Font defaultFont;
@@ -138,6 +148,7 @@ public class GridMapController : MonoBehaviour
     private Text depthValueText;
     private bool decisionPanelUsesSkin;
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         defaultFont = GridFont();
@@ -158,28 +169,53 @@ public class GridMapController : MonoBehaviour
             ApplyGridVisualStyle();
             ApplyResolvedTextStyles();
         }
+
+        if (Application.isPlaying)
+        {
+            EnsureFleeRunButton();
+            ConfigureFleeRunButton();
+        }
     }
 
+    // Defense note: Unity lifecycle hook that runs the start step for this component.
     private void Start()
     {
         ConfigureDebugNewRunButton();
 
         EnsureRunState();
+        EnsureFleeRunButton();
+        ConfigureFleeRunButton();
         RebuildMap();
     }
 
+    // Defense note: Keeps the flee control available if scene load timing skipped the initial setup pass.
+    private void Update()
+    {
+        if (!Application.isPlaying || fleeRunButton != null)
+            return;
+
+        manager = manager != null ? manager : ResolveManager();
+        EnsureFleeRunButton();
+        ConfigureFleeRunButton();
+    }
+
+    // Defense note: Unity lifecycle hook that runs the on destroy step for this component.
     private void OnDestroy()
     {
         if (newRunButton != null)
             newRunButton.onClick.RemoveListener(BeginNewRun);
+        if (fleeRunButton != null)
+            fleeRunButton.onClick.RemoveListener(FleeCurrentRun);
     }
 
+    // Defense note: Runs the rebuild map helper used by this script.
     public void RebuildMap()
     {
         RebuildMap(null);
     }
 
     [ContextMenu("Rebuild Map")]
+    // Defense note: Runs the rebuild map from context menu helper used by this script.
     private void RebuildMapFromContextMenu()
     {
 #if UNITY_EDITOR
@@ -194,6 +230,7 @@ public class GridMapController : MonoBehaviour
 
 #if UNITY_EDITOR
     [ContextMenu("Rebuild Editor Preview")]
+    // Defense note: Runs the rebuild editor preview helper used by this script.
     private void RebuildEditorPreview()
     {
         defaultFont = GridFont();
@@ -224,6 +261,7 @@ public class GridMapController : MonoBehaviour
     }
 
     [MenuItem("AlgoMon/TheGrid/Rebuild Preview UI")]
+    // Defense note: Runs the rebuild active grid preview helper used by this script.
     private static void RebuildActiveGridPreview()
     {
         GridMapController controller = FindObjectOfType<GridMapController>();
@@ -238,6 +276,7 @@ public class GridMapController : MonoBehaviour
     }
 #endif
 
+    // Defense note: Runs the rebuild map helper used by this script.
     private void RebuildMap(string overrideHint)
     {
         manager = ResolveManager();
@@ -255,11 +294,13 @@ public class GridMapController : MonoBehaviour
         BuildConnections(graph);
         BuildNodes(graph);
         RefreshNodeStates();
+        ConfigureFleeRunButton();
         SetHeader(BuildTerminalStatus(graph), BuildDepthStatus(graph));
         SetHint(!string.IsNullOrEmpty(overrideHint) ? overrideHint : BuildCommandHint());
         UpdateDecisionPanel(null);
     }
 
+    // Defense note: Begins the new run flow and initializes its state.
     public void BeginNewRun()
     {
         manager = ResolveManager();
@@ -272,6 +313,24 @@ public class GridMapController : MonoBehaviour
         RebuildMap();
     }
 
+    // Defense note: Ends the active route from the grid node screen.
+    private void FleeCurrentRun()
+    {
+        manager = ResolveManager();
+        if (manager == null || !manager.IsRunActive)
+        {
+            AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
+            SetHint("> FLEE unavailable. No active route.");
+            ConfigureFleeRunButton();
+            return;
+        }
+
+        HideShopPanel();
+        AudioManager.Instance?.PlayUiSfx(UiSfx.Click);
+        manager.TryFleeCurrentRun();
+    }
+
+    // Defense note: Ensures the run state dependency or state exists before use.
     private void EnsureRunState()
     {
         manager = ResolveManager();
@@ -284,11 +343,13 @@ public class GridMapController : MonoBehaviour
             manager.EnsureCurrentRunHasEarlyHacker();
     }
 
+    // Defense note: Resolves the manager step and updates dependent state.
     private GameManager ResolveManager()
     {
         return GameManager.EnsureInstance();
     }
 
+    // Defense note: Checks whether use editor debug features is currently allowed.
     private static bool CanUseEditorDebugFeatures()
     {
 #if UNITY_EDITOR
@@ -298,6 +359,7 @@ public class GridMapController : MonoBehaviour
 #endif
     }
 
+    // Defense note: Runs the new seed helper used by this script.
     private int NewSeed()
     {
         if (debugSeed != 0)
@@ -306,6 +368,7 @@ public class GridMapController : MonoBehaviour
         return (int)(DateTime.UtcNow.Ticks & int.MaxValue);
     }
 
+    // Defense note: Builds the positions data or UI structure.
     private void BuildPositions(GridGraph graph)
     {
         nodePositions.Clear();
@@ -346,6 +409,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the connections data or UI structure.
     private void BuildConnections(GridGraph graph)
     {
         if (graph == null || graph.nodes == null || connectionRoot == null)
@@ -372,6 +436,7 @@ public class GridMapController : MonoBehaviour
         BuildRuntimeAvailableConnections(graph);
     }
 
+    // Defense note: Builds the runtime current path connections data or UI structure.
     private void BuildRuntimeCurrentPathConnections(GridGraph graph)
     {
         if (manager == null ||
@@ -391,6 +456,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the runtime available connections data or UI structure.
     private void BuildRuntimeAvailableConnections(GridGraph graph)
     {
         if (manager == null ||
@@ -417,6 +483,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the contains node id helper used by this script.
     private static bool ContainsNodeId(IList<string> nodeIds, string nodeId)
     {
         if (nodeIds == null || string.IsNullOrEmpty(nodeId))
@@ -431,6 +498,7 @@ public class GridMapController : MonoBehaviour
         return false;
     }
 
+    // Defense note: Builds the nodes data or UI structure.
     private void BuildNodes(GridGraph graph)
     {
         if (graph == null || graph.nodes == null || nodeRoot == null)
@@ -447,6 +515,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Refreshes the node states display from current data.
     private void RefreshNodeStates()
     {
         foreach (KeyValuePair<string, GridNodeButton> entry in nodeViews)
@@ -481,6 +550,7 @@ public class GridMapController : MonoBehaviour
         RefreshLegend();
     }
 
+    // Defense note: Runs the state for helper used by this script.
     private GridNodeVisualState StateFor(GridNode node)
     {
         if (manager == null || node == null)
@@ -498,6 +568,7 @@ public class GridMapController : MonoBehaviour
         return GridNodeVisualState.Inactive;
     }
 
+    // Defense note: Returns whether this value is node unknown.
     private bool IsNodeUnknown(GridNode node)
     {
         if (node == null || node.nodeType == NodeType.Boss)
@@ -508,16 +579,19 @@ public class GridMapController : MonoBehaviour
         return node.layer > currentLayer + 1;
     }
 
+    // Defense note: Returns whether this value is current node.
     private bool IsCurrentNode(GridNode node)
     {
         return node != null && string.Equals(node.id, CurrentNodeId(), StringComparison.OrdinalIgnoreCase);
     }
 
+    // Defense note: Runs the current node id helper used by this script.
     private string CurrentNodeId()
     {
         return manager != null ? manager.currentNodeId : string.Empty;
     }
 
+    // Defense note: Runs the current route node helper used by this script.
     private GridNode CurrentRouteNode()
     {
         if (manager == null ||
@@ -542,6 +616,7 @@ public class GridMapController : MonoBehaviour
         return null;
     }
 
+    // Defense note: Runs the fill for helper used by this script.
     private Color FillFor(GridNode node, GridNodeVisualState state)
     {
         switch (state)
@@ -563,6 +638,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the locked fill for helper used by this script.
     private Color LockedFillFor(GridNode node)
     {
         if (node == null)
@@ -574,6 +650,7 @@ public class GridMapController : MonoBehaviour
         return lockedFill;
     }
 
+    // Defense note: Runs the outline for helper used by this script.
     private Color OutlineFor(GridNode node, GridNodeVisualState state)
     {
         Color nodeAccent = NodeAccentFor(node);
@@ -595,6 +672,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the icon color for helper used by this script.
     private Color IconColorFor(GridNode node, GridNodeVisualState state)
     {
         Color nodeAccent = NodeAccentFor(node);
@@ -617,6 +695,7 @@ public class GridMapController : MonoBehaviour
         return nodeAccent;
     }
 
+    // Defense note: Runs the detail color for helper used by this script.
     private Color DetailColorFor(GridNode node, GridNodeVisualState state)
     {
         if (state == GridNodeVisualState.Unknown)
@@ -639,6 +718,7 @@ public class GridMapController : MonoBehaviour
         return new Color(nodeAccent.r, nodeAccent.g, nodeAccent.b, 0.82f);
     }
 
+    // Defense note: Runs the text color for helper used by this script.
     private Color TextColorFor(GridNodeVisualState state)
     {
         switch (state)
@@ -658,6 +738,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the node accent for helper used by this script.
     private Color NodeAccentFor(GridNode node)
     {
         if (node == null)
@@ -672,11 +753,13 @@ public class GridMapController : MonoBehaviour
         return accent;
     }
 
+    // Defense note: Runs the danger level color for helper used by this script.
     private static Color DangerLevelColorFor(int dangerRating)
     {
         return DangerLevelStyleFor(dangerRating).Color;
     }
 
+    // Defense note: Runs the danger level style for helper used by this script.
     private static DangerLevelStyle DangerLevelStyleFor(int dangerRating)
     {
         switch (Mathf.Clamp(dangerRating, 1, ThreatTierRules.MaxTier))
@@ -694,11 +777,13 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: DangerLevelStyle groups small runtime values that are passed around together.
     private struct DangerLevelStyle
     {
         public readonly string Label;
         public readonly Color Color;
 
+        // Defense note: Initializes the DangerLevelStyle instance and its default runtime state.
         public DangerLevelStyle(string label, Color color)
         {
             Label = label;
@@ -706,6 +791,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the icon for helper used by this script.
     private Sprite IconFor(GridNode node, GridNodeVisualState state)
     {
         if (state == GridNodeVisualState.Unknown)
@@ -734,6 +820,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the label for helper used by this script.
     private string LabelFor(GridNode node, GridNodeVisualState state)
     {
         switch (state)
@@ -753,6 +840,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the detail label for helper used by this script.
     private string DetailLabelFor(GridNode node)
     {
         if (node == null)
@@ -770,6 +858,7 @@ public class GridMapController : MonoBehaviour
         return $"{label} D{danger}";
     }
 
+    // Defense note: Runs the node route label for helper used by this script.
     private string NodeRouteLabelFor(GridNode node)
     {
         if (node == null)
@@ -778,6 +867,7 @@ public class GridMapController : MonoBehaviour
         return DetailLabelFor(node);
     }
 
+    // Defense note: Runs the short type label for helper used by this script.
     private static string ShortTypeLabelFor(NodeType nodeType)
     {
         switch (nodeType)
@@ -801,6 +891,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Resolves the d node size step and updates dependent state.
     private Vector2 ResolvedNodeSize()
     {
         float scale = Mathf.Max(0.01f, nodeVisualScale);
@@ -809,6 +900,7 @@ public class GridMapController : MonoBehaviour
             Mathf.Max(1f, nodeSize.y * scale));
     }
 
+    // Defense note: Resolves the d vertical padding step and updates dependent state.
     private float ResolvedVerticalPadding(Vector2 resolvedNodeSize)
     {
         float authoredPadding = nodeVerticalEdgePadding > 0f ? nodeVerticalEdgePadding : 60f;
@@ -816,11 +908,13 @@ public class GridMapController : MonoBehaviour
         return Mathf.Max(verticalPadding, authoredPadding, labelClearance);
     }
 
+    // Defense note: Runs the scaled node font size helper used by this script.
     private int ScaledNodeFontSize(int baseSize)
     {
         return Mathf.Max(baseSize, Mathf.RoundToInt(baseSize * Mathf.Max(1f, nodeLabelScale)));
     }
 
+    // Defense note: Creates the node view object used by the scene or runtime.
     private GridNodeButton CreateNodeView(GridNode node, Vector2 anchoredPosition)
     {
         GameObject nodeObject = CreateRectObject($"Node_{node.id}", nodeRoot);
@@ -921,6 +1015,7 @@ public class GridMapController : MonoBehaviour
         return view;
     }
 
+    // Defense note: Creates the connection object used by the scene or runtime.
     private void CreateConnection(GridNode source, GridNode target, GridConnectionVisualState? forcedState = null)
     {
         if (!nodePositions.TryGetValue(source.id, out Vector2 start))
@@ -995,6 +1090,7 @@ public class GridMapController : MonoBehaviour
         spawnedObjects.Add(lineObject);
     }
 
+    // Defense note: Builds the inactive connection dashes data or UI structure.
     private void BuildInactiveConnectionDashes(RectTransform parent, float length, float thickness, Color color)
     {
         Image baseImage = parent.GetComponent<Image>();
@@ -1016,6 +1112,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the current connection dashes data or UI structure.
     private void BuildCurrentConnectionDashes(RectTransform parent, float length, float thickness, Color color)
     {
         Image baseImage = parent.GetComponent<Image>();
@@ -1045,6 +1142,7 @@ public class GridMapController : MonoBehaviour
         traceImage.color = new Color(color.r, color.g, color.b, 0.085f);
     }
 
+    // Defense note: Builds the available connection dashes data or UI structure.
     private void BuildAvailableConnectionDashes(RectTransform parent, float length, float thickness, Color color)
     {
         Image baseImage = parent.GetComponent<Image>();
@@ -1074,6 +1172,7 @@ public class GridMapController : MonoBehaviour
         traceImage.color = new Color(color.r, color.g, color.b, 0.024f);
     }
 
+    // Defense note: Runs the connection state for helper used by this script.
     private GridConnectionVisualState ConnectionStateFor(GridNode source, GridNode target)
     {
         if (manager == null || source == null || target == null)
@@ -1086,6 +1185,7 @@ public class GridMapController : MonoBehaviour
         return GridConnectionVisualState.InactivePath;
     }
 
+    // Defense note: Runs the connection thickness for helper used by this script.
     private float ConnectionThicknessFor(GridConnectionVisualState state)
     {
         switch (state)
@@ -1099,6 +1199,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the connection color helper used by this script.
     private Color ConnectionColor(GridConnectionVisualState state, GridNode source, GridNode target)
     {
         switch (state)
@@ -1115,6 +1216,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Returns whether this value is connection available.
     private bool IsConnectionAvailable(GridNode source, GridNode target)
     {
         return manager != null &&
@@ -1124,6 +1226,7 @@ public class GridMapController : MonoBehaviour
                manager.IsNodeAvailable(target.id);
     }
 
+    // Defense note: Returns whether this value is connection on current path.
     private bool IsConnectionOnCurrentPath(GridNode source, GridNode target)
     {
         if (manager == null ||
@@ -1143,6 +1246,7 @@ public class GridMapController : MonoBehaviour
         return false;
     }
 
+    // Defense note: Handles the node clicked event or player interaction.
     private void HandleNodeClicked(GridNode node)
     {
         if (node == null)
@@ -1193,6 +1297,7 @@ public class GridMapController : MonoBehaviour
             ShowShopPanel(node);
     }
 
+    // Defense note: Handles the node previewed event or player interaction.
     private void HandleNodePreviewed(GridNode node)
     {
         if (node == null)
@@ -1206,6 +1311,7 @@ public class GridMapController : MonoBehaviour
         UpdateDecisionPanel(StateFor(node) == GridNodeVisualState.Unknown ? null : node);
     }
 
+    // Defense note: Shows the shop panel UI or feedback state.
     private void ShowShopPanel(GridNode shopNode)
     {
         activeShopNode = shopNode;
@@ -1223,6 +1329,7 @@ public class GridMapController : MonoBehaviour
         SetHint(BuildShopHint());
     }
 
+    // Defense note: Hides the shop panel UI or feedback state.
     private void HideShopPanel()
     {
         activeShopNode = null;
@@ -1230,6 +1337,7 @@ public class GridMapController : MonoBehaviour
             shopPanel.gameObject.SetActive(false);
     }
 
+    // Defense note: Ensures the shop panel dependency or state exists before use.
     private void EnsureShopPanel()
     {
         if (shopPanel != null)
@@ -1313,6 +1421,7 @@ public class GridMapController : MonoBehaviour
         shopPanel.gameObject.SetActive(false);
     }
 
+    // Defense note: Refreshes the shop panel display from current data.
     private void RefreshShopPanel()
     {
         if (shopPanel == null || !shopPanel.gameObject.activeSelf)
@@ -1361,6 +1470,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the shop body data or UI structure.
     private string BuildShopBody()
     {
         var builder = new StringBuilder();
@@ -1397,6 +1507,7 @@ public class GridMapController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Attempts to purchase shop offer and reports success or failure.
     private void TryPurchaseShopOffer(RunShopOffer offer)
     {
         manager = ResolveManager();
@@ -1419,6 +1530,7 @@ public class GridMapController : MonoBehaviour
         RefreshNodeStates();
     }
 
+    // Defense note: Attempts to refresh shop offers and reports success or failure.
     private void TryRefreshShopOffers()
     {
         manager = ResolveManager();
@@ -1440,6 +1552,7 @@ public class GridMapController : MonoBehaviour
         RefreshNodeStates();
     }
 
+    // Defense note: Builds the shop hint data or UI structure.
     private string BuildShopHint()
     {
         if (manager == null)
@@ -1448,6 +1561,7 @@ public class GridMapController : MonoBehaviour
         return "> Shop node online. Three offers loaded; refresh costs credits and doubles each time.";
     }
 
+    // Defense note: Updates the button text state or visual value.
     private static void SetButtonText(Button button, string label)
     {
         Text text = button != null ? button.GetComponentInChildren<Text>() : null;
@@ -1455,6 +1569,7 @@ public class GridMapController : MonoBehaviour
             text.text = label;
     }
 
+    // Defense note: Configures the debug new run button layout, style, or behavior.
     private void ConfigureDebugNewRunButton()
     {
         if (newRunButton == null)
@@ -1467,6 +1582,175 @@ public class GridMapController : MonoBehaviour
             newRunButton.onClick.AddListener(BeginNewRun);
     }
 
+    // Defense note: Ensures the flee button exists in the grid node screen.
+    private void EnsureFleeRunButton()
+    {
+        if (fleeRunButton != null)
+            return;
+
+        RectTransform frame = null;
+        if (canvas != null)
+            frame = FindRect(canvas.GetComponent<RectTransform>(), "GridFrame");
+        RectTransform parent = mapRoot != null ? mapRoot : frame;
+        if (parent == null)
+            return;
+
+        fleeRunButton = GetOrCreateButton("FleeRunButton", parent, "FLEE");
+        RectTransform buttonRect = fleeRunButton.GetComponent<RectTransform>();
+        buttonRect.anchorMin = new Vector2(0f, 0f);
+        buttonRect.anchorMax = new Vector2(0f, 0f);
+        buttonRect.pivot = new Vector2(0f, 0f);
+        buttonRect.anchoredPosition = new Vector2(24f, 24f);
+        buttonRect.sizeDelta = new Vector2(74f, 72f);
+        buttonRect.SetAsLastSibling();
+    }
+
+    // Defense note: Wires and updates the flee button state.
+    private void ConfigureFleeRunButton()
+    {
+        EnsureFleeRunButton();
+        if (fleeRunButton == null)
+            return;
+
+        manager = manager != null ? manager : ResolveManager();
+        fleeRunButton.gameObject.SetActive(true);
+        fleeRunButton.interactable = manager != null && manager.IsRunActive;
+        StyleFleeRunButton();
+        WireFleeRunButtonHover();
+        fleeRunButton.onClick.RemoveListener(FleeCurrentRun);
+        fleeRunButton.onClick.AddListener(FleeCurrentRun);
+    }
+
+    // Defense note: Styles the grid flee control with the same feedback component used by battle action buttons.
+    private void StyleFleeRunButton()
+    {
+        if (fleeRunButton == null)
+            return;
+
+        RectTransform rect = fleeRunButton.GetComponent<RectTransform>();
+        Image background = fleeRunButton.GetComponent<Image>() ?? fleeRunButton.gameObject.AddComponent<Image>();
+        background.sprite = gridButtonFrameSprite;
+        background.type = gridButtonFrameSprite != null && gridButtonFrameSprite.border.sqrMagnitude > 0f
+            ? Image.Type.Sliced
+            : Image.Type.Simple;
+        background.preserveAspect = false;
+        background.raycastTarget = true;
+
+        Outline outline = fleeRunButton.GetComponent<Outline>();
+        if (outline != null)
+            outline.enabled = false;
+
+        Transform legacyGlyph = rect.Find("IconGlyph");
+        if (legacyGlyph != null)
+            legacyGlyph.gameObject.SetActive(false);
+
+        Image icon = GetOrCreateImageChild(rect, "Icon");
+        icon.sprite = FleeActionIconSprite();
+        icon.type = Image.Type.Simple;
+        icon.preserveAspect = true;
+        icon.raycastTarget = false;
+        icon.color = new Color(1f, 0.92f, 0.98f, 0.92f);
+        icon.gameObject.SetActive(icon.sprite != null);
+        SetChildAnchors(icon.rectTransform, new Vector2(0.17f, 0.34f), new Vector2(0.83f, 0.92f));
+
+        Text caption = GetOrCreateText("Text", rect, 13, FontStyle.Bold, TextAnchor.MiddleCenter);
+        caption.text = "FLEE";
+        caption.color = Color.Lerp(new Color(0.86f, 0.96f, 1f, 0.95f), FleeButtonAccent, 0.24f);
+        caption.raycastTarget = false;
+        caption.resizeTextForBestFit = true;
+        caption.resizeTextMinSize = 9;
+        caption.resizeTextMaxSize = 14;
+        SetChildAnchors(caption.rectTransform, new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.30f));
+        caption.transform.SetAsLastSibling();
+
+        Image pressOverlay = GetOrCreateImageChild(rect, "PressFlash");
+        SetChildAnchors(pressOverlay.rectTransform, Vector2.zero, Vector2.one);
+        pressOverlay.sprite = gridButtonFrameSprite;
+        pressOverlay.type = background.type;
+        pressOverlay.preserveAspect = false;
+        pressOverlay.raycastTarget = false;
+        pressOverlay.transform.SetAsLastSibling();
+        caption.transform.SetAsLastSibling();
+
+        BattleHudButtonFeedback feedback = fleeRunButton.GetComponent<BattleHudButtonFeedback>();
+        if (feedback == null)
+            feedback = fleeRunButton.gameObject.AddComponent<BattleHudButtonFeedback>();
+        feedback.Configure(fleeRunButton, 1.06f, 0.93f);
+        feedback.SetBackground(
+            background,
+            Color.Lerp(FleeButtonFill, FleeButtonAccent, 0.10f),
+            Color.Lerp(FleeButtonFillHover, FleeButtonAccent, 0.24f),
+            Color.Lerp(FleeButtonFillPressed, FleeButtonAccent, 0.36f),
+            FleeButtonFillDisabled);
+        feedback.SetIcon(icon, Color.Lerp(Color.white, FleeButtonAccent, 0.16f), Color.white, new Color(1f, 1f, 1f, 0.26f));
+        feedback.SetOverlay(pressOverlay, FleeButtonAccent, 0.06f, 0.16f, 0.45f);
+    }
+
+    // Defense note: Loads the same Flee icon used by the battle action button.
+    private Sprite FleeActionIconSprite()
+    {
+        if (fleeActionIconSprite != null)
+            return fleeActionIconSprite;
+
+        fleeActionIconSprite = RuntimeUiAssetCatalog.FindSprite(ArenaFleeIconSpritePath);
+#if UNITY_EDITOR
+        if (fleeActionIconSprite == null)
+            fleeActionIconSprite = AssetDatabase.LoadAssetAtPath<Sprite>(ArenaFleeIconSpritePath);
+#endif
+        return fleeActionIconSprite;
+    }
+
+    // Defense note: Adds hover copy to the grid flee button without changing its battle-style visual feedback.
+    private void WireFleeRunButtonHover()
+    {
+        if (fleeRunButton == null)
+            return;
+
+        EventTrigger trigger = fleeRunButton.GetComponent<EventTrigger>();
+        if (trigger == null)
+            trigger = fleeRunButton.gameObject.AddComponent<EventTrigger>();
+        if (trigger.triggers == null)
+            trigger.triggers = new List<EventTrigger.Entry>();
+        trigger.triggers.Clear();
+
+        EventTrigger.Entry enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+        enter.callback.AddListener(_ =>
+        {
+            SetHint("> FLEE | Abandon this route and keep permanent credits.");
+        });
+        trigger.triggers.Add(enter);
+
+        EventTrigger.Entry exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+        exit.callback.AddListener(_ =>
+        {
+            SetHint(BuildCommandHint());
+        });
+        trigger.triggers.Add(exit);
+    }
+
+    // Defense note: Retrieves or creates a simple image child for button feedback overlays.
+    private Image GetOrCreateImageChild(RectTransform parent, string objectName)
+    {
+        RectTransform rect = GetOrCreateRect(objectName, parent);
+        Image image = rect.GetComponent<Image>() ?? rect.gameObject.AddComponent<Image>();
+        return image;
+    }
+
+    // Defense note: Applies normalized anchors to a child rect and clears offsets.
+    private static void SetChildAnchors(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
+    {
+        if (rect == null)
+            return;
+
+        rect.anchorMin = anchorMin;
+        rect.anchorMax = anchorMax;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.localScale = Vector3.one;
+        rect.localRotation = Quaternion.identity;
+    }
+
+    // Defense note: Clears the spawned map objects state so it can be rebuilt safely.
     private void ClearSpawnedMapObjects()
     {
         nodeViews.Clear();
@@ -1494,6 +1778,7 @@ public class GridMapController : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    // Defense note: Clears the children immediate state so it can be rebuilt safely.
     private static void ClearChildrenImmediate(RectTransform parent)
     {
         if (parent == null)
@@ -1508,6 +1793,7 @@ public class GridMapController : MonoBehaviour
     }
 #endif
 
+    // Defense note: Ensures the scene shell dependency or state exists before use.
     private void EnsureSceneShell()
     {
         EnsureEventSystem();
@@ -1521,6 +1807,7 @@ public class GridMapController : MonoBehaviour
         BuildDefaultSceneShell();
     }
 
+    // Defense note: Loads the grid visual sprites asset or data needed at runtime.
     private void LoadGridVisualSprites()
     {
 #if UNITY_EDITOR
@@ -1572,6 +1859,7 @@ public class GridMapController : MonoBehaviour
             : LoadResourceTextureSprite(RouteGraphBackgroundResourcePath, "RouteGraphBackground");
     }
 
+    // Defense note: Creates the radial sprite object used by the scene or runtime.
     private static Sprite CreateRadialSprite(string spriteName, int size, float innerRadius, float outerRadius, float feather)
     {
         Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
@@ -1601,6 +1889,7 @@ public class GridMapController : MonoBehaviour
         return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
     }
 
+    // Defense note: Creates the reboot loop arrow sprite object used by the scene or runtime.
     private static Sprite CreateRebootLoopArrowSprite(string spriteName, int size)
     {
         Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
@@ -1649,12 +1938,14 @@ public class GridMapController : MonoBehaviour
         return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f);
     }
 
+    // Defense note: Runs the line alpha helper used by this script.
     private static float LineAlpha(Vector2 point, Vector2 start, Vector2 end, float thickness)
     {
         float distance = DistanceToSegment(point, start, end);
         return Mathf.InverseLerp(thickness, thickness * 0.38f, distance);
     }
 
+    // Defense note: Runs the distance to segment helper used by this script.
     private static float DistanceToSegment(Vector2 point, Vector2 start, Vector2 end)
     {
         Vector2 segment = end - start;
@@ -1666,6 +1957,7 @@ public class GridMapController : MonoBehaviour
         return Vector2.Distance(point, start + segment * t);
     }
 
+    // Defense note: Loads the resource texture sprite asset or data needed at runtime.
     private static Sprite LoadResourceTextureSprite(string resourcePath, string spriteName)
     {
         Sprite importedSprite = Resources.Load<Sprite>(resourcePath);
@@ -1685,6 +1977,7 @@ public class GridMapController : MonoBehaviour
         return sprite;
     }
 
+    // Defense note: Applies the cyber style defaults change to gameplay or UI state.
     private void ApplyCyberStyleDefaults()
     {
         // When preserving scene-authored values, keep the Inspector-tuned layout
@@ -1720,6 +2013,7 @@ public class GridMapController : MonoBehaviour
     // the runtime catalog (baked into Resources) covers builds and post-bake editor,
     // the editor AssetDatabase covers a pre-bake editor session, and the serialized
     // reference is the final fallback.
+    // Defense note: Resolves the grid sprite step and updates dependent state.
     private static Sprite ResolveGridSprite(string assetPath, Sprite fallback)
     {
         Sprite fromCatalog = RuntimeUiAssetCatalog.FindSprite(assetPath);
@@ -1734,12 +2028,14 @@ public class GridMapController : MonoBehaviour
     }
 
 #if UNITY_EDITOR
+    // Defense note: Loads the editor sprite asset or data needed at runtime.
     private static Sprite LoadEditorSprite(string assetPath)
     {
         return AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
     }
 #endif
 
+    // Defense note: Applies the grid visual style change to gameplay or UI state.
     private void ApplyGridVisualStyle()
     {
         if (canvas == null)
@@ -1788,6 +2084,7 @@ public class GridMapController : MonoBehaviour
         Canvas.ForceUpdateCanvases();
     }
 
+    // Defense note: Builds the functional background data or UI structure.
     private void BuildFunctionalBackground(RectTransform frame)
     {
         if (frame == null)
@@ -1859,6 +2156,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Creates the hud line object used by the scene or runtime.
     private void CreateHudLine(
         RectTransform parent,
         string objectName,
@@ -1877,6 +2175,7 @@ public class GridMapController : MonoBehaviour
         ConfigureOverlayImage(line, null, color, false);
     }
 
+    // Defense note: Builds the frame corner accents data or UI structure.
     private void BuildFrameCornerAccents(RectTransform frame)
     {
         if (frame == null)
@@ -1892,6 +2191,7 @@ public class GridMapController : MonoBehaviour
         CreateCornerTrace(frame, "GridCornerBR_V", new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-30f, 20f), new Vector2(1.25f, 82f));
     }
 
+    // Defense note: Creates the corner trace object used by the scene or runtime.
     private void CreateCornerTrace(
         RectTransform parent,
         string objectName,
@@ -1911,6 +2211,7 @@ public class GridMapController : MonoBehaviour
         ConfigureOverlayImage(trace, null, new Color(accent.r, accent.g, accent.b, 0.16f), false);
     }
 
+    // Defense note: Runs the style header text helper used by this script.
     private void StyleHeaderText(RectTransform frame)
     {
         if (titleText != null)
@@ -1935,6 +2236,7 @@ public class GridMapController : MonoBehaviour
         StyleTopStatusModules(frame);
     }
 
+    // Defense note: Runs the style top status modules helper used by this script.
     private void StyleTopStatusModules(RectTransform frame)
     {
         if (frame == null)
@@ -1946,6 +2248,7 @@ public class GridMapController : MonoBehaviour
         UpdateTopStatusModules(manager != null ? manager.currentRunGraph : null);
     }
 
+    // Defense note: Creates the top status module object used by the scene or runtime.
     private Text CreateTopStatusModule(RectTransform frame, string objectName, string label, float xMin, float xMax)
     {
         RectTransform module = GetOrCreateRect(objectName, frame);
@@ -1978,6 +2281,7 @@ public class GridMapController : MonoBehaviour
         return valueText;
     }
 
+    // Defense note: Runs the style footer text helper used by this script.
     private void StyleFooterText(RectTransform frame)
     {
         bool telemetryStripExisted = HasChild(frame, "TelemetryStrip");
@@ -2028,6 +2332,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the disable node preview panel helper used by this script.
     private void DisableNodePreviewPanel(RectTransform frame)
     {
         if (frame == null)
@@ -2038,6 +2343,7 @@ public class GridMapController : MonoBehaviour
             previewPanel.gameObject.SetActive(false);
     }
 
+    // Defense note: Runs the style decision panel helper used by this script.
     private void StyleDecisionPanel(RectTransform frame)
     {
         if (frame == null)
@@ -2133,6 +2439,7 @@ public class GridMapController : MonoBehaviour
         UpdateDecisionPanel(null);
     }
 
+    // Defense note: Updates the children with prefix active state or visual value.
     private static void SetChildrenWithPrefixActive(RectTransform parent, string prefix, bool active)
     {
         if (parent == null)
@@ -2146,6 +2453,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the decision panel frame data or UI structure.
     private void BuildDecisionPanelFrame(RectTransform panel)
     {
         if (panel == null)
@@ -2178,6 +2486,7 @@ public class GridMapController : MonoBehaviour
         CreateHudSegment(panel, "DecisionFrameGlitchMark", new Vector2(0.875f, 0.895f), new Vector2(30f, 1.4f), 0f, hotMark);
     }
 
+    // Defense note: Creates the hud segment object used by the scene or runtime.
     private void CreateHudSegment(
         RectTransform parent,
         string objectName,
@@ -2197,6 +2506,7 @@ public class GridMapController : MonoBehaviour
         ConfigureOverlayImage(segment, null, color, false);
     }
 
+    // Defense note: Creates the decision section object used by the scene or runtime.
     private Text CreateDecisionSection(string objectName, string label, float yMin, float yMax)
     {
         bool isAvailableLinksSection = decisionPanelUsesSkin && objectName == "DecisionAvailableLinks";
@@ -2272,6 +2582,7 @@ public class GridMapController : MonoBehaviour
         return valueText;
     }
 
+    // Defense note: Runs the style map root helper used by this script.
     private void StyleMapRoot()
     {
         if (mapRoot == null)
@@ -2330,6 +2641,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the disable map scan lines helper used by this script.
     private void DisableMapScanLines()
     {
         if (mapRoot == null)
@@ -2350,6 +2662,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the style new run button helper used by this script.
     private void StyleNewRunButton()
     {
         if (newRunButton == null)
@@ -2377,6 +2690,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Configures the overlay image layout, style, or behavior.
     private static void ConfigureOverlayImage(RectTransform rect, Sprite sprite, Color color, bool preserveAspect)
     {
         Image image = rect.GetComponent<Image>() ?? rect.gameObject.AddComponent<Image>();
@@ -2386,6 +2700,7 @@ public class GridMapController : MonoBehaviour
         image.raycastTarget = false;
     }
 
+    // Defense note: Attempts to resolve scene references and reports success or failure.
     private bool TryResolveSceneReferences()
     {
         if (canvas == null)
@@ -2419,6 +2734,7 @@ public class GridMapController : MonoBehaviour
     // Resolves the runtime-updated Text/panel references straight from the
     // authored hierarchy, without touching any layout. Used when
     // preserveSceneAuthoredLayout is on so Play mode keeps the scene's layout.
+    // Defense note: Runs the wire authored references helper used by this script.
     private void WireAuthoredReferences()
     {
         if (canvas == null)
@@ -2449,12 +2765,14 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Finds the section value text reference used by this component.
     private static Text FindSectionValueText(RectTransform parent, string sectionName)
     {
         RectTransform section = FindRect(parent, sectionName);
         return section != null ? FindText(section, "Value") : null;
     }
 
+    // Defense note: Returns whether scene references exists or is active.
     private bool HasSceneReferences()
     {
         return canvas != null &&
@@ -2467,6 +2785,7 @@ public class GridMapController : MonoBehaviour
                legendText != null;
     }
 
+    // Defense note: Builds the default scene shell data or UI structure.
     private void BuildDefaultSceneShell()
     {
         ConfigureCanvas(canvas);
@@ -2539,6 +2858,7 @@ public class GridMapController : MonoBehaviour
         Canvas.ForceUpdateCanvases();
     }
 
+    // Defense note: Creates the canvas object used by the scene or runtime.
     private Canvas CreateCanvas()
     {
         GameObject canvasObject = new GameObject("Canvas_Grid", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -2547,6 +2867,7 @@ public class GridMapController : MonoBehaviour
         return createdCanvas;
     }
 
+    // Defense note: Configures the canvas layout, style, or behavior.
     private static void ConfigureCanvas(Canvas targetCanvas)
     {
         targetCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
@@ -2570,6 +2891,7 @@ public class GridMapController : MonoBehaviour
             targetCanvas.gameObject.AddComponent<GraphicRaycaster>();
     }
 
+    // Defense note: Ensures the canvas background dependency or state exists before use.
     private void EnsureCanvasBackground()
     {
         RectTransform canvasRect = canvas.GetComponent<RectTransform>();
@@ -2585,6 +2907,7 @@ public class GridMapController : MonoBehaviour
         image.raycastTarget = false;
     }
 
+    // Defense note: Ensures the event system dependency or state exists before use.
     private void EnsureEventSystem()
     {
         if (FindObjectOfType<EventSystem>() != null)
@@ -2594,34 +2917,40 @@ public class GridMapController : MonoBehaviour
         eventSystem.transform.SetParent(null);
     }
 
+    // Defense note: Finds the rect reference used by this component.
     private static RectTransform FindRect(RectTransform parent, string objectName)
     {
         Transform child = parent != null ? parent.Find(objectName) : null;
         return child != null ? child.GetComponent<RectTransform>() : null;
     }
 
+    // Defense note: Finds the text reference used by this component.
     private static Text FindText(RectTransform parent, string objectName)
     {
         Transform child = parent != null ? parent.Find(objectName) : null;
         return child != null ? child.GetComponent<Text>() : null;
     }
 
+    // Defense note: Finds the button reference used by this component.
     private static Button FindButton(RectTransform parent, string objectName)
     {
         Transform child = parent != null ? parent.Find(objectName) : null;
         return child != null ? child.GetComponent<Button>() : null;
     }
 
+    // Defense note: Runs the should preserve existing layout helper used by this script.
     private bool ShouldPreserveExistingLayout(bool objectExisted)
     {
         return preserveSceneAuthoredLayout && objectExisted;
     }
 
+    // Defense note: Returns whether child exists or is active.
     private static bool HasChild(RectTransform parent, string objectName)
     {
         return parent != null && parent.Find(objectName) != null;
     }
 
+    // Defense note: Retrieves the or create rect value used by this system.
     private RectTransform GetOrCreateRect(string objectName, RectTransform parent)
     {
         Transform existing = parent != null ? parent.Find(objectName) : null;
@@ -2632,6 +2961,7 @@ public class GridMapController : MonoBehaviour
         return rectObject.GetComponent<RectTransform>();
     }
 
+    // Defense note: Creates the rect object object used by the scene or runtime.
     private GameObject CreateRectObject(string objectName, RectTransform parent)
     {
         GameObject rectObject = new GameObject(objectName, typeof(RectTransform));
@@ -2643,6 +2973,7 @@ public class GridMapController : MonoBehaviour
         return rectObject;
     }
 
+    // Defense note: Creates the image object used by the scene or runtime.
     private Image CreateImage(string objectName, RectTransform parent, Sprite sprite)
     {
         GameObject imageObject = CreateRectObject(objectName, parent);
@@ -2652,6 +2983,7 @@ public class GridMapController : MonoBehaviour
         return image;
     }
 
+    // Defense note: Retrieves the or create text value used by this system.
     private Text GetOrCreateText(
         string objectName,
         RectTransform parent,
@@ -2670,6 +3002,7 @@ public class GridMapController : MonoBehaviour
         return text;
     }
 
+    // Defense note: Creates the text object used by the scene or runtime.
     private Text CreateText(
         string objectName,
         RectTransform parent,
@@ -2683,6 +3016,7 @@ public class GridMapController : MonoBehaviour
         return text;
     }
 
+    // Defense note: Configures the text layout, style, or behavior.
     private void ConfigureText(Text text, int fontSize, FontStyle fontStyle, TextAnchor alignment)
     {
         text.font = defaultFont;
@@ -2695,6 +3029,7 @@ public class GridMapController : MonoBehaviour
         text.verticalOverflow = VerticalWrapMode.Truncate;
     }
 
+    // Defense note: Runs the grid font helper used by this script.
     private Font GridFont()
     {
         Font font = Resources.Load<Font>(GridFontResourcePath);
@@ -2703,6 +3038,7 @@ public class GridMapController : MonoBehaviour
         return font;
     }
 
+    // Defense note: Retrieves the or create button value used by this system.
     private Button GetOrCreateButton(string objectName, RectTransform parent, string label)
     {
         RectTransform rect = GetOrCreateRect(objectName, parent);
@@ -2732,6 +3068,7 @@ public class GridMapController : MonoBehaviour
         return button;
     }
 
+    // Defense note: Updates the header state or visual value.
     private void SetHeader(string seedLine, string currentLine)
     {
         if (titleText != null)
@@ -2741,6 +3078,7 @@ public class GridMapController : MonoBehaviour
         UpdateTopStatusModules(manager != null ? manager.currentRunGraph : null);
     }
 
+    // Defense note: Updates the top status modules state each time it changes.
     private void UpdateTopStatusModules(GridGraph graph)
     {
         int currentLayer = 0;
@@ -2770,18 +3108,21 @@ public class GridMapController : MonoBehaviour
             depthValueText.text = $"{currentLayer + 1}/{Mathf.Max(1, maxLayer + 1)}";
     }
 
+    // Defense note: Updates the hint state or visual value.
     private void SetHint(string message)
     {
         if (hintText != null)
             hintText.text = message;
     }
 
+    // Defense note: Refreshes the legend display from current data.
     private void RefreshLegend()
     {
         if (legendText != null)
             legendText.text = "CURRENT HIGHLIGHT / AVAILABLE LINKS / ? UNKNOWN   |   D1-D5 THREAT   |   TARGET = BOSS";
     }
 
+    // Defense note: Applies the resolved text styles change to gameplay or UI state.
     private void ApplyResolvedTextStyles()
     {
         ApplyTextFont(titleText, 22);
@@ -2790,6 +3131,7 @@ public class GridMapController : MonoBehaviour
         ApplyTextFont(legendText, 12);
     }
 
+    // Defense note: Applies the text font change to gameplay or UI state.
     private void ApplyTextFont(Text text, int minimumSize)
     {
         if (text == null)
@@ -2800,11 +3142,13 @@ public class GridMapController : MonoBehaviour
         text.resizeTextForBestFit = false;
     }
 
+    // Defense note: Builds the terminal status data or UI structure.
     private string BuildTerminalStatus(GridGraph graph)
     {
         return "CREDITS             PAYLOAD BUFFER        CURRENT DEPTH";
     }
 
+    // Defense note: Builds the depth status data or UI structure.
     private string BuildDepthStatus(GridGraph graph)
     {
         int currentLayer = 0;
@@ -2828,6 +3172,7 @@ public class GridMapController : MonoBehaviour
         return $"{compute:0000}              {payloadCount}                   {currentLayer + 1}/{Mathf.Max(1, maxLayer + 1)}";
     }
 
+    // Defense note: Builds the command hint data or UI structure.
     private string BuildCommandHint(GridNode selectedNode = null, bool returnedToStart = false)
     {
         if (selectedNode != null)
@@ -2849,6 +3194,7 @@ public class GridMapController : MonoBehaviour
         return $"> Located [{NodeRouteLabelFor(currentNode)}]. Select a NEXT node. Read node label for type and D1-D5 danger.";
     }
 
+    // Defense note: Builds the preview hint data or UI structure.
     private string BuildPreviewHint(GridNode node)
     {
         if (node == null)
@@ -2860,6 +3206,7 @@ public class GridMapController : MonoBehaviour
         return $"> PREVIEW {availability} | {BuildSelectedNodeDetail(node).TrimStart('>', ' ')}";
     }
 
+    // Defense note: Runs the node availability label helper used by this script.
     private string NodeAvailabilityLabel(GridNode node)
     {
         switch (StateFor(node))
@@ -2879,6 +3226,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the decision panel state each time it changes.
     private void UpdateDecisionPanel(GridNode previewNode)
     {
         if (decisionPanel == null)
@@ -2921,7 +3269,7 @@ public class GridMapController : MonoBehaviour
 
         SetDecisionText(
             decisionRewardSignalText,
-            RewardIdentityFor(node.nodeType).ToUpperInvariant(),
+            RewardPreviewFor(node).ToUpperInvariant(),
             new Color(0.74f, 0.92f, 0.96f, 0.84f));
 
         SetDecisionText(
@@ -2930,6 +3278,7 @@ public class GridMapController : MonoBehaviour
             new Color(0.72f, 0.98f, 1f, 0.86f));
     }
 
+    // Defense note: Updates the decision panel offline state or visual value.
     private void SetDecisionPanelOffline()
     {
         if (decisionModeText != null)
@@ -2943,6 +3292,7 @@ public class GridMapController : MonoBehaviour
         SetDecisionText(decisionAvailableLinksText, "NO LINKS", textDim);
     }
 
+    // Defense note: Updates the decision text state or visual value.
     private static void SetDecisionText(Text text, string value, Color color)
     {
         if (text == null)
@@ -2952,6 +3302,7 @@ public class GridMapController : MonoBehaviour
         text.color = color;
     }
 
+    // Defense note: Builds the risk level line data or UI structure.
     private string BuildRiskLevelLine(GridNode node)
     {
         if (node == null)
@@ -2964,6 +3315,7 @@ public class GridMapController : MonoBehaviour
         return $"D{danger} // {dangerStyle.Label}";
     }
 
+    // Defense note: Runs the risk color for helper used by this script.
     private Color RiskColorFor(GridNode node)
     {
         if (node == null || !ThreatTierRules.IsEncounterNode(node.nodeType))
@@ -2973,6 +3325,7 @@ public class GridMapController : MonoBehaviour
         return new Color(riskColor.r, riskColor.g, riskColor.b, 0.92f);
     }
 
+    // Defense note: Builds the status line data or UI structure.
     private string BuildStatusLine(GridNode node)
     {
         switch (StateFor(node))
@@ -2994,6 +3347,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the status color for helper used by this script.
     private Color StatusColorFor(GridNode node)
     {
         switch (StateFor(node))
@@ -3013,6 +3367,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the available links line data or UI structure.
     private string BuildAvailableLinksLine(GridNode node)
     {
         if (node == null ||
@@ -3055,6 +3410,7 @@ public class GridMapController : MonoBehaviour
         return builder.ToString().TrimEnd();
     }
 
+    // Defense note: Builds the selected node detail data or UI structure.
     private string BuildSelectedNodeDetail(GridNode node)
     {
         if (node == null)
@@ -3063,10 +3419,11 @@ public class GridMapController : MonoBehaviour
         string typeLabel = node.nodeType.ToGridLabel().ToUpperInvariant();
         string encounter = EncounterIdentityFor(node);
         string risk = RiskSummaryFor(node);
-        string reward = RewardIdentityFor(node.nodeType);
+        string reward = RewardPreviewFor(node);
         return $"> {typeLabel} | {encounter} | {risk} | Rewards: {reward}.";
     }
 
+    // Defense note: Runs the encounter identity for helper used by this script.
     private string EncounterIdentityFor(GridNode node)
     {
         if (node == null)
@@ -3093,6 +3450,7 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the display encounter level helper used by this script.
     private static string DisplayEncounterLevel(GridNode node)
     {
         if (node == null || node.encounterLevel <= 0)
@@ -3101,6 +3459,7 @@ public class GridMapController : MonoBehaviour
         return node.encounterLevel.ToString("00");
     }
 
+    // Defense note: Runs the risk summary for helper used by this script.
     private static string RiskSummaryFor(GridNode node)
     {
         if (node == null || !ThreatTierRules.IsEncounterNode(node.nodeType))
@@ -3110,6 +3469,7 @@ public class GridMapController : MonoBehaviour
         return $"Danger D{danger} ({DangerLevelStyleFor(danger).Label.ToLowerInvariant()})";
     }
 
+    // Defense note: Runs the depth label for helper used by this script.
     private static string DepthLabelFor(EncounterDepthBand depthBand)
     {
         switch (depthBand)
@@ -3127,6 +3487,66 @@ public class GridMapController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds a compact numeric reward preview for the right-side node panel.
+    private string RewardPreviewFor(GridNode node)
+    {
+        if (node == null)
+            return "No reward";
+
+        if (ThreatTierRules.IsEncounterNode(node.nodeType))
+        {
+            EncounterReward reward = PreviewEncounterReward(node);
+            if (reward == null)
+                return "EXP ? / CR ?";
+
+            string preview = $"EXP +{reward.algoMonExp} / CR +{reward.compute}";
+            if (node.nodeType == NodeType.Boss)
+                preview += " / DATA";
+            return preview;
+        }
+
+        switch (node.nodeType)
+        {
+            case NodeType.Shop:
+                return "Spend CR for run buffs";
+            case NodeType.Reboot:
+                return "Route reset / no CR";
+            case NodeType.Start:
+                return "Route entry / no CR";
+            default:
+                return RewardIdentityFor(node.nodeType);
+        }
+    }
+
+    // Defense note: Mirrors the battle reward calculation for non-destructive UI preview.
+    private EncounterReward PreviewEncounterReward(GridNode node)
+    {
+        if (node == null)
+            return null;
+
+        ThreatTier tier = ThreatTierRules.ClampTier(ThreatTierRules.MinTier);
+        float rewardMultiplier = 1f;
+        if (manager != null)
+        {
+            int tierValue = manager.currentRunGraph != null && manager.currentRunGraph.threatTier > 0
+                ? manager.currentRunGraph.threatTier
+                : manager.currentThreatTier;
+            tier = ThreatTierRules.ClampTier(tierValue);
+            rewardMultiplier = manager.currentRewardMultiplier;
+        }
+
+        EncounterReward reward = EncounterRewardCalculator.Build(node, null, tier, rewardMultiplier);
+        if (manager != null)
+        {
+            float expMultiplier = manager.PlayerRunExpRewardMultiplier;
+            if (!Mathf.Approximately(expMultiplier, 1f))
+                reward.algoMonExp = Mathf.Max(0, Mathf.RoundToInt(reward.algoMonExp * expMultiplier));
+        }
+
+        return reward;
+    }
+
+    // Defense note: Runs the reward identity for helper used by this script.
     private static string RewardIdentityFor(NodeType nodeType)
     {
         switch (nodeType)

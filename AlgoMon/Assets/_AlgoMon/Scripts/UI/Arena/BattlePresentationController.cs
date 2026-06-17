@@ -18,9 +18,11 @@ using UnityEngine;
 /// drives generic sprite motion plus floating world-space feedback text.
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: BattlePresentationController controls the battle presentation UI or gameplay flow.
 public class BattlePresentationController : MonoBehaviour
 {
     [System.Serializable]
+    // Defense note: BattleActionEffectBinding is the main battle action effect binding type used by this part of the project.
     private class BattleActionEffectBinding
     {
         public string codeName = "Sortex";
@@ -40,6 +42,7 @@ public class BattlePresentationController : MonoBehaviour
         [System.NonSerialized] public Sprite[] cachedFrames;
     }
 
+    // Defense note: FeedbackBitmapFontMode defines the valid feedback bitmap font mode options used by the gameplay systems.
     private enum FeedbackBitmapFontMode
     {
         Unified,
@@ -200,6 +203,7 @@ public class BattlePresentationController : MonoBehaviour
     private string registeredPlayerFormName = "Base";
     private string registeredEnemyFormName = "Base";
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         EnsureActionEffectDefaults();
@@ -207,6 +211,7 @@ public class BattlePresentationController : MonoBehaviour
         AutoBind();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on validate step for this component.
     private void OnValidate()
     {
         // NOTE: deliberately NOT calling EnsureActionEffectDefaults() here. In edit
@@ -217,6 +222,7 @@ public class BattlePresentationController : MonoBehaviour
         EnsureBitmapFontDefaults();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         feedbackSlots.Clear();
@@ -234,6 +240,7 @@ public class BattlePresentationController : MonoBehaviour
         EventBus.Subscribe<SubroutineTriggeredEvent>(OnSubroutineTriggered);
     }
 
+    // Defense note: Unity lifecycle hook that runs the on disable step for this component.
     private void OnDisable()
     {
         EventBus.Unsubscribe<BattleActionEvent>(OnBattleAction);
@@ -245,12 +252,14 @@ public class BattlePresentationController : MonoBehaviour
         EventBus.Unsubscribe<SubroutineTriggeredEvent>(OnSubroutineTriggered);
     }
 
+    // Defense note: Runs the auto bind helper used by this script.
     private void AutoBind()
     {
         AutoBindCombatant("PlayerSpriteAnchor", ref playerView, ref playerAnimator);
         AutoBindCombatant("EnemySpriteAnchor", ref enemyView, ref enemyAnimator);
     }
 
+    // Defense note: Runs the auto bind combatant helper used by this script.
     private static void AutoBindCombatant(
         string anchorName,
         ref BattleAlgoMonView view,
@@ -275,6 +284,7 @@ public class BattlePresentationController : MonoBehaviour
             animator = view.Animator;
     }
 
+    // Defense note: Ensures the bitmap font defaults dependency or state exists before use.
     private void EnsureBitmapFontDefaults()
     {
         if (normalBitmapFont == null || (!normalBitmapFont.HasFontName && !normalBitmapFont.HasAssignedAssets))
@@ -312,6 +322,7 @@ public class BattlePresentationController : MonoBehaviour
             textFeedbackFontSize = 64;
     }
 
+    // Defense note: Ensures the action effect defaults dependency or state exists before use.
     private void EnsureActionEffectDefaults()
     {
         if (actionEffectBindings != null && actionEffectBindings.Length > 0)
@@ -759,6 +770,7 @@ public class BattlePresentationController : MonoBehaviour
         };
     }
 
+    // Defense note: Creates the action effect object used by the scene or runtime.
     private static BattleActionEffectBinding CreateActionEffect(
         string codeName,
         string formName,
@@ -788,6 +800,7 @@ public class BattlePresentationController : MonoBehaviour
         };
     }
 
+    // Defense note: Registers the combatants data so other systems can use it.
     public void RegisterCombatants(
         string playerCombatantId,
         string enemyCombatantId,
@@ -838,6 +851,7 @@ public class BattlePresentationController : MonoBehaviour
     /// other side is left untouched — re-registering both made the bystander
     /// replay its entry animation every time the opponent switched.
     /// </summary>
+    // Defense note: Registers the combatant side data so other systems can use it.
     public void RegisterCombatantSide(
         bool playerSide,
         string combatantId,
@@ -869,6 +883,7 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    // Defense note: Applies the combatant profile change to gameplay or UI state.
     private static void ApplyCombatantProfile(
         bool playerSide,
         ref BattleAlgoMonView view,
@@ -898,6 +913,7 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    // Defense note: Plays the switch reveal animation, audio, or feedback.
     public IEnumerator PlaySwitchReveal(string combatantId)
     {
         BattleSpriteAnimator animator = AnimatorFor(combatantId);
@@ -908,6 +924,7 @@ public class BattlePresentationController : MonoBehaviour
         yield return animator.PlaySwitchReveal(switchRevealDuration);
     }
 
+    // Defense note: Plays the action effect at marker animation, audio, or feedback.
     private IEnumerator PlayActionEffectAtMarker(
         string actorId,
         InstructionType instructionType,
@@ -947,6 +964,7 @@ public class BattlePresentationController : MonoBehaviour
             StartCoroutine(SpawnAndPlayActionEffect(bindings[i], instructionType, actor, target));
     }
 
+    // Defense note: Runs the spawn and play action effect helper used by this script.
     private IEnumerator SpawnAndPlayActionEffect(
         BattleActionEffectBinding binding,
         InstructionType instructionType,
@@ -984,6 +1002,7 @@ public class BattlePresentationController : MonoBehaviour
 
     private BattleActionEffectBinding clashBurstBinding;
 
+    // Defense note: Runs the spawn counter clash burst helper used by this script.
     private IEnumerator SpawnCounterClashBurst(Vector3 position, int sortingOrder)
     {
         if (string.IsNullOrWhiteSpace(counterClashBurstResource))
@@ -1017,6 +1036,7 @@ public class BattlePresentationController : MonoBehaviour
         yield return PlayOneShotSpriteEffect(go, renderer, frames, counterClashBurstFps, counterClashBurstColor);
     }
 
+    // Defense note: Plays the one shot sprite effect animation, audio, or feedback.
     private IEnumerator PlayOneShotSpriteEffect(
         GameObject go,
         SpriteRenderer renderer,
@@ -1048,6 +1068,7 @@ public class BattlePresentationController : MonoBehaviour
             Destroy(go);
     }
 
+    // Defense note: Runs the action effect frames helper used by this script.
     private Sprite[] ActionEffectFrames(BattleActionEffectBinding binding)
     {
         if (binding == null)
@@ -1068,6 +1089,7 @@ public class BattlePresentationController : MonoBehaviour
         return binding.cachedFrames;
     }
 
+    // Defense note: Runs the action effects for combatant helper used by this script.
     private List<BattleActionEffectBinding> ActionEffectsForCombatant(string id, InstructionType instructionType)
     {
         EnsureActionEffectDefaults();
@@ -1090,6 +1112,7 @@ public class BattlePresentationController : MonoBehaviour
         return matches;
     }
 
+    // Defense note: Runs the matches combatant profile helper used by this script.
     private bool MatchesCombatantProfile(string id, string codeName, string formName)
     {
         if (string.IsNullOrEmpty(id))
@@ -1108,6 +1131,7 @@ public class BattlePresentationController : MonoBehaviour
         return MatchesRegisteredProfile(id, defaultAnimationForm, codeName, formName);
     }
 
+    // Defense note: Runs the matches registered profile helper used by this script.
     private static bool MatchesRegisteredProfile(
         string registeredCodeName,
         string registeredFormName,
@@ -1127,6 +1151,7 @@ public class BattlePresentationController : MonoBehaviour
                FormsMatch(registeredFormName, expectedFormName);
     }
 
+    // Defense note: Runs the forms match helper used by this script.
     private static bool FormsMatch(string left, string right)
     {
         string leftForm = string.IsNullOrWhiteSpace(left) ? "Base" : left.Trim();
@@ -1137,12 +1162,14 @@ public class BattlePresentationController : MonoBehaviour
         return IsEvolvedAlias(leftForm) && IsEvolvedAlias(rightForm);
     }
 
+    // Defense note: Returns whether this value is evolved alias.
     private static bool IsEvolvedAlias(string formName)
     {
         return string.Equals(formName, "Evolved", System.StringComparison.OrdinalIgnoreCase) ||
                string.Equals(formName, "Evolve", System.StringComparison.OrdinalIgnoreCase);
     }
 
+    // Defense note: Resolves the profile step and updates dependent state.
     private BattleAnimationProfile ResolveProfile(
         BattleAnimationProfile overrideProfile,
         BattleAnimationProfile dataProfile,
@@ -1169,6 +1196,7 @@ public class BattlePresentationController : MonoBehaviour
         return profile;
     }
 
+    // Defense note: Runs the on battle action helper used by this script.
     private void OnBattleAction(BattleActionEvent evt)
     {
         BattleSpriteAnimator actor = AnimatorFor(evt.ActorId);
@@ -1216,6 +1244,7 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the on damage helper used by this script.
     private void OnDamage(DamageEvent evt)
     {
         float delay = DelayUntilRecordedMarker(evt.AttackerId);
@@ -1225,6 +1254,7 @@ public class BattlePresentationController : MonoBehaviour
             PlayDamageFeedback(evt);
     }
 
+    // Defense note: Plays the damage feedback animation, audio, or feedback.
     private void PlayDamageFeedback(DamageEvent evt)
     {
         BattleSpriteAnimator target = AnimatorFor(evt.TargetId);
@@ -1244,6 +1274,7 @@ public class BattlePresentationController : MonoBehaviour
             ShouldUseEnemyDamageSidePosition(target));
     }
 
+    // Defense note: Runs the expected damage feedback remaining helper used by this script.
     public float ExpectedDamageFeedbackRemaining(string attackerId, string targetId)
     {
         float markerDelay = PeekDelayUntilRecordedMarker(attackerId);
@@ -1254,18 +1285,21 @@ public class BattlePresentationController : MonoBehaviour
         return markerDelay + target.HitPlaybackDurationSeconds;
     }
 
+    // Defense note: Runs the expected faint remaining helper used by this script.
     public float ExpectedFaintRemaining(string unitId)
     {
         BattleSpriteAnimator target = AnimatorFor(unitId);
         return target != null ? target.FaintPlaybackDurationSeconds : 0f;
     }
 
+    // Defense note: Plays the damage feedback after delay animation, audio, or feedback.
     private IEnumerator PlayDamageFeedbackAfterDelay(DamageEvent evt, float delay)
     {
         yield return new WaitForSeconds(delay);
         PlayDamageFeedback(evt);
     }
 
+    // Defense note: Runs the record action marker time helper used by this script.
     private void RecordActionMarkerTime(string actorId, BattleSpriteAnimator actor, BattleAnimationState state)
     {
         if (string.IsNullOrEmpty(actorId) || actor == null)
@@ -1277,6 +1311,7 @@ public class BattlePresentationController : MonoBehaviour
             actionMarkerFeedbackTimes.Remove(actorId);
     }
 
+    // Defense note: Runs the delay until recorded marker helper used by this script.
     private float DelayUntilRecordedMarker(string actorId)
     {
         if (string.IsNullOrEmpty(actorId))
@@ -1293,6 +1328,7 @@ public class BattlePresentationController : MonoBehaviour
         return delay;
     }
 
+    // Defense note: Runs the peek delay until recorded marker helper used by this script.
     private float PeekDelayUntilRecordedMarker(string actorId)
     {
         if (string.IsNullOrEmpty(actorId))
@@ -1303,6 +1339,7 @@ public class BattlePresentationController : MonoBehaviour
         return Mathf.Max(0f, markerTime - Time.time);
     }
 
+    // Defense note: Runs the on feedback helper used by this script.
     private void OnFeedback(BattleFeedbackEvent evt)
     {
         BattleSpriteAnimator target = AnimatorFor(evt.TargetId);
@@ -1339,6 +1376,7 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the on status applied helper used by this script.
     private void OnStatusApplied(StatusAppliedEvent evt)
     {
         float delay = DelayUntilRecordedMarker(evt.SourceId);
@@ -1348,6 +1386,7 @@ public class BattlePresentationController : MonoBehaviour
             PlayStatusAppliedFeedback(evt);
     }
 
+    // Defense note: Plays the status applied feedback animation, audio, or feedback.
     private void PlayStatusAppliedFeedback(StatusAppliedEvent evt)
     {
         BattleSpriteAnimator target = AnimatorFor(evt.TargetId);
@@ -1358,12 +1397,14 @@ public class BattlePresentationController : MonoBehaviour
         SpawnUtilityFeedback(target, $"{evt.Status} +{evt.Stacks}", color);
     }
 
+    // Defense note: Plays the status applied feedback after delay animation, audio, or feedback.
     private IEnumerator PlayStatusAppliedFeedbackAfterDelay(StatusAppliedEvent evt, float delay)
     {
         yield return new WaitForSeconds(delay);
         PlayStatusAppliedFeedback(evt);
     }
 
+    // Defense note: Runs the on unit fainted helper used by this script.
     private void OnUnitFainted(UnitFaintedEvent evt)
     {
         BattleSpriteAnimator target = AnimatorFor(evt.UnitId);
@@ -1371,6 +1412,7 @@ public class BattlePresentationController : MonoBehaviour
             target.PlayFaint();
     }
 
+    // Defense note: Runs the on counter helper used by this script.
     private void OnCounter(CounterEvent evt)
     {
         BattleSpriteAnimator counter = AnimatorFor(evt.CounterId);
@@ -1417,6 +1459,7 @@ public class BattlePresentationController : MonoBehaviour
         SpawnUtilityFeedback(counter, "COUNTER", new Color(1f, 0.92f, 0.45f));
     }
 
+    // Defense note: Runs the on subroutine triggered helper used by this script.
     private void OnSubroutineTriggered(SubroutineTriggeredEvent evt)
     {
         BattleSpriteAnimator owner = AnimatorFor(evt.OwnerId);
@@ -1429,6 +1472,7 @@ public class BattlePresentationController : MonoBehaviour
         SpawnUtilityFeedback(owner, label, subroutineFeedbackColor);
     }
 
+    // Defense note: Runs the suppress next counter action helper used by this script.
     private void SuppressNextCounterAction(string combatantId)
     {
         if (string.IsNullOrEmpty(combatantId))
@@ -1441,6 +1485,7 @@ public class BattlePresentationController : MonoBehaviour
 
     // The counter sequence plays its own flinch (or intentionally plays none), so the
     // async DamageEvent must not also flinch the same target. Number still shows.
+    // Defense note: Runs the suppress next hit reaction helper used by this script.
     private void SuppressNextHitReaction(string combatantId)
     {
         if (string.IsNullOrEmpty(combatantId))
@@ -1450,6 +1495,7 @@ public class BattlePresentationController : MonoBehaviour
         hitReactionSuppressCounts[combatantId] = count + 1;
     }
 
+    // Defense note: Runs the consume hit reaction suppression helper used by this script.
     private bool ConsumeHitReactionSuppression(string combatantId)
     {
         if (string.IsNullOrEmpty(combatantId))
@@ -1465,6 +1511,7 @@ public class BattlePresentationController : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the animator for helper used by this script.
     private BattleSpriteAnimator AnimatorFor(string id)
     {
         if (string.IsNullOrEmpty(id))
@@ -1476,21 +1523,25 @@ public class BattlePresentationController : MonoBehaviour
         return null;
     }
 
+    // Defense note: Runs the spawn feedback helper used by this script.
     private void SpawnFeedback(BattleSpriteAnimator target, string label, Color color)
     {
         SpawnFeedback(target, label, color, null, false);
     }
 
+    // Defense note: Runs the spawn utility feedback helper used by this script.
     private void SpawnUtilityFeedback(BattleSpriteAnimator target, string label, Color color)
     {
         SpawnFeedback(target, label, color, null, true, ShouldUseEnemyDamageSidePosition(target));
     }
 
+    // Defense note: Runs the spawn feedback helper used by this script.
     private void SpawnFeedback(BattleSpriteAnimator target, string label, Color color, ElementType? skillElement)
     {
         SpawnFeedback(target, label, color, skillElement, false);
     }
 
+    // Defense note: Runs the spawn feedback helper used by this script.
     private void SpawnFeedback(
         BattleSpriteAnimator target,
         string label,
@@ -1501,6 +1552,7 @@ public class BattlePresentationController : MonoBehaviour
         SpawnFeedback(target, label, color, skillElement, useUtilityBitmapFont, false);
     }
 
+    // Defense note: Runs the spawn feedback helper used by this script.
     private void SpawnFeedback(
         BattleSpriteAnimator target,
         string label,
@@ -1558,6 +1610,7 @@ public class BattlePresentationController : MonoBehaviour
     /// while the HUD shows its flash + letterbox banner. Yields for the hold so
     /// the manager can chain straight into the normal clash animation afterward.
     /// </summary>
+    // Defense note: Plays the counter cut in flourish animation, audio, or feedback.
     public IEnumerator PlayCounterCutInFlourish(string winnerId)
     {
         BattleSpriteAnimator winner = AnimatorFor(winnerId);
@@ -1573,6 +1626,7 @@ public class BattlePresentationController : MonoBehaviour
     /// Exposes a combatant's Status animation frames + fps so the HUD can replay
     /// the winner's status pose inside the counter banner.
     /// </summary>
+    // Defense note: Attempts to get status frames and reports success or failure.
     public bool TryGetStatusFrames(string id, out Sprite[] frames, out float fps)
     {
         frames = null;
@@ -1587,16 +1641,19 @@ public class BattlePresentationController : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the should use enemy damage side position helper used by this script.
     private bool ShouldUseEnemyDamageSidePosition(BattleSpriteAnimator target)
     {
         return offsetEnemyDamageInward && target != null && target == enemyAnimator;
     }
 
+    // Defense note: Runs the should use player left position helper used by this script.
     private bool ShouldUsePlayerLeftPosition(BattleSpriteAnimator target)
     {
         return movePlayerFeedbackLeft && target != null && target == playerAnimator;
     }
 
+    // Defense note: Runs the feedback position for helper used by this script.
     private Vector3 FeedbackPositionFor(
         BattleSpriteAnimator target,
         bool useEnemyDamageSidePosition,
@@ -1609,6 +1666,7 @@ public class BattlePresentationController : MonoBehaviour
         return target.FeedbackWorldPosition;
     }
 
+    // Defense note: Runs the bitmap font for feedback helper used by this script.
     private NicoBitmapFontReference BitmapFontForFeedback(ElementType? skillElement, bool useUtilityBitmapFont)
     {
         if (feedbackBitmapFontMode == FeedbackBitmapFontMode.Unified)
@@ -1620,6 +1678,7 @@ public class BattlePresentationController : MonoBehaviour
         return useUtilityBitmapFont ? utilityBitmapFont : null;
     }
 
+    // Defense note: Attempts to create bitmap feedback and reports success or failure.
     private bool TryCreateBitmapFeedback(
         Transform root,
         string label,
@@ -1644,6 +1703,7 @@ public class BattlePresentationController : MonoBehaviour
         return glyphRenderers.Count > 0;
     }
 
+    // Defense note: Runs the style bitmap feedback renderers helper used by this script.
     private void StyleBitmapFeedbackRenderers(List<SpriteRenderer> glyphRenderers, Color feedbackColor, int sortingOrder)
     {
         if (glyphRenderers == null)
@@ -1682,6 +1742,7 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the adjusted bitmap feedback color helper used by this script.
     private Color AdjustedBitmapFeedbackColor(Color feedbackColor)
     {
         Color.RGBToHSV(feedbackColor, out float h, out float s, out float v);
@@ -1690,6 +1751,7 @@ public class BattlePresentationController : MonoBehaviour
         return adjusted;
     }
 
+    // Defense note: Adds the bitmap layer renderer entry into the target collection or UI.
     private static void AddBitmapLayerRenderer(
         SpriteRenderer source,
         List<SpriteRenderer> allRenderers,
@@ -1716,6 +1778,7 @@ public class BattlePresentationController : MonoBehaviour
         allRenderers.Add(renderer);
     }
 
+    // Defense note: Attempts to get bitmap font and reports success or failure.
     private bool TryGetBitmapFont(NicoBitmapFontReference source, out NicoBitmapFont font)
     {
         if (source.TryGetAssignedFont(out font))
@@ -1729,6 +1792,7 @@ public class BattlePresentationController : MonoBehaviour
         return source.TryGetCatalogFont(bitmapFeedbackFontAssetRoot, out font);
     }
 
+    // Defense note: Runs the bitmap font for element helper used by this script.
     private NicoBitmapFontReference BitmapFontForElement(ElementType element)
     {
         switch (element)
@@ -1751,6 +1815,7 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    // Defense note: Plays the defense blocks attack counter animation, audio, or feedback.
     private IEnumerator PlayDefenseBlocksAttackCounter(
         CounterEvent evt,
         BattleSpriteAnimator defender,
@@ -1813,6 +1878,7 @@ public class BattlePresentationController : MonoBehaviour
             attacker.ContinueHeldProfileClip();
     }
 
+    // Defense note: Plays the profile counter sequence animation, audio, or feedback.
     private IEnumerator PlayProfileCounterSequence(
         CounterEvent evt,
         BattleSpriteAnimator counter,
@@ -1836,6 +1902,7 @@ public class BattlePresentationController : MonoBehaviour
     // lands its hit, and at contact the windup is cut to idle and the loser flinches
     // once. The damage NUMBER comes from the async DamageEvent; we suppress only its
     // (duplicate) flinch.
+    // Defense note: Plays the attack counters status animation, audio, or feedback.
     private IEnumerator PlayAttackCountersStatus(
         CounterEvent evt,
         BattleSpriteAnimator attacker,
@@ -1871,6 +1938,7 @@ public class BattlePresentationController : MonoBehaviour
 
     // Case 3: Status counters Defense. The defender just holds (loops) its block frames
     // until the status user's windup has fully played out — no flinch, no shake.
+    // Defense note: Plays the status counters defense animation, audio, or feedback.
     private IEnumerator PlayStatusCountersDefense(
         CounterEvent evt,
         BattleSpriteAnimator statusUser,
@@ -1896,6 +1964,7 @@ public class BattlePresentationController : MonoBehaviour
             yield return new WaitForSeconds(holdWindow);
     }
 
+    // Defense note: Plays the counter instruction animation, audio, or feedback.
     private void PlayCounterInstruction(
         BattleSpriteAnimator actor,
         InstructionType instruction,
@@ -1919,6 +1988,7 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the state for instruction helper used by this script.
     private static BattleAnimationState StateForInstruction(InstructionType instruction)
     {
         switch (instruction)
@@ -1933,6 +2003,7 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the consume suppressed counter action helper used by this script.
     private bool ConsumeSuppressedCounterAction(string attackerId)
     {
         if (string.IsNullOrEmpty(attackerId))
@@ -1962,6 +2033,7 @@ public class BattlePresentationController : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the should suppress hit reaction helper used by this script.
     private bool ShouldSuppressHitReaction(string combatantId)
     {
         if (string.IsNullOrEmpty(combatantId))
@@ -1975,6 +2047,7 @@ public class BattlePresentationController : MonoBehaviour
         return false;
     }
 
+    // Defense note: Runs the damage label helper used by this script.
     private static string DamageLabel(DamageEvent evt)
     {
         if (evt.ElementMultiplier > 1.01f)
@@ -1984,6 +2057,7 @@ public class BattlePresentationController : MonoBehaviour
         return $"-{evt.Amount}";
     }
 
+    // Defense note: Runs the damage color helper used by this script.
     private Color DamageColor(ElementType skillElement)
     {
         switch (skillElement)
@@ -2006,6 +2080,7 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the next feedback offset helper used by this script.
     private Vector3 NextFeedbackOffset(
         BattleSpriteAnimator target,
         bool useRightSideDamageOffsets = false,
@@ -2025,6 +2100,7 @@ public class BattlePresentationController : MonoBehaviour
         return offsets[slot % offsets.Length];
     }
 
+    // Defense note: Runs the float and fade helper used by this script.
     private IEnumerator FloatAndFade(GameObject go, TextMesh text, Color startColor)
     {
         Vector3 start = go.transform.position;
@@ -2049,6 +2125,7 @@ public class BattlePresentationController : MonoBehaviour
             Destroy(go);
     }
 
+    // Defense note: Runs the float and fade helper used by this script.
     private IEnumerator FloatAndFade(GameObject go, List<SpriteRenderer> renderers)
     {
         Vector3 start = go.transform.position;
@@ -2081,6 +2158,7 @@ public class BattlePresentationController : MonoBehaviour
             Destroy(go);
     }
 
+    // Defense note: Runs the status color helper used by this script.
     private static Color StatusColor(StatusType status)
     {
         switch (status)
@@ -2104,6 +2182,7 @@ public class BattlePresentationController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the ease out cubic helper used by this script.
     private static float EaseOutCubic(float t)
     {
         float inv = 1f - Mathf.Clamp01(t);

@@ -6,9 +6,11 @@ using UnityEngine.UI;
 /// so the flat background can feel alive without requiring layered source art.
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: MainTerminalCoverAnimator is a Unity component attached to a scene object for this feature.
 public class MainTerminalCoverAnimator : MonoBehaviour
 {
     [System.Serializable]
+    // Defense note: FingerTapPatch groups small runtime values that are passed around together.
     private struct FingerTapPatch
     {
         public RectTransform patch;
@@ -43,12 +45,14 @@ public class MainTerminalCoverAnimator : MonoBehaviour
     private int leftMotionIndex;
     private float leftMotionTimer;
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         CacheFingerOrigins();
         InitializeLeftMotion();
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         float time = Time.unscaledTime;
@@ -59,6 +63,7 @@ public class MainTerminalCoverAnimator : MonoBehaviour
         AnimateKeyGlows(time);
     }
 
+    // Defense note: Runs the cache finger origins helper used by this script.
     private void CacheFingerOrigins()
     {
         if (fingerPatches == null || fingerPatches.Length == 0)
@@ -76,6 +81,7 @@ public class MainTerminalCoverAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the animate finger patches helper used by this script.
     private void AnimateFingerPatches(float time)
     {
         if (fingerPatches == null || fingerOrigins == null)
@@ -105,6 +111,7 @@ public class MainTerminalCoverAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the initialize left motion helper used by this script.
     private void InitializeLeftMotion()
     {
         leftMotionIndex = 0;
@@ -123,6 +130,7 @@ public class MainTerminalCoverAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the animate left motion helper used by this script.
     private void AnimateLeftMotion(float deltaTime)
     {
         if (leftMotionCurrent == null || leftMotionFrames == null || leftMotionFrames.Length <= 1)
@@ -157,6 +165,7 @@ public class MainTerminalCoverAnimator : MonoBehaviour
         SetAlpha(leftMotionNext, Mathf.SmoothStep(0f, 1f, fade));
     }
 
+    // Defense note: Runs the animate glow helper used by this script.
     private void AnimateGlow(float time)
     {
         float pulse = 0.5f + 0.5f * Mathf.Sin(time * 7.2f);
@@ -169,6 +178,7 @@ public class MainTerminalCoverAnimator : MonoBehaviour
             SetAlpha(cursor, Mathf.PingPong(time * 2.5f, 1f) > 0.5f ? 0.95f : 0.12f);
     }
 
+    // Defense note: Runs the animate status dots helper used by this script.
     private void AnimateStatusDots(float time)
     {
         if (statusDots == null)
@@ -184,6 +194,7 @@ public class MainTerminalCoverAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the animate key glows helper used by this script.
     private void AnimateKeyGlows(float time)
     {
         if (keyGlows == null)
@@ -202,6 +213,7 @@ public class MainTerminalCoverAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the alpha state or visual value.
     private static void SetAlpha(Graphic graphic, float alpha)
     {
         Color color = graphic.color;

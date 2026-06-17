@@ -17,11 +17,14 @@ using UnityEngine;
 /// totalLayers includes the Start layer and the Boss layer.
 /// </summary>
 [Serializable]
+// Defense note: GridGenerationSettings is the main grid generation settings type used by this part of the project.
 public class GridGenerationSettings
 {
+    public const int RuntimeMaxIntermediateNodesPerLayer = 3;
+
     [Min(3)] public int totalLayers = 7;
     [Min(1)] public int minIntermediateNodes = 1;
-    [Min(1)] public int maxIntermediateNodes = 4;
+    [Min(1)] public int maxIntermediateNodes = RuntimeMaxIntermediateNodesPerLayer;
     [Min(1)] public int minOutgoingEdges = 1;
     [Min(1)] public int maxOutgoingEdges = 3;
     [Min(1)] public int maxGenerationAttempts = 10;
@@ -33,9 +36,11 @@ public class GridGenerationSettings
     [Min(0)] public int shopWeight = 10;
     [Min(0)] public int rebootWeight = 5;
 
-    [Header("Temporary Visual Audit")]
+    [Header("Node Type Variety")]
+    [Tooltip("Keeps the old serialized field name, but now only nudges generated nodes toward type variety without forcing layer size.")]
     public bool forceAllNodeTypesForVisualAudit = true;
 
+    // Defense note: Runs the clone for threat tier helper used by this script.
     public static GridGenerationSettings CloneForThreatTier(GridGenerationSettings source, int threatTier, int seed)
     {
         GridGenerationSettings clone = source != null
@@ -43,14 +48,11 @@ public class GridGenerationSettings
             : new GridGenerationSettings().CloneNormalized();
 
         clone.totalLayers = TotalLayersForThreatTier(threatTier, seed);
-        if (clone.forceAllNodeTypesForVisualAudit)
-        {
-            clone.maxIntermediateNodes = Mathf.Max(clone.maxIntermediateNodes, 5);
-            clone.maxOutgoingEdges = Mathf.Max(clone.maxOutgoingEdges, 5);
-        }
+        clone.maxIntermediateNodes = Mathf.Min(clone.maxIntermediateNodes, RuntimeMaxIntermediateNodesPerLayer);
         return clone;
     }
 
+    // Defense note: Runs the total layers for threat tier helper used by this script.
     public static int TotalLayersForThreatTier(int threatTier, int seed)
     {
         int min = MinTotalLayersForThreatTier(threatTier);
@@ -63,6 +65,7 @@ public class GridGenerationSettings
         return min + ((hash & int.MaxValue) % span);
     }
 
+    // Defense note: Runs the min total layers for threat tier helper used by this script.
     public static int MinTotalLayersForThreatTier(int threatTier)
     {
         int tier = Mathf.Clamp(threatTier, ThreatTierRules.MinTier, ThreatTierRules.MaxTier);
@@ -81,6 +84,7 @@ public class GridGenerationSettings
         }
     }
 
+    // Defense note: Runs the max total layers for threat tier helper used by this script.
     public static int MaxTotalLayersForThreatTier(int threatTier)
     {
         int tier = Mathf.Clamp(threatTier, ThreatTierRules.MinTier, ThreatTierRules.MaxTier);
@@ -99,6 +103,7 @@ public class GridGenerationSettings
         }
     }
 
+    // Defense note: Runs the total layer range label helper used by this script.
     public static string TotalLayerRangeLabel(int threatTier)
     {
         int min = MinTotalLayersForThreatTier(threatTier);
@@ -106,6 +111,7 @@ public class GridGenerationSettings
         return min == max ? $"{min}" : $"{min}-{max}";
     }
 
+    // Defense note: Runs the clone normalized helper used by this script.
     public GridGenerationSettings CloneNormalized()
     {
         return new GridGenerationSettings

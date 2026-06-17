@@ -9,6 +9,7 @@ using UnityEngine.UI;
 /// to MainTerminal when the player confirms.
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: RunResultController controls the run result UI or gameplay flow.
 public class RunResultController : MonoBehaviour
 {
     [SerializeField] private Canvas canvas;
@@ -67,6 +68,7 @@ public class RunResultController : MonoBehaviour
     private static readonly Color TextMuted = new Color(0.56f, 0.76f, 0.84f, 1f);
     private static readonly Color RowFill = new Color(0.026f, 0.047f, 0.070f, 0.82f);
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         readableFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -79,6 +81,7 @@ public class RunResultController : MonoBehaviour
         EnsureSceneObjects();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         if (continueButton == null)
@@ -88,17 +91,20 @@ public class RunResultController : MonoBehaviour
         continueButton.onClick.AddListener(ReturnToTerminal);
     }
 
+    // Defense note: Unity lifecycle hook that runs the on disable step for this component.
     private void OnDisable()
     {
         if (continueButton != null)
             continueButton.onClick.RemoveListener(ReturnToTerminal);
     }
 
+    // Defense note: Unity lifecycle hook that runs the start step for this component.
     private void Start()
     {
         Refresh();
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         if (accentFill != null)
@@ -117,6 +123,7 @@ public class RunResultController : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the alpha state or visual value.
     private static void SetAlpha(Image image, float alpha)
     {
         Color color = image.color;
@@ -124,6 +131,7 @@ public class RunResultController : MonoBehaviour
         image.color = color;
     }
 
+    // Defense note: Runs the refresh helper used by this script.
     private void Refresh()
     {
         RunOutcome outcome = manager != null ? manager.pendingRunOutcome : RunOutcome.None;
@@ -187,6 +195,7 @@ public class RunResultController : MonoBehaviour
 
     /// <summary>Retint every chrome piece by outcome: victory keeps the cyan family
     /// with amber highlights; defeat shifts the panel border, brackets, and bands red.</summary>
+    // Defense note: Applies the outcome chrome change to gameplay or UI state.
     private void ApplyOutcomeChrome(bool victory, bool defeat, Color accent, Color secondary)
     {
         if (panelImage != null)
@@ -240,6 +249,7 @@ public class RunResultController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the return to terminal helper used by this script.
     private void ReturnToTerminal()
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -252,31 +262,37 @@ public class RunResultController : MonoBehaviour
         GameManager.GoTo(GameScene.MainTerminal);
     }
 
+    // Defense note: Runs the node type text helper used by this script.
     private string NodeTypeText()
     {
         return manager != null ? manager.completedRunNodeType.ToString().ToUpperInvariant() : "--";
     }
 
+    // Defense note: Runs the completed visited count helper used by this script.
     private int CompletedVisitedCount()
     {
         return manager != null ? Mathf.Max(0, manager.completedRunVisitedCount) : 0;
     }
 
+    // Defense note: Runs the completed threat tier helper used by this script.
     private int CompletedThreatTier()
     {
         return manager != null ? Mathf.Max(0, manager.completedRunThreatTier) : 0;
     }
 
+    // Defense note: Runs the reward exp helper used by this script.
     private static int RewardExp(RunRewardSummary rewards)
     {
         return rewards != null ? Mathf.Max(0, rewards.algoMonExp) : 0;
     }
 
+    // Defense note: Runs the reward compute helper used by this script.
     private static int RewardCompute(RunRewardSummary rewards)
     {
         return rewards != null ? Mathf.Max(0, rewards.compute) : 0;
     }
 
+    // Defense note: Runs the data reward text helper used by this script.
     private static string DataRewardText(RunRewardSummary rewards)
     {
         if (rewards == null)
@@ -291,6 +307,7 @@ public class RunResultController : MonoBehaviour
         return $"+{data}";
     }
 
+    // Defense note: Returns whether reward data exists or is active.
     private static bool HasRewardData(RunRewardSummary rewards)
     {
         return rewards != null &&
@@ -301,11 +318,13 @@ public class RunResultController : MonoBehaviour
                 rewards.evolutionDataCount > 0);
     }
 
+    // Defense note: Returns whether granted species exists or is active.
     private static bool HasGrantedSpecies(RunRewardSummary rewards)
     {
         return rewards != null && !string.IsNullOrWhiteSpace(rewards.grantedSpeciesCodeName);
     }
 
+    // Defense note: Ensures the scene objects dependency or state exists before use.
     private void EnsureSceneObjects()
     {
         EnsureEventSystem();
@@ -454,6 +473,7 @@ public class RunResultController : MonoBehaviour
         SetStretchRect(buttonRect, new Vector2(0.375f, 0.150f), new Vector2(0.625f, 0.218f));
     }
 
+    // Defense note: Creates the corner bracket object used by the scene or runtime.
     private void CreateCornerBracket(Transform parent, Vector2 corner, float xDir, float yDir)
     {
         const float armLong = 0.030f;
@@ -474,6 +494,7 @@ public class RunResultController : MonoBehaviour
         cornerBrackets.Add(vertical);
     }
 
+    // Defense note: Creates the result row object used by the scene or runtime.
     private void CreateResultRow(int index, Transform parent, string objectName, Vector2 anchorMin, Vector2 anchorMax)
     {
         if (index < 0 || index >= ResultRowCount)
@@ -502,6 +523,7 @@ public class RunResultController : MonoBehaviour
         resultRowValues[index] = value;
     }
 
+    // Defense note: Creates the acquired mon card object used by the scene or runtime.
     private void CreateAcquiredMonCard()
     {
         if (resultRowFrames[2] == null)
@@ -532,6 +554,7 @@ public class RunResultController : MonoBehaviour
         SetAcquiredMonCard(null, TextMuted, TextMuted, false);
     }
 
+    // Defense note: Updates the result row state or visual value.
     private void SetResultRow(int index, string label, string value, Color accent, bool active = true)
     {
         if (index < 0 || index >= ResultRowCount)
@@ -566,6 +589,7 @@ public class RunResultController : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the acquired mon card state or visual value.
     private void SetAcquiredMonCard(RunRewardSummary rewards, Color accent, Color secondary, bool active)
     {
         bool show = active && HasGrantedSpecies(rewards);
@@ -613,18 +637,21 @@ public class RunResultController : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the graphic active state or visual value.
     private static void SetGraphicActive(Graphic graphic, bool active)
     {
         if (graphic != null)
             graphic.gameObject.SetActive(active);
     }
 
+    // Defense note: Updates the text active state or visual value.
     private static void SetTextActive(Text text, bool active)
     {
         if (text != null)
             text.gameObject.SetActive(active);
     }
 
+    // Defense note: Updates the stretch rect state or visual value.
     private static void SetStretchRect(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
     {
         if (rect == null)
@@ -636,6 +663,7 @@ public class RunResultController : MonoBehaviour
         rect.offsetMax = Vector2.zero;
     }
 
+    // Defense note: Updates the line rect state or visual value.
     private static void SetLineRect(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax, float height)
     {
         if (rect == null)
@@ -650,6 +678,7 @@ public class RunResultController : MonoBehaviour
     // 9-slice cyber-glass chrome: dark translucent fill, 2px cyan border, chamfered
     // corners. Purely procedural so the run-result scene needs no art asset or scene
     // wiring and looks identical to the battle HUD panels.
+    // Defense note: Runs the cyber panel sprite helper used by this script.
     private Sprite CyberPanelSprite()
     {
         if (panelChromeSprite == null)
@@ -657,6 +686,7 @@ public class RunResultController : MonoBehaviour
         return panelChromeSprite;
     }
 
+    // Defense note: Runs the cyber panel defeat sprite helper used by this script.
     private Sprite CyberPanelDefeatSprite()
     {
         if (panelChromeDefeatSprite == null)
@@ -664,6 +694,7 @@ public class RunResultController : MonoBehaviour
         return panelChromeDefeatSprite;
     }
 
+    // Defense note: Builds the chrome sprite data or UI structure.
     private static Sprite BuildChromeSprite(Color edge, string spriteName)
     {
         const int size = 28;
@@ -715,6 +746,7 @@ public class RunResultController : MonoBehaviour
         return sprite;
     }
 
+    // Defense note: Creates the canvas object used by the scene or runtime.
     private Canvas CreateCanvas()
     {
         GameObject canvasObject = new GameObject("Canvas_RunResult", typeof(RectTransform));
@@ -729,6 +761,7 @@ public class RunResultController : MonoBehaviour
 
     // Result text uses fixed sizes and no shadow/outline so both the readable
     // default font and the verdict's pixel font stay crisp.
+    // Defense note: Creates the text object used by the scene or runtime.
     private Text CreateText(string objectName, Transform parent, int size, FontStyle style, TextAnchor alignment)
     {
         GameObject textObject = new GameObject(objectName, typeof(RectTransform));
@@ -743,18 +776,21 @@ public class RunResultController : MonoBehaviour
         return text;
     }
 
+    // Defense note: Applies the readable font change to gameplay or UI state.
     private void ApplyReadableFont(Text text)
     {
         if (text != null && readableFont != null)
             text.font = readableFont;
     }
 
+    // Defense note: Applies the pixel font change to gameplay or UI state.
     private void ApplyPixelFont(Text text)
     {
         if (text != null && pixelFont != null)
             text.font = pixelFont;
     }
 
+    // Defense note: Creates the image object used by the scene or runtime.
     private Image CreateImage(string objectName, Transform parent, Color color)
     {
         GameObject imageObject = new GameObject(objectName, typeof(RectTransform));
@@ -765,6 +801,7 @@ public class RunResultController : MonoBehaviour
         return image;
     }
 
+    // Defense note: Creates the button object used by the scene or runtime.
     private Button CreateButton(string objectName, Transform parent, string label)
     {
         GameObject buttonObject = new GameObject(objectName, typeof(RectTransform));
@@ -793,6 +830,7 @@ public class RunResultController : MonoBehaviour
         return button;
     }
 
+    // Defense note: Finds the species by code name reference used by this component.
     private static AlgoMonData FindSpeciesByCodeName(string codeName)
     {
         string normalized = NormalizeSpeciesKey(codeName);
@@ -817,6 +855,7 @@ public class RunResultController : MonoBehaviour
         return null;
     }
 
+    // Defense note: Runs the reward species sprite helper used by this script.
     private static Sprite RewardSpeciesSprite(AlgoMonData species)
     {
         if (species == null)
@@ -834,6 +873,7 @@ public class RunResultController : MonoBehaviour
         return FirstSprite(profile != null ? profile.entry : null);
     }
 
+    // Defense note: Runs the first sprite helper used by this script.
     private static Sprite FirstSprite(BattleAnimationClipData clip)
     {
         if (clip == null || clip.frames == null)
@@ -848,11 +888,13 @@ public class RunResultController : MonoBehaviour
         return null;
     }
 
+    // Defense note: Runs the normalize species key helper used by this script.
     private static string NormalizeSpeciesKey(string value)
     {
         return string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
     }
 
+    // Defense note: Ensures the event system dependency or state exists before use.
     private static void EnsureEventSystem()
     {
         if (EventSystem.current != null || FindObjectOfType<EventSystem>() != null)

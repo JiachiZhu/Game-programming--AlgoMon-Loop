@@ -15,6 +15,7 @@ MonoBehaviour:
   profileId: Cachelon_Base
   mirrorX: 0
   visualScaleMultiplier: 1
+  horizontalScaleMultiplier: 1
   entry:
     frames:
     - {fileID: 21300000, guid: 330e869b366a412a821cd7abc09324d6, type: 3}

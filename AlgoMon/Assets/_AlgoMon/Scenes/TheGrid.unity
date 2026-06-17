@@ -4943,7 +4943,7 @@ MonoBehaviour:
   fallbackGenerationSettings:
     totalLayers: 7
     minIntermediateNodes: 1
-    maxIntermediateNodes: 4
+    maxIntermediateNodes: 3
     minOutgoingEdges: 1
     maxOutgoingEdges: 3
     maxGenerationAttempts: 10

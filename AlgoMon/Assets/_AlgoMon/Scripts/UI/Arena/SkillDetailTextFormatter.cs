@@ -5,8 +5,10 @@ using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
+// Defense note: SkillDetailTextFormatter formats gameplay data into readable UI text.
 internal static class SkillDetailTextFormatter
 {
+    // Defense note: Builds the body data or UI structure.
     public static string BuildBody(string metaLine, params string[] sections)
     {
         var builder = new StringBuilder();
@@ -28,11 +30,13 @@ internal static class SkillDetailTextFormatter
         return builder.ToString().Trim();
     }
 
+    // Defense note: Runs the format meta line helper used by this script.
     public static string FormatMetaLine(string metaLine)
     {
         return $"<b><size=17>{Highlight(metaLine)}</size></b>";
     }
 
+    // Defense note: Runs the highlight helper used by this script.
     public static string Highlight(string text)
     {
         if (string.IsNullOrWhiteSpace(text))
@@ -49,6 +53,7 @@ internal static class SkillDetailTextFormatter
         });
     }
 
+    // Defense note: Builds the readable description data or UI structure.
     public static string BuildReadableDescription(SkillData skill)
     {
         if (skill == null || string.IsNullOrWhiteSpace(skill.description))
@@ -61,6 +66,7 @@ internal static class SkillDetailTextFormatter
         return NormalizeWhitespace(text);
     }
 
+    // Defense note: Builds the counter summary data or UI structure.
     public static string BuildCounterSummary(SkillData skill)
     {
         if (skill == null || !skill.canCounter)
@@ -137,6 +143,7 @@ internal static class SkillDetailTextFormatter
     /// using the same status/duration vocabulary as the skill counter summary so numbers
     /// and effect terms light up via Highlight().
     /// </summary>
+    // Defense note: Builds the subroutine summary data or UI structure.
     public static string BuildSubroutineSummary(SubroutineData subroutine)
     {
         if (subroutine == null)
@@ -186,6 +193,7 @@ internal static class SkillDetailTextFormatter
         return $"Effect: {char.ToUpperInvariant(joined[0])}{joined.Substring(1)}.";
     }
 
+    // Defense note: Adds the status part entry into the target collection or UI.
     private static void AddStatusPart(
         List<string> parts,
         string target,
@@ -220,11 +228,13 @@ internal static class SkillDetailTextFormatter
         }
     }
 
+    // Defense note: Runs the target suffix helper used by this script.
     private static string TargetSuffix(bool self)
     {
         return self ? string.Empty : " to opponent";
     }
 
+    // Defense note: Runs the status name helper used by this script.
     private static string StatusName(StatusType status)
     {
         switch (status)
@@ -238,6 +248,7 @@ internal static class SkillDetailTextFormatter
         }
     }
 
+    // Defense note: Runs the format duration helper used by this script.
     private static string FormatDuration(StatusDurationType durationType, int duration)
     {
         switch (durationType)
@@ -254,6 +265,7 @@ internal static class SkillDetailTextFormatter
         }
     }
 
+    // Defense note: Runs the format percent helper used by this script.
     private static string FormatPercent(float fraction)
     {
         float percent = Mathf.Max(0f, fraction) * 100f;
@@ -262,16 +274,19 @@ internal static class SkillDetailTextFormatter
             : $"{percent.ToString("0.#", CultureInfo.InvariantCulture)}%";
     }
 
+    // Defense note: Runs the format multiplier helper used by this script.
     private static string FormatMultiplier(float value)
     {
         return value.ToString("0.##", CultureInfo.InvariantCulture);
     }
 
+    // Defense note: Runs the format signed helper used by this script.
     private static string FormatSigned(int value)
     {
         return value > 0 ? $"+{value}" : value.ToString(CultureInfo.InvariantCulture);
     }
 
+    // Defense note: Runs the normalize whitespace helper used by this script.
     private static string NormalizeWhitespace(string text)
     {
         return string.IsNullOrWhiteSpace(text)
@@ -279,6 +294,7 @@ internal static class SkillDetailTextFormatter
             : WhitespaceRegex.Replace(text.Trim(), " ");
     }
 
+    // Defense note: Runs the extract counter description helper used by this script.
     private static string ExtractCounterDescription(string description)
     {
         if (string.IsNullOrWhiteSpace(description))
@@ -291,6 +307,7 @@ internal static class SkillDetailTextFormatter
         return NormalizeWhitespace(match.Groups["effect"].Value);
     }
 
+    // Defense note: Ends the s with sentence punctuation flow and clears its runtime state.
     private static bool EndsWithSentencePunctuation(string text)
     {
         if (string.IsNullOrWhiteSpace(text))

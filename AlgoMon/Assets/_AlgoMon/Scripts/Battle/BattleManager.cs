@@ -34,6 +34,7 @@ using UnityEngine;
 /// intentionally left for follow-up battle issues.
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: BattleManager coordinates the main state and flow for the battle system.
 public class BattleManager : MonoBehaviour
 {
     private const int MaxCP = 10;
@@ -46,6 +47,7 @@ public class BattleManager : MonoBehaviour
     private const string EnemyPresentationId = "Enemy";
     private static readonly Dictionary<string, Sprite> switchPortraitSpriteCache = new Dictionary<string, Sprite>();
 
+    // Defense note: BattlePhase defines the valid battle phase options used by the gameplay systems.
     private enum BattlePhase
     {
         WaitingForPlayer,
@@ -53,6 +55,7 @@ public class BattleManager : MonoBehaviour
         BattleOver
     }
 
+    // Defense note: BattleActionKind defines the valid battle action kind options used by the gameplay systems.
     private enum BattleActionKind
     {
         Skill,
@@ -60,6 +63,7 @@ public class BattleManager : MonoBehaviour
     }
 
     [Serializable]
+    // Defense note: BattleCombatantConfig is the main battle combatant config type used by this part of the project.
     public class BattleCombatantConfig
     {
         public string displayName = "AlgoMon";
@@ -82,8 +86,10 @@ public class BattleManager : MonoBehaviour
         public SkillData[] skills = new SkillData[MaxSkillSlots];
     }
 
+    // Defense note: BattleUnit is the main battle unit type used by this part of the project.
     private sealed class BattleUnit
     {
+        // Defense note: Initializes the BattleUnit instance and its default runtime state.
         public BattleUnit(BattleCombatantConfig config, AlgoMonInstance instance)
         {
             Config = config;
@@ -102,6 +108,7 @@ public class BattleManager : MonoBehaviour
         public int LastDefenseRound { get; set; } = int.MinValue;
         public bool LowBatterySubroutineTriggered { get; set; }
         public BattleStatusSet Statuses { get; } = new BattleStatusSet();
+        // Defense note: PermanentCostReduction groups small runtime values that are passed around together.
         private struct PermanentCostReduction
         {
             public int Amount;
@@ -115,6 +122,7 @@ public class BattleManager : MonoBehaviour
         public int DisplayLevel => Mathf.Clamp(Config.displayLevel, 1, AlgoMonInstance.MAX_LEVEL);
         public int MaxBattery => Instance.Battery;
 
+        // Defense note: Retrieves the skill value used by this system.
         public SkillData GetSkill(int index)
         {
             if (Config.skills == null) return null;
@@ -122,6 +130,7 @@ public class BattleManager : MonoBehaviour
             return Config.skills[index];
         }
 
+        // Defense note: Runs the cost reduction for helper used by this script.
         public int CostReductionFor(SkillData skill, int currentRound)
         {
             if (skill == null)
@@ -131,6 +140,7 @@ public class BattleManager : MonoBehaviour
             return reduction.AppliedRound < currentRound ? reduction.Amount : 0;
         }
 
+        // Defense note: Applies the permanent cost reduction change to gameplay or UI state.
         public int ApplyPermanentCostReduction(SkillData skill, int amount, int currentRound)
         {
             if (skill == null || amount <= 0)
@@ -149,8 +159,10 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: BattleAction is the main battle action type used by this part of the project.
     private sealed class BattleAction
     {
+        // Defense note: Initializes the BattleAction instance and its default runtime state.
         private BattleAction(BattleActionKind kind, BattleUnit actor, BattleUnit target, SkillData skill, BattleUnit switchTarget)
         {
             Kind = kind;
@@ -160,11 +172,13 @@ public class BattleManager : MonoBehaviour
             SwitchTarget = switchTarget;
         }
 
+        // Defense note: Runs the skill action helper used by this script.
         public static BattleAction SkillAction(BattleUnit actor, BattleUnit target, SkillData skill)
         {
             return new BattleAction(BattleActionKind.Skill, actor, target, skill, null);
         }
 
+        // Defense note: Runs the switch action helper used by this script.
         public static BattleAction SwitchAction(BattleUnit actor, BattleUnit switchTarget)
         {
             return new BattleAction(BattleActionKind.Switch, actor, null, null, switchTarget);
@@ -185,6 +199,7 @@ public class BattleManager : MonoBehaviour
         public InstructionType DefenderInstructionType { get; set; } = InstructionType.Attack;
     }
 
+    // Defense note: BattleEffectBundle groups small runtime values that are passed around together.
     private struct BattleEffectBundle
     {
         public int DrainOpponentCP;
@@ -214,6 +229,7 @@ public class BattleManager : MonoBehaviour
         public float SelfHealPercent;
         public bool ClearsOwnDebuffs;
 
+        // Defense note: Runs the from counter skill helper used by this script.
         public static BattleEffectBundle FromCounterSkill(SkillData skill)
         {
             if (skill == null)
@@ -250,6 +266,7 @@ public class BattleManager : MonoBehaviour
             };
         }
 
+        // Defense note: Runs the from subroutine helper used by this script.
         public static BattleEffectBundle FromSubroutine(SubroutineData subroutine)
         {
             if (subroutine == null)
@@ -360,6 +377,7 @@ public class BattleManager : MonoBehaviour
     private bool AwaitingForcedPlayerSwitch =>
         phase == BattlePhase.WaitingForPlayer && selectingSwitchTarget && forcePlayerSwitchTarget;
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         if (hud == null)
@@ -368,17 +386,20 @@ public class BattleManager : MonoBehaviour
             presentation = FindObjectOfType<BattlePresentationController>();
     }
 
+    // Defense note: Unity lifecycle hook that runs the start step for this component.
     private void Start()
     {
         BindHud();
         StartBattle();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on disable step for this component.
     private void OnDisable()
     {
         StopActiveResolution();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on destroy step for this component.
     private void OnDestroy()
     {
         StopActiveResolution();
@@ -399,6 +420,7 @@ public class BattleManager : MonoBehaviour
     }
 
     [ContextMenu("Restart Battle")]
+    // Defense note: Runs the start battle helper used by this script.
     public void StartBattle()
     {
         StopActiveResolution();
@@ -414,6 +436,7 @@ public class BattleManager : MonoBehaviour
         activeResolution = StartCoroutine(battleStart);
     }
 
+    // Defense note: Runs the start battle coroutine helper used by this script.
     private IEnumerator StartBattleCoroutine()
     {
         StopActiveResolution();
@@ -452,6 +475,7 @@ public class BattleManager : MonoBehaviour
         activeResolution = null;
     }
 
+    // Defense note: Resolves the player skill step and updates dependent state.
     public void ResolvePlayerSkill(int slotIndex)
     {
         if (selectingSwitchTarget)
@@ -488,6 +512,7 @@ public class BattleManager : MonoBehaviour
             ChooseEnemyAction());
     }
 
+    // Defense note: Resolves the recharge step and updates dependent state.
     public void ResolveRecharge()
     {
         if (phase != BattlePhase.WaitingForPlayer || player == null || enemy == null)
@@ -512,6 +537,7 @@ public class BattleManager : MonoBehaviour
             ChooseEnemyAction());
     }
 
+    // Defense note: Runs the start round resolution helper used by this script.
     private void StartRoundResolution(BattleAction playerAction, BattleAction enemyAction)
     {
         StopActiveResolution();
@@ -527,6 +553,7 @@ public class BattleManager : MonoBehaviour
         activeResolution = StartCoroutine(round);
     }
 
+    // Defense note: Runs the start forced player switch helper used by this script.
     private void StartForcedPlayerSwitch(BattleUnit switchTarget)
     {
         StopActiveResolution();
@@ -542,6 +569,7 @@ public class BattleManager : MonoBehaviour
         activeResolution = StartCoroutine(forcedSwitch);
     }
 
+    // Defense note: Resolves the forced player switch coroutine step and updates dependent state.
     private IEnumerator ResolveForcedPlayerSwitchCoroutine(BattleUnit switchTarget)
     {
         if (player == null || enemy == null || switchTarget == null)
@@ -569,6 +597,7 @@ public class BattleManager : MonoBehaviour
     private bool UsesInstantResolution =>
         logLineDelay <= 0f && damageLineDelay <= 0f && actionTransitionDelay <= 0f && roundFinishedDelay <= 0f;
 
+    // Defense note: Runs the run immediate helper used by this script.
     private static void RunImmediate(IEnumerator routine)
     {
         var stack = new Stack<IEnumerator>();
@@ -588,6 +617,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Stops the active resolution routine or feedback safely.
     private void StopActiveResolution()
     {
         if (activeResolution != null)
@@ -597,6 +627,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the bind hud helper used by this script.
     private void BindHud()
     {
         if (hud == null)
@@ -611,6 +642,7 @@ public class BattleManager : MonoBehaviour
         hud.PostBattleContinueClicked += HandlePostBattleContinueClicked;
     }
 
+    // Defense note: Builds the battle parties data or UI structure.
     private void BuildBattleParties()
     {
         playerParty.Clear();
@@ -644,6 +676,7 @@ public class BattleManager : MonoBehaviour
             enemyParty.Add(CreateUnit(enemyConfig, ResolveRunOpponentInstance()));
     }
 
+    // Defense note: Runs the first available unit helper used by this script.
     private static BattleUnit FirstAvailableUnit(List<BattleUnit> party)
     {
         if (party == null || party.Count == 0)
@@ -658,12 +691,14 @@ public class BattleManager : MonoBehaviour
         return party[0];
     }
 
+    // Defense note: Resolves the run opponent instance step and updates dependent state.
     private AlgoMonInstance ResolveRunOpponentInstance()
     {
         GameManager manager = GameManager.Instance;
         return manager != null ? manager.currentOpponent : null;
     }
 
+    // Defense note: Resolves the run opponent party step and updates dependent state.
     private List<AlgoMonInstance> ResolveRunOpponentParty()
     {
         GameManager manager = GameManager.Instance;
@@ -673,6 +708,7 @@ public class BattleManager : MonoBehaviour
         return manager.currentOpponentParty;
     }
 
+    // Defense note: Creates the unit object used by the scene or runtime.
     private BattleUnit CreateUnit(BattleCombatantConfig config, AlgoMonInstance runtimeInstance)
     {
         if (runtimeInstance != null && runtimeInstance.data != null)
@@ -681,6 +717,7 @@ public class BattleManager : MonoBehaviour
         return CreateFallbackUnit(config);
     }
 
+    // Defense note: Creates the fallback unit object used by the scene or runtime.
     private BattleUnit CreateFallbackUnit(BattleCombatantConfig config)
     {
         AlgoMonData data = ScriptableObject.CreateInstance<AlgoMonData>();
@@ -716,6 +753,7 @@ public class BattleManager : MonoBehaviour
         return new BattleUnit(config, instance);
     }
 
+    // Defense note: Builds the runtime config data or UI structure.
     private static BattleCombatantConfig BuildRuntimeConfig(BattleCombatantConfig fallback, AlgoMonInstance instance)
     {
         instance.EnsureKnownSkillsFromLearnset();
@@ -759,6 +797,7 @@ public class BattleManager : MonoBehaviour
         return config;
     }
 
+    // Defense note: Registers the presentation combatants data so other systems can use it.
     private void RegisterPresentationCombatants()
     {
         if (presentation == null || player == null || enemy == null)
@@ -779,6 +818,7 @@ public class BattleManager : MonoBehaviour
     /// Re-registers only the side that changed (a switch / send-next), so the
     /// opponent — which did not change — does not replay its entry animation.
     /// </summary>
+    // Defense note: Registers the presentation combatant data so other systems can use it.
     private void RegisterPresentationCombatant(bool playerSide)
     {
         if (presentation == null || player == null || enemy == null)
@@ -796,6 +836,7 @@ public class BattleManager : MonoBehaviour
             unit.Instance.battleFormName);
     }
 
+    // Defense note: Runs the presentation id for helper used by this script.
     private string PresentationIdFor(BattleUnit unit)
     {
         if (unit == null)
@@ -807,8 +848,10 @@ public class BattleManager : MonoBehaviour
         return string.Empty;
     }
 
+    // Defense note: Runs the clamp stat helper used by this script.
     private static int ClampStat(int value) => Mathf.Clamp(value, 1, 255);
 
+    // Defense note: Runs the display name for helper used by this script.
     private static string DisplayNameFor(AlgoMonInstance instance)
     {
         if (instance == null)
@@ -820,6 +863,7 @@ public class BattleManager : MonoBehaviour
         return "AlgoMon";
     }
 
+    // Defense note: Handles the skill slot clicked event or player interaction.
     private void HandleSkillSlotClicked(int slotIndex)
     {
         ResolvePlayerSkill(slotIndex);
@@ -830,6 +874,7 @@ public class BattleManager : MonoBehaviour
     /// CP shortage, fainted target, trapped, ...). One glitch SFX + the detail
     /// line; refreshHud mirrors what each call site did before the SFX existed.
     /// </summary>
+    // Defense note: Runs the reject action helper used by this script.
     private void RejectAction(string title, string body, bool refreshHud = true)
     {
         AudioManager.Instance?.PlayUiSfx(UiSfx.Invalid);
@@ -838,6 +883,7 @@ public class BattleManager : MonoBehaviour
             RefreshHud();
     }
 
+    // Defense note: Handles the action clicked event or player interaction.
     private void HandleActionClicked(BattleHudController.ActionButton button)
     {
         if (phase != BattlePhase.WaitingForPlayer)
@@ -866,6 +912,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Toggles the switch selection mode or selection state.
     private void ToggleSwitchSelection()
     {
         if (selectingSwitchTarget)
@@ -899,6 +946,7 @@ public class BattleManager : MonoBehaviour
         RefreshHud();
     }
 
+    // Defense note: Resolves the player switch step and updates dependent state.
     private void ResolvePlayerSwitch(int partyIndex)
     {
         if (phase != BattlePhase.WaitingForPlayer || player == null || enemy == null)
@@ -925,6 +973,7 @@ public class BattleManager : MonoBehaviour
             ChooseEnemyAction());
     }
 
+    // Defense note: Runs the choose enemy action helper used by this script.
     private BattleAction ChooseEnemyAction()
     {
         if (TryChooseEnemySwitchTarget(out BattleUnit switchTarget))
@@ -933,6 +982,7 @@ public class BattleManager : MonoBehaviour
         return BattleAction.SkillAction(enemy, player, ChooseEnemySkill());
     }
 
+    // Defense note: Runs the choose enemy skill helper used by this script.
     private SkillData ChooseEnemySkill()
     {
         SkillData bestAttack = null;
@@ -965,6 +1015,7 @@ public class BattleManager : MonoBehaviour
         return rechargeSkill;
     }
 
+    // Defense note: Attempts to choose enemy switch target and reports success or failure.
     private bool TryChooseEnemySwitchTarget(out BattleUnit switchTarget)
     {
         switchTarget = null;
@@ -980,6 +1031,7 @@ public class BattleManager : MonoBehaviour
         return TryGetBestSwitchTarget(enemyParty, enemy, player, lowBattery, out switchTarget);
     }
 
+    // Defense note: Attempts to get best switch target and reports success or failure.
     private bool TryGetBestSwitchTarget(
         List<BattleUnit> party,
         BattleUnit activeUnit,
@@ -1017,6 +1069,7 @@ public class BattleManager : MonoBehaviour
                (lowBattery || bestScore > activeScore + HackerSwitchMatchupImprovement);
     }
 
+    // Defense note: Returns whether this value is poor matchup.
     private static bool IsPoorMatchup(BattleUnit activeUnit, BattleUnit opponent)
     {
         if (activeUnit == null || opponent == null)
@@ -1027,6 +1080,7 @@ public class BattleManager : MonoBehaviour
         return outgoing <= 0.75f || incoming >= 1.5f;
     }
 
+    // Defense note: Runs the matchup score helper used by this script.
     private static float MatchupScore(BattleUnit candidate, BattleUnit opponent)
     {
         if (candidate == null || opponent == null)
@@ -1037,6 +1091,7 @@ public class BattleManager : MonoBehaviour
         return outgoing - incoming;
     }
 
+    // Defense note: Runs the best outgoing element multiplier helper used by this script.
     private static float BestOutgoingElementMultiplier(BattleUnit attacker, BattleUnit defender)
     {
         if (attacker == null || defender == null || defender.Instance?.data == null)
@@ -1057,6 +1112,7 @@ public class BattleManager : MonoBehaviour
         return best;
     }
 
+    // Defense note: Runs the battery fraction helper used by this script.
     private static float BatteryFraction(BattleUnit unit)
     {
         return unit != null && unit.MaxBattery > 0
@@ -1064,6 +1120,7 @@ public class BattleManager : MonoBehaviour
             : 0f;
     }
 
+    // Defense note: Runs the hacker switch battery threshold helper used by this script.
     private static int HackerSwitchBatteryThreshold(BattleUnit unit)
     {
         return unit != null
@@ -1071,6 +1128,7 @@ public class BattleManager : MonoBehaviour
             : 0;
     }
 
+    // Defense note: Checks whether switch out is currently allowed.
     private static bool CanSwitchOut(BattleUnit unit)
     {
         return unit != null &&
@@ -1078,6 +1136,7 @@ public class BattleManager : MonoBehaviour
                unit.Statuses.GetStacks(StatusType.Ensnare) <= 0;
     }
 
+    // Defense note: Returns whether switch target exists or is active.
     private static bool HasSwitchTarget(List<BattleUnit> party, BattleUnit activeUnit)
     {
         if (!CanSwitchOut(activeUnit) || party == null)
@@ -1086,6 +1145,7 @@ public class BattleManager : MonoBehaviour
         return HasAvailableReserve(party, activeUnit);
     }
 
+    // Defense note: Returns whether available reserve exists or is active.
     private static bool HasAvailableReserve(List<BattleUnit> party, BattleUnit activeUnit)
     {
         if (party == null)
@@ -1105,6 +1165,7 @@ public class BattleManager : MonoBehaviour
         return false;
     }
 
+    // Defense note: Attempts to get switch target and reports success or failure.
     private static bool TryGetSwitchTarget(
         List<BattleUnit> party,
         BattleUnit activeUnit,
@@ -1154,6 +1215,7 @@ public class BattleManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Resolves the round coroutine step and updates dependent state.
     private IEnumerator ResolveRoundCoroutine(BattleAction playerAction, BattleAction enemyAction)
     {
         if (!IsValidDeclaredAction(playerAction) || !IsValidDeclaredAction(enemyAction))
@@ -1235,6 +1297,7 @@ public class BattleManager : MonoBehaviour
         activeResolution = null;
     }
 
+    // Defense note: Returns whether this value is valid declared action.
     private static bool IsValidDeclaredAction(BattleAction action)
     {
         if (action == null || action.Actor == null)
@@ -1244,6 +1307,7 @@ public class BattleManager : MonoBehaviour
         return action.Skill != null;
     }
 
+    // Defense note: Runs the action name helper used by this script.
     private static string ActionName(BattleAction action)
     {
         if (action == null)
@@ -1253,6 +1317,7 @@ public class BattleManager : MonoBehaviour
         return SkillName(action.Skill);
     }
 
+    // Defense note: Resolves the switches coroutine step and updates dependent state.
     private IEnumerator ResolveSwitchesCoroutine(BattleAction playerAction, BattleAction enemyAction)
     {
         if (playerAction != null && playerAction.IsSwitch)
@@ -1262,6 +1327,7 @@ public class BattleManager : MonoBehaviour
             yield return ExecuteSwitchCoroutine(enemyAction, false);
     }
 
+    // Defense note: Runs the execute switch coroutine helper used by this script.
     private IEnumerator ExecuteSwitchCoroutine(BattleAction action, bool playerSide)
     {
         if (action == null || !action.IsSwitch || action.Actor == null || action.SwitchTarget == null)
@@ -1293,6 +1359,7 @@ public class BattleManager : MonoBehaviour
             yield return new WaitForSeconds(logLineDelay);
     }
 
+    // Defense note: Runs the retarget skill actions helper used by this script.
     private void RetargetSkillActions(BattleAction playerAction, BattleAction enemyAction)
     {
         if (playerAction != null && playerAction.IsSkill)
@@ -1301,6 +1368,7 @@ public class BattleManager : MonoBehaviour
             enemyAction.Target = player;
     }
 
+    // Defense note: Updates the defender instruction types state or visual value.
     private static void SetDefenderInstructionTypes(BattleAction playerAction, BattleAction enemyAction)
     {
         if (playerAction == null || enemyAction == null)
@@ -1313,6 +1381,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Resolves the counter coroutine step and updates dependent state.
     private IEnumerator ResolveCounterCoroutine(BattleAction playerAction, BattleAction enemyAction)
     {
         if (playerAction == null || enemyAction == null || !playerAction.IsSkill || !enemyAction.IsSkill)
@@ -1399,6 +1468,7 @@ public class BattleManager : MonoBehaviour
         yield return ApplySubroutineTriggerCoroutine(loser.Actor, winner.Actor, SubroutineTrigger.OnCounterLose);
     }
 
+    // Defense note: Checks whether counter is currently allowed.
     private static bool CanCounter(SkillData attackerSkill, SkillData defenderSkill)
     {
         if (attackerSkill == null || defenderSkill == null)
@@ -1407,6 +1477,7 @@ public class BattleManager : MonoBehaviour
                CombatResolver.IsCounter(attackerSkill.instructionType, defenderSkill.instructionType);
     }
 
+    // Defense note: Applies the counter effects coroutine change to gameplay or UI state.
     private IEnumerator ApplyCounterEffectsCoroutine(BattleAction winner, BattleAction loser)
     {
         yield return ApplyBattleEffectBundleCoroutine(
@@ -1415,6 +1486,7 @@ public class BattleManager : MonoBehaviour
             BattleEffectBundle.FromCounterSkill(winner.Skill));
     }
 
+    // Defense note: Applies the subroutine trigger coroutine change to gameplay or UI state.
     private IEnumerator ApplySubroutineTriggerCoroutine(
         BattleUnit owner,
         BattleUnit opponent,
@@ -1442,6 +1514,7 @@ public class BattleManager : MonoBehaviour
             BattleEffectBundle.FromSubroutine(subroutine));
     }
 
+    // Defense note: Applies the battle effect bundle coroutine change to gameplay or UI state.
     private IEnumerator ApplyBattleEffectBundleCoroutine(
         BattleUnit owner,
         BattleUnit opponent,
@@ -1579,6 +1652,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the queue actions helper used by this script.
     private void QueueActions(BattleAction playerAction, BattleAction enemyAction)
     {
         turnQueue.Clear();
@@ -1607,17 +1681,20 @@ public class BattleManager : MonoBehaviour
         EnqueueSkillAction(enemyAction);
     }
 
+    // Defense note: Runs the enqueue skill action helper used by this script.
     private void EnqueueSkillAction(BattleAction action)
     {
         if (action != null && action.IsSkill)
             turnQueue.Enqueue(action.Actor.Instance, EffectivePriority(action));
     }
 
+    // Defense note: Runs the counter priority helper used by this script.
     private float CounterPriority(BattleAction action)
     {
         return CounterPriorityBase + EffectivePriority(action);
     }
 
+    // Defense note: Runs the effective priority helper used by this script.
     private float EffectivePriority(BattleAction action)
     {
         int skillPriority = action.Skill != null ? action.Skill.priority : 0;
@@ -1625,6 +1702,7 @@ public class BattleManager : MonoBehaviour
         return skillPriority * 10000f + EffectiveStats(action.Actor).ClockSpeed;
     }
 
+    // Defense note: Runs the action for helper used by this script.
     private BattleAction ActionFor(AlgoMonInstance instance, BattleAction playerAction, BattleAction enemyAction)
     {
         if (playerAction != null && playerAction.IsSkill && ReferenceEquals(instance, playerAction.Actor.Instance))
@@ -1634,6 +1712,7 @@ public class BattleManager : MonoBehaviour
         return null;
     }
 
+    // Defense note: Runs the execute action coroutine helper used by this script.
     private IEnumerator ExecuteActionCoroutine(BattleAction action)
     {
         if (action == null || !action.IsSkill || action.Actor.CurrentBattery <= 0)
@@ -1744,6 +1823,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Resolves the skill effect coroutine step and updates dependent state.
     private IEnumerator ResolveSkillEffectCoroutine(BattleAction action)
     {
         if (action.Skill.baseHealCPAmount > 0)
@@ -1842,6 +1922,7 @@ public class BattleManager : MonoBehaviour
     /// Emits narration for a Status / Defense skill after its runtime status
     /// effects have already been applied.
     /// </summary>
+    // Defense note: Runs the narrate non damage skill helper used by this script.
     private IEnumerator NarrateNonDamageSkill(BattleAction action)
     {
         SkillData skill = action.Skill;
@@ -1857,6 +1938,7 @@ public class BattleManager : MonoBehaviour
             EmitLog($"{action.Actor.Name} runs {SkillName(skill)}.");
     }
 
+    // Defense note: Runs the direct damage pause seconds helper used by this script.
     private float DirectDamagePauseSeconds(BattleAction action)
     {
         float pause = damageLineDelay;
@@ -1872,6 +1954,7 @@ public class BattleManager : MonoBehaviour
         return pause;
     }
 
+    // Defense note: Applies the base status coroutine change to gameplay or UI state.
     private IEnumerator ApplyBaseStatusCoroutine(BattleAction action)
     {
         SkillData skill = action.Skill;
@@ -1891,6 +1974,7 @@ public class BattleManager : MonoBehaviour
             skill.baseStatusDuration);
     }
 
+    // Defense note: Applies the status coroutine change to gameplay or UI state.
     private IEnumerator ApplyStatusCoroutine(
         BattleUnit source,
         BattleUnit target,
@@ -1935,6 +2019,7 @@ public class BattleManager : MonoBehaviour
             yield return new WaitForSeconds(logLineDelay);
     }
 
+    // Defense note: Resolves the end of round statuses coroutine step and updates dependent state.
     private IEnumerator ResolveEndOfRoundStatusesCoroutine()
     {
         if (player != null && player.CurrentBattery > 0)
@@ -1954,6 +2039,7 @@ public class BattleManager : MonoBehaviour
         RefreshHud();
     }
 
+    // Defense note: Applies the damage taken triggers coroutine change to gameplay or UI state.
     private IEnumerator ApplyDamageTakenTriggersCoroutine(
         BattleUnit damaged,
         BattleUnit opponent,
@@ -1973,6 +2059,7 @@ public class BattleManager : MonoBehaviour
         yield return ApplyLowBatterySubroutineCoroutine(damaged, opponent, previousBattery);
     }
 
+    // Defense note: Applies the low battery subroutine coroutine change to gameplay or UI state.
     private IEnumerator ApplyLowBatterySubroutineCoroutine(
         BattleUnit owner,
         BattleUnit opponent,
@@ -1996,6 +2083,7 @@ public class BattleManager : MonoBehaviour
         yield return ApplySubroutineTriggerCoroutine(owner, opponent, SubroutineTrigger.OnLowBattery);
     }
 
+    // Defense note: Runs the tick unit statuses coroutine helper used by this script.
     private IEnumerator TickUnitStatusesCoroutine(BattleUnit unit)
     {
         int burnStacks = unit.Statuses.GetStacks(StatusType.Burn);
@@ -2051,17 +2139,20 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Returns whether subroutine trigger exists or is active.
     private static bool HasSubroutineTrigger(BattleUnit unit, SubroutineTrigger trigger)
     {
         return unit?.Instance?.data?.subroutine != null &&
                unit.Instance.data.subroutine.trigger == trigger;
     }
 
+    // Defense note: Runs the low battery threshold helper used by this script.
     private static int LowBatteryThreshold(BattleUnit unit)
     {
         return Mathf.Max(1, Mathf.CeilToInt(unit.MaxBattery * 0.25f));
     }
 
+    // Defense note: Runs the tick durations helper used by this script.
     private void TickDurations(BattleUnit unit)
     {
         if (unit == null)
@@ -2072,6 +2163,7 @@ public class BattleManager : MonoBehaviour
             EmitLog($"{unit.Name}'s {expired[i]} expires.");
     }
 
+    // Defense note: Runs the effective stats helper used by this script.
     private BattleStats EffectiveStats(BattleUnit unit)
     {
         BattleStats stats = unit.Statuses.ApplyToStats(BattleStats.From(unit.Instance));
@@ -2080,6 +2172,7 @@ public class BattleManager : MonoBehaviour
         return stats;
     }
 
+    // Defense note: Runs the effective skill cost helper used by this script.
     private int EffectiveSkillCost(BattleUnit unit, SkillData skill)
     {
         if (unit == null || skill == null)
@@ -2092,6 +2185,7 @@ public class BattleManager : MonoBehaviour
         return unit.Statuses.EffectiveSkillCost(reducedBaseCost, currentRound);
     }
 
+    // Defense note: Returns whether this value is recharge skill.
     private static bool IsRechargeSkill(SkillData skill)
     {
         return skill != null &&
@@ -2100,6 +2194,7 @@ public class BattleManager : MonoBehaviour
                skill.baseHealCPAmount > 0;
     }
 
+    // Defense note: Runs the emit run buff summary helper used by this script.
     private void EmitRunBuffSummary()
     {
         GameManager manager = GameManager.Instance;
@@ -2110,6 +2205,7 @@ public class BattleManager : MonoBehaviour
         EmitLog(manager.CurrentRunBuffSummary());
     }
 
+    // Defense note: Runs the run adjusted damage multiplier helper used by this script.
     private float RunAdjustedDamageMultiplier(BattleAction action)
     {
         if (action == null)
@@ -2128,23 +2224,27 @@ public class BattleManager : MonoBehaviour
         return multiplier;
     }
 
+    // Defense note: Plays the er run skill cost reduction animation, audio, or feedback.
     private int PlayerRunSkillCostReduction()
     {
         GameManager manager = GameManager.Instance;
         return manager != null ? manager.PlayerRunSkillCostReduction : 0;
     }
 
+    // Defense note: Plays the er run clock speed multiplier animation, audio, or feedback.
     private float PlayerRunClockSpeedMultiplier()
     {
         GameManager manager = GameManager.Instance;
         return manager != null ? manager.PlayerRunClockSpeedMultiplier : 1f;
     }
 
+    // Defense note: Returns whether this value is player unit.
     private bool IsPlayerUnit(BattleUnit unit)
     {
         return unit != null && playerParty.Contains(unit);
     }
 
+    // Defense note: Checks whether pay is currently allowed.
     private bool CanPay(BattleUnit unit, SkillData skill)
     {
         if (unit == null || skill == null)
@@ -2152,6 +2252,7 @@ public class BattleManager : MonoBehaviour
         return unit.CurrentCP >= EffectiveSkillCost(unit, skill);
     }
 
+    // Defense note: Checks whether use skill is currently allowed.
     private bool CanUseSkill(BattleUnit unit, SkillData skill)
     {
         return unit != null &&
@@ -2160,6 +2261,7 @@ public class BattleManager : MonoBehaviour
                CanPay(unit, skill);
     }
 
+    // Defense note: Returns whether this value is defense on cooldown.
     private bool IsDefenseOnCooldown(BattleUnit unit, SkillData skill)
     {
         if (unit == null || skill == null || skill.instructionType != InstructionType.Defense)
@@ -2167,6 +2269,7 @@ public class BattleManager : MonoBehaviour
         return unit.LastDefenseRound == currentRound - 1;
     }
 
+    // Defense note: Runs the spend cp helper used by this script.
     private bool SpendCP(BattleUnit unit, int amount)
     {
         if (amount <= 0)
@@ -2185,6 +2288,7 @@ public class BattleManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the gain cp helper used by this script.
     private int GainCP(BattleUnit unit, int amount)
     {
         int before = unit.CurrentCP;
@@ -2204,6 +2308,7 @@ public class BattleManager : MonoBehaviour
         return restored;
     }
 
+    // Defense note: Runs the drain cp helper used by this script.
     private int DrainCP(BattleUnit from, BattleUnit to, int amount)
     {
         int drained = Mathf.Min(from.CurrentCP, Mathf.Max(0, amount));
@@ -2229,6 +2334,7 @@ public class BattleManager : MonoBehaviour
         return drained;
     }
 
+    // Defense note: Runs the deal status damage helper used by this script.
     private int DealStatusDamage(BattleUnit unit, int amount)
     {
         int actual = Mathf.Min(unit.CurrentBattery, Mathf.Max(0, amount));
@@ -2246,6 +2352,7 @@ public class BattleManager : MonoBehaviour
         return actual;
     }
 
+    // Defense note: Runs the heal battery helper used by this script.
     private int HealBattery(BattleUnit unit, int amount)
     {
         int before = unit.CurrentBattery;
@@ -2267,6 +2374,7 @@ public class BattleManager : MonoBehaviour
 
     // Positive (buff) statuses use the charge/heal cue; everything else (Burn,
     // Freeze, Leech, Ensnare, Throttle, Corrupted) uses the debuff cue.
+    // Defense note: Returns whether this value is buff status.
     private static bool IsBuffStatus(StatusType status)
     {
         switch (status)
@@ -2284,6 +2392,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the unit for helper used by this script.
     private BattleUnit UnitFor(AlgoMonInstance instance)
     {
         if (instance == null)
@@ -2295,6 +2404,7 @@ public class BattleManager : MonoBehaviour
         return null;
     }
 
+    // Defense note: Runs the opponent for helper used by this script.
     private BattleUnit OpponentFor(BattleUnit unit)
     {
         if (unit == null)
@@ -2306,16 +2416,19 @@ public class BattleManager : MonoBehaviour
         return null;
     }
 
+    // Defense note: Returns whether this value is hacker battle.
     private bool IsHackerBattle()
     {
         return CurrentEncounterNodeType() == NodeType.Hacker;
     }
 
+    // Defense note: Runs the enemy trainer label helper used by this script.
     private string EnemyTrainerLabel()
     {
         return IsHackerBattle() ? "Hacker" : "Enemy";
     }
 
+    // Defense note: Runs the current encounter node type helper used by this script.
     private static NodeType CurrentEncounterNodeType()
     {
         GameManager manager = GameManager.Instance;
@@ -2326,6 +2439,7 @@ public class BattleManager : MonoBehaviour
         return node != null ? node.nodeType : NodeType.Combat;
     }
 
+    // Defense note: Attempts to finish battle and reports success or failure.
     private void TryFinishBattle()
     {
         if (phase == BattlePhase.BattleOver || AwaitingForcedPlayerSwitch)
@@ -2353,6 +2467,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Attempts to prompt player forced switch and reports success or failure.
     private bool TryPromptPlayerForcedSwitch()
     {
         if (!HasAvailableReserve(playerParty, player))
@@ -2372,6 +2487,7 @@ public class BattleManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Attempts to send next enemy and reports success or failure.
     private bool TrySendNextEnemy()
     {
         BattleUnit previous = enemy;
@@ -2390,6 +2506,7 @@ public class BattleManager : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the first available reserve helper used by this script.
     private static BattleUnit FirstAvailableReserve(List<BattleUnit> party, BattleUnit activeUnit)
     {
         if (party == null)
@@ -2409,6 +2526,7 @@ public class BattleManager : MonoBehaviour
         return null;
     }
 
+    // Defense note: Publishes the faint event to decouple systems.
     private void PublishFaint(BattleUnit unit)
     {
         if (unit == null)
@@ -2420,6 +2538,7 @@ public class BattleManager : MonoBehaviour
         EventBus.Publish(new UnitFaintedEvent { UnitId = PresentationIdFor(unit) });
     }
 
+    // Defense note: Runs the finish battle helper used by this script.
     private void FinishBattle(bool playerWon, string message)
     {
         if (battleEndPublished || waitingForPostBattleContinue || finishingBattle)
@@ -2441,6 +2560,7 @@ public class BattleManager : MonoBehaviour
         StartCoroutine(ShowBattleResultAfterFaint(playerWon, message, reward));
     }
 
+    // Defense note: Shows the battle result after faint UI or feedback state.
     private IEnumerator ShowBattleResultAfterFaint(bool playerWon, string message, EncounterReward reward)
     {
         float wait = postFaintResultDelay;
@@ -2465,6 +2585,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Handles the post battle continue clicked event or player interaction.
     private void HandlePostBattleContinueClicked()
     {
         if (!waitingForPostBattleContinue)
@@ -2477,6 +2598,7 @@ public class BattleManager : MonoBehaviour
         PublishBattleEnd(pendingBattleEndPlayerWon);
     }
 
+    // Defense note: Publishes the battle end event to decouple systems.
     private void PublishBattleEnd(bool playerWon)
     {
         if (battleEndPublished)
@@ -2486,6 +2608,7 @@ public class BattleManager : MonoBehaviour
         battleEndPublished = true;
     }
 
+    // Defense note: Attempts to grant defeated enemy reward and reports success or failure.
     private EncounterReward TryGrantDefeatedEnemyReward()
     {
         GameManager manager = GameManager.Instance;
@@ -2503,6 +2626,7 @@ public class BattleManager : MonoBehaviour
         return reward;
     }
 
+    // Defense note: Shows the post battle reward summary UI or feedback state.
     private void ShowPostBattleRewardSummary(string resultLine, EncounterReward reward)
     {
         string body = BuildPostBattleRewardBody(resultLine, reward);
@@ -2513,6 +2637,7 @@ public class BattleManager : MonoBehaviour
             hud.ShowPostBattlePanel("Node Cleared", body, "Terminal");
     }
 
+    // Defense note: Builds the post battle reward body data or UI structure.
     private static string BuildPostBattleRewardBody(string resultLine, EncounterReward reward)
     {
         var builder = new StringBuilder();
@@ -2543,6 +2668,7 @@ public class BattleManager : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Refreshes the hud display from current data.
     private void RefreshHud()
     {
         if (hud == null || player == null || enemy == null)
@@ -2601,6 +2727,7 @@ public class BattleManager : MonoBehaviour
         hud.SetActionHover(BattleHudController.ActionButton.Flee, "Flee", "End this battle immediately.");
     }
 
+    // Defense note: Renders the skill slots view from runtime state.
     private void RenderSkillSlots(bool canAct)
     {
         for (int i = 0; i < MaxSkillSlots; i++)
@@ -2619,6 +2746,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Renders the switch slots view from runtime state.
     private void RenderSwitchSlots()
     {
         for (int i = 0; i < MaxSkillSlots; i++)
@@ -2658,6 +2786,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the unit element type helper used by this script.
     private static ElementType UnitElementType(BattleUnit unit)
     {
         if (unit == null)
@@ -2667,6 +2796,7 @@ public class BattleManager : MonoBehaviour
             : unit.Config.elementType;
     }
 
+    // Defense note: Runs the switch portrait for helper used by this script.
     private static Sprite SwitchPortraitFor(BattleUnit unit)
     {
         AlgoMonInstance instance = unit != null ? unit.Instance : null;
@@ -2712,6 +2842,7 @@ public class BattleManager : MonoBehaviour
         return sprite;
     }
 
+    // Defense note: Runs the first sprite helper used by this script.
     private static Sprite FirstSprite(BattleAnimationClipData clip)
     {
         if (clip == null || clip.frames == null)
@@ -2726,6 +2857,7 @@ public class BattleManager : MonoBehaviour
         return null;
     }
 
+    // Defense note: Runs the phase label helper used by this script.
     private string PhaseLabel()
     {
         switch (phase)
@@ -2747,6 +2879,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the skill hover data or UI structure.
     private string BuildSkillHover(BattleUnit unit, SkillData skill)
     {
         var line = new StringBuilder();
@@ -2777,11 +2910,13 @@ public class BattleManager : MonoBehaviour
         return BuildSkillHoverBody(line.ToString(), counterSummary, body);
     }
 
+    // Defense note: Builds the skill hover body data or UI structure.
     private static string BuildSkillHoverBody(string metaLine, params string[] sections)
     {
         return SkillDetailTextFormatter.BuildBody(metaLine, sections);
     }
 
+    // Defense note: Runs the skill name helper used by this script.
     private static string SkillName(SkillData skill)
     {
         if (skill == null || string.IsNullOrWhiteSpace(skill.skillName))
@@ -2789,6 +2924,7 @@ public class BattleManager : MonoBehaviour
         return skill.skillName.Trim();
     }
 
+    // Defense note: Runs the subroutine name helper used by this script.
     private static string SubroutineName(SubroutineData subroutine)
     {
         if (subroutine == null || string.IsNullOrWhiteSpace(subroutine.subroutineName))
@@ -2796,6 +2932,7 @@ public class BattleManager : MonoBehaviour
         return subroutine.subroutineName.Trim();
     }
 
+    // Defense note: Runs the push subroutine to hud helper used by this script.
     private void PushSubroutineToHud(BattleHudController.Side side, BattleUnit unit)
     {
         if (hud == null)
@@ -2805,11 +2942,13 @@ public class BattleManager : MonoBehaviour
         hud.SetSubroutine(side, sub);
     }
 
+    // Defense note: Runs the format signed helper used by this script.
     private static string FormatSigned(int value)
     {
         return value > 0 ? $"+{value}" : value.ToString();
     }
 
+    // Defense note: Runs the format unit status helper used by this script.
     private static string FormatUnitStatus(BattleUnit unit)
     {
         string summary = unit.Statuses.BuildSummary();
@@ -2825,6 +2964,7 @@ public class BattleManager : MonoBehaviour
     /// transient state first (READY / HIT / ...), then one chip per active
     /// status with its stacks, then the timed modifiers BuildSummary prints.
     /// </summary>
+    // Defense note: Builds the status chips data or UI structure.
     private static List<BattleHudController.StatusChip> BuildStatusChips(BattleUnit unit)
     {
         var chips = new List<BattleHudController.StatusChip>(8);
@@ -2868,6 +3008,7 @@ public class BattleManager : MonoBehaviour
         return chips;
     }
 
+    // Defense note: Adds the stack chip entry into the target collection or UI.
     private static void AddStackChip(
         List<BattleHudController.StatusChip> chips,
         BattleStatusSet statuses,
@@ -2886,6 +3027,7 @@ public class BattleManager : MonoBehaviour
         chips.Add(new BattleHudController.StatusChip(text, tone));
     }
 
+    // Defense note: Runs the signed chip helper used by this script.
     private static BattleHudController.StatusChip SignedChip(string label, int amount)
     {
         string text = amount > 0 ? $"{label} +{amount}" : $"{label} {amount}";
@@ -2900,6 +3042,7 @@ public class BattleManager : MonoBehaviour
     /// Unknown values (e.g. a freshly applied StatusType name) fall back to a
     /// gray informational chip with the raw text uppercased.
     /// </summary>
+    // Defense note: Runs the state chip helper used by this script.
     private static BattleHudController.StatusChip StateChip(string state)
     {
         string s = string.IsNullOrWhiteSpace(state) ? "Ready" : state.Trim();
@@ -2928,12 +3071,14 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the detail state or visual value.
     private void SetDetail(string title, string body)
     {
         if (hud != null)
             hud.SetSkillDetail(title, body);
     }
 
+    // Defense note: Runs the announce helper used by this script.
     private void Announce(string title, string body)
     {
         if (hud != null)
@@ -2945,6 +3090,7 @@ public class BattleManager : MonoBehaviour
     /// accumulated buffer to the Skill Details panel. Called from coroutines
     /// between waits so the player sees narration scroll in real time.
     /// </summary>
+    // Defense note: Runs the emit log helper used by this script.
     private void EmitLog(string line)
     {
         if (string.IsNullOrEmpty(line))
@@ -2961,6 +3107,7 @@ public class BattleManager : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the announcement body for helper used by this script.
     private string AnnouncementBodyFor(string line)
     {
         if (IsActionStartAnnouncementLine(line))
@@ -2978,6 +3125,7 @@ public class BattleManager : MonoBehaviour
         return line;
     }
 
+    // Defense note: Runs the announcement title for helper used by this script.
     private static string AnnouncementTitleFor(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
@@ -3008,6 +3156,7 @@ public class BattleManager : MonoBehaviour
         return "Battle";
     }
 
+    // Defense note: Returns whether this value is action start announcement line.
     private static bool IsActionStartAnnouncementLine(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
@@ -3018,6 +3167,7 @@ public class BattleManager : MonoBehaviour
             line.IndexOf(" recasts ", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
+    // Defense note: Runs the should pair with active action helper used by this script.
     private static bool ShouldPairWithActiveAction(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
@@ -3038,6 +3188,7 @@ public class BattleManager : MonoBehaviour
             line.IndexOf("expires", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
+    // Defense note: Runs the should clear action announcement helper used by this script.
     private static bool ShouldClearActionAnnouncement(string line)
     {
         if (string.IsNullOrWhiteSpace(line))
@@ -3052,6 +3203,7 @@ public class BattleManager : MonoBehaviour
             line.IndexOf("cannot repeat", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
+    // Defense note: Runs the destroy transient data helper used by this script.
     private void DestroyTransientData()
     {
         for (int i = 0; i < transientData.Count; i++)
@@ -3062,6 +3214,7 @@ public class BattleManager : MonoBehaviour
         transientData.Clear();
     }
 
+    // Defense note: Runs the destroy transient object helper used by this script.
     private static void DestroyTransientObject(ScriptableObject data)
     {
         if (Application.isPlaying)

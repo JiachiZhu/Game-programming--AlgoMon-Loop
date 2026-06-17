@@ -3,6 +3,7 @@ using UnityEngine.UI;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
+// Defense note: CyberFrameGraphic draws a custom UI graphic procedurally in Unity.
 public sealed class CyberFrameGraphic : MaskableGraphic
 {
     [Header("Frame")]
@@ -72,6 +73,7 @@ public sealed class CyberFrameGraphic : MaskableGraphic
 #if UNITY_EDITOR
     // Graphic.OnValidate only exists in the editor assembly; the override
     // must be compiled out of player builds.
+    // Defense note: Unity lifecycle hook that runs the on validate step for this component.
     protected override void OnValidate()
     {
         base.OnValidate();
@@ -83,6 +85,7 @@ public sealed class CyberFrameGraphic : MaskableGraphic
     }
 #endif
 
+    // Defense note: Runs the on populate mesh helper used by this script.
     protected override void OnPopulateMesh(VertexHelper vertexHelper)
     {
         vertexHelper.Clear();
@@ -109,6 +112,7 @@ public sealed class CyberFrameGraphic : MaskableGraphic
             AddCornerAccents(vertexHelper, rect, cut, Tinted(accentColor));
     }
 
+    // Defense note: Builds the octagon data or UI structure.
     private static Vector2[] BuildOctagon(Rect rect, float cut)
     {
         float xMin = rect.xMin;
@@ -129,6 +133,7 @@ public sealed class CyberFrameGraphic : MaskableGraphic
         };
     }
 
+    // Defense note: Runs the inset helper used by this script.
     private static Rect Inset(Rect rect, float amount)
     {
         return new Rect(
@@ -138,6 +143,7 @@ public sealed class CyberFrameGraphic : MaskableGraphic
             Mathf.Max(0f, rect.height - amount * 2f));
     }
 
+    // Defense note: Adds the corner accents entry into the target collection or UI.
     private void AddCornerAccents(VertexHelper vertexHelper, Rect rect, float cut, Color32 tint)
     {
         float length = Mathf.Clamp(cornerAccentLength, 0f, Mathf.Min(rect.width, rect.height) * 0.35f);
@@ -162,6 +168,7 @@ public sealed class CyberFrameGraphic : MaskableGraphic
         AddRect(vertexHelper, new Rect(right - thickness, bottom + cutInset, thickness, length), tint);
     }
 
+    // Defense note: Adds the polygon entry into the target collection or UI.
     private static void AddPolygon(VertexHelper vertexHelper, Vector2[] points, Color32 tint)
     {
         int start = vertexHelper.currentVertCount;
@@ -181,6 +188,7 @@ public sealed class CyberFrameGraphic : MaskableGraphic
         }
     }
 
+    // Defense note: Adds the ring entry into the target collection or UI.
     private static void AddRing(VertexHelper vertexHelper, Vector2[] outer, Vector2[] inner, Color32 tint)
     {
         int start = vertexHelper.currentVertCount;
@@ -203,6 +211,7 @@ public sealed class CyberFrameGraphic : MaskableGraphic
         }
     }
 
+    // Defense note: Adds the rect entry into the target collection or UI.
     private static void AddRect(VertexHelper vertexHelper, Rect rect, Color32 tint)
     {
         int start = vertexHelper.currentVertCount;
@@ -214,6 +223,7 @@ public sealed class CyberFrameGraphic : MaskableGraphic
         vertexHelper.AddTriangle(start, start + 2, start + 3);
     }
 
+    // Defense note: Runs the tinted helper used by this script.
     private Color32 Tinted(Color source)
     {
         Color graphicColor = color;

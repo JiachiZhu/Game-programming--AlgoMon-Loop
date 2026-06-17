@@ -3,6 +3,7 @@ using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
+// Defense note: PixelHudButtonFeedback is a Unity component attached to a scene object for this feature.
 public sealed class PixelHudButtonFeedback : MonoBehaviour,
     IPointerEnterHandler,
     IPointerExitHandler,
@@ -23,6 +24,7 @@ public sealed class PixelHudButtonFeedback : MonoBehaviour,
 
     private bool IsInteractable => selectable == null || selectable.interactable;
 
+    // Defense note: Runs the configure helper used by this script.
     public void Configure(Selectable targetSelectable, Image targetHoverImage, Image targetPressImage)
     {
         selectable = targetSelectable != null ? targetSelectable : GetComponent<Selectable>();
@@ -40,12 +42,14 @@ public sealed class PixelHudButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         if (selectable == null)
             selectable = GetComponent<Selectable>();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         hovered = false;
@@ -54,6 +58,7 @@ public sealed class PixelHudButtonFeedback : MonoBehaviour,
         ResetVisuals();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on disable step for this component.
     private void OnDisable()
     {
         pressed = false;
@@ -61,6 +66,7 @@ public sealed class PixelHudButtonFeedback : MonoBehaviour,
         ResetVisuals();
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         if (!configured)
@@ -70,6 +76,7 @@ public sealed class PixelHudButtonFeedback : MonoBehaviour,
         UpdatePress();
     }
 
+    // Defense note: Updates the hover state each time it changes.
     private void UpdateHover()
     {
         if (hoverImage == null)
@@ -84,6 +91,7 @@ public sealed class PixelHudButtonFeedback : MonoBehaviour,
         hoverImage.color = Color.Lerp(hoverImage.color, target, t);
     }
 
+    // Defense note: Updates the press state each time it changes.
     private void UpdatePress()
     {
         if (pressImage == null)
@@ -108,6 +116,7 @@ public sealed class PixelHudButtonFeedback : MonoBehaviour,
         pressImage.enabled = false;
     }
 
+    // Defense note: Runs the reset visuals helper used by this script.
     private void ResetVisuals()
     {
         if (hoverImage != null)
@@ -120,17 +129,20 @@ public sealed class PixelHudButtonFeedback : MonoBehaviour,
         }
     }
 
+    // Defense note: Runs the on pointer enter helper used by this script.
     public void OnPointerEnter(PointerEventData eventData)
     {
         hovered = true;
     }
 
+    // Defense note: Runs the on pointer exit helper used by this script.
     public void OnPointerExit(PointerEventData eventData)
     {
         hovered = false;
         pressed = false;
     }
 
+    // Defense note: Runs the on pointer down helper used by this script.
     public void OnPointerDown(PointerEventData eventData)
     {
         if (!IsInteractable)
@@ -140,6 +152,7 @@ public sealed class PixelHudButtonFeedback : MonoBehaviour,
         releaseTimer = ReleaseFlashSeconds;
     }
 
+    // Defense note: Runs the on pointer up helper used by this script.
     public void OnPointerUp(PointerEventData eventData)
     {
         if (pressed)

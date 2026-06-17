@@ -7,10 +7,12 @@ using UnityEngine;
 /// editor-only AssetDatabase scans.
 /// </summary>
 [CreateAssetMenu(fileName = "EncounterSpeciesCatalog", menuName = "AlgoMon/Encounter Species Catalog")]
+// Defense note: EncounterSpeciesCatalog stores lookup data so runtime systems can find the right assets.
 public class EncounterSpeciesCatalog : ScriptableObject
 {
     [SerializeField] private AlgoMonData[] species;
 
+    // Defense note: Retrieves the species value used by this system.
     public AlgoMonData[] GetSpecies()
     {
         if (species == null || species.Length == 0)
@@ -27,6 +29,7 @@ public class EncounterSpeciesCatalog : ScriptableObject
         return valid.ToArray();
     }
 
+    // Defense note: Updates the species for editor state or visual value.
     public void SetSpeciesForEditor(AlgoMonData[] value)
     {
         species = value;

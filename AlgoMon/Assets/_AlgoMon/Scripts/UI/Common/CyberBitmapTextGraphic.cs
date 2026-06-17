@@ -7,6 +7,7 @@ using UnityEngine.UI;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
+// Defense note: CyberBitmapTextGraphic draws a custom UI graphic procedurally in Unity.
 public sealed class CyberBitmapTextGraphic : MaskableGraphic
 {
     private static readonly Regex LuaCommonRegex =
@@ -127,6 +128,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         }
     }
 
+    // Defense note: Runs the sync from source text helper used by this script.
     public void SyncFromSourceText()
     {
         if (sourceText == null)
@@ -143,6 +145,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
             sourceText.enabled = false;
     }
 
+    // Defense note: Unity lifecycle hook that runs the late update step for this component.
     private void LateUpdate()
     {
         SyncFromSourceText();
@@ -151,6 +154,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
 #if UNITY_EDITOR
     // Graphic.OnValidate only exists in the editor assembly; the override
     // must be compiled out of player builds.
+    // Defense note: Unity lifecycle hook that runs the on validate step for this component.
     protected override void OnValidate()
     {
         base.OnValidate();
@@ -162,6 +166,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
     }
 #endif
 
+    // Defense note: Runs the on populate mesh helper used by this script.
     protected override void OnPopulateMesh(VertexHelper vertexHelper)
     {
         vertexHelper.Clear();
@@ -200,6 +205,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         }
     }
 
+    // Defense note: Ensures the parsed dependency or state exists before use.
     private void EnsureParsed()
     {
         if (parsedAtlas == atlas && parsedMetrics == metrics)
@@ -220,6 +226,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
             ParseLua(source);
     }
 
+    // Defense note: Runs the parse lua helper used by this script.
     private void ParseLua(string source)
     {
         foreach (Match match in LuaCommonRegex.Matches(source))
@@ -242,6 +249,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         }
     }
 
+    // Defense note: Runs the parse xml helper used by this script.
     private void ParseXml(string source)
     {
         XmlDocument document = new XmlDocument();
@@ -279,6 +287,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         }
     }
 
+    // Defense note: Adds the glyph entry into the target collection or UI.
     private void AddGlyph(VertexHelper vertexHelper, Glyph glyph, float penX, float lineTopY, float scale, Color32 tint)
     {
         float xMin = penX + glyph.XOffset * scale;
@@ -300,6 +309,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         vertexHelper.AddTriangle(start, start + 2, start + 3);
     }
 
+    // Defense note: Runs the measure line helper used by this script.
     private float MeasureLine(string line, float scale)
     {
         float width = 0f;
@@ -310,6 +320,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         return Mathf.Max(0f, width);
     }
 
+    // Defense note: Runs the glyph for helper used by this script.
     private Glyph GlyphFor(int code)
     {
         if (glyphs.TryGetValue(code, out Glyph glyph))
@@ -319,6 +330,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         return new Glyph(0, 0, 0, 0, 0, 0, lineHeight / 2);
     }
 
+    // Defense note: Runs the start x for helper used by this script.
     private float StartXFor(Rect rect, float lineWidth)
     {
         switch (alignment)
@@ -339,6 +351,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         }
     }
 
+    // Defense note: Runs the top for helper used by this script.
     private float TopFor(Rect rect, float blockHeight)
     {
         switch (alignment)
@@ -359,6 +372,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
         }
     }
 
+    // Defense note: Runs the parse attribute helper used by this script.
     private static int ParseAttribute(XmlNode node, string attributeName, int fallback)
     {
         XmlAttribute attribute = node.Attributes?[attributeName];
@@ -370,6 +384,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
             : fallback;
     }
 
+    // Defense note: Runs the parse int helper used by this script.
     private static int ParseInt(string rawValue)
     {
         return int.TryParse(rawValue, NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
@@ -377,6 +392,7 @@ public sealed class CyberBitmapTextGraphic : MaskableGraphic
             : 0;
     }
 
+    // Defense note: Glyph stores one bitmap-font character's atlas rectangle and spacing data.
     private readonly struct Glyph
     {
         public readonly int X;

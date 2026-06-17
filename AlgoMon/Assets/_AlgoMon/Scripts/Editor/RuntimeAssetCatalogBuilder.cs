@@ -13,6 +13,7 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
+// Defense note: RuntimeAssetCatalogBuilder is the main runtime asset catalog builder type used by this part of the project.
 public static class RuntimeAssetCatalogBuilder
 {
     private const string SpriteRoot = "Assets/_AlgoMon/Sprites";
@@ -25,6 +26,7 @@ public static class RuntimeAssetCatalogBuilder
     private const string CyberHudSpriteRoot = MainTerminalSpriteRoot + "/CyberpunkHUD";
     private const string PixelHudSpriteRoot = MainTerminalSpriteRoot + "/PixelUIHUD";
     private const string GridIconSpriteRoot = "Assets/_AlgoMon/Sprites/UI/Grid/Icons";
+    private const string ArenaIconSpriteRoot = "Assets/_AlgoMon/Sprites/UI/Arena/Icons";
 
     // Mirrors the sprite paths requested by MainTerminalController and GridLinkTransition.
     // A missing file here is fine: the loaders fall back to flat-color styling.
@@ -42,7 +44,10 @@ public static class RuntimeAssetCatalogBuilder
         CyberHudSpriteRoot + "/panel_base_01_outer_shell.png",
         CyberHudSpriteRoot + "/hud_radar_frame.png",
         CyberHudSpriteRoot + "/deco_misc_03.png",
+        CyberHudSpriteRoot + "/icon_datapack.png",
         CyberHudSpriteRoot + "/icon_skill_06.png",
+        CyberHudSpriteRoot + "/icon_skill_example.png",
+        CyberHudSpriteRoot + "/icon_tech_01.png",
         CyberHudSpriteRoot + "/progress_bar_striped_frame.png",
         CyberHudSpriteRoot + "/progress_fill_striped_texture.png",
         PixelHudSpriteRoot + "/Panels/Blue/PanelDigital.png",
@@ -66,6 +71,9 @@ public static class RuntimeAssetCatalogBuilder
         GridIconSpriteRoot + "/swords.png",
         GridIconSpriteRoot + "/shopping-bag.png",
         GridIconSpriteRoot + "/cpu.png",
+        ArenaIconSpriteRoot + "/icon_flee.png",
+        ArenaIconSpriteRoot + "/icon_switch.png",
+        ArenaIconSpriteRoot + "/zap.png",
     };
 
     // Panel buttons are loaded as textures because MainTerminalController creates
@@ -78,6 +86,7 @@ public static class RuntimeAssetCatalogBuilder
     };
 
     [MenuItem("AlgoMon/Build/Rebuild Runtime Asset Catalogs")]
+    // Defense note: Runs the rebuild all helper used by this script.
     public static void RebuildAll()
     {
         int profileCount = RebuildBattleAnimationProfileCatalog();
@@ -87,6 +96,7 @@ public static class RuntimeAssetCatalogBuilder
         Debug.Log($"Runtime asset catalogs rebuilt: {profileCount} battle animation profiles, {uiCount} UI assets.");
     }
 
+    // Defense note: Runs the rebuild battle animation profile catalog helper used by this script.
     private static int RebuildBattleAnimationProfileCatalog()
     {
         EnsureFolder(ProfileAssetFolder);
@@ -139,6 +149,7 @@ public static class RuntimeAssetCatalogBuilder
         return entries.Count;
     }
 
+    // Defense note: Runs the rebuild ui asset catalog helper used by this script.
     private static int RebuildUiAssetCatalog()
     {
         var entries = new List<RuntimeUiAssetCatalog.Entry>();
@@ -180,12 +191,14 @@ public static class RuntimeAssetCatalogBuilder
         return entries.Count;
     }
 
+    // Defense note: Returns whether this value is skipped species folder.
     private static bool IsSkippedSpeciesFolder(string folderName)
     {
         return string.Equals(folderName, "UI", System.StringComparison.OrdinalIgnoreCase) ||
                string.Equals(folderName, "Effects", System.StringComparison.OrdinalIgnoreCase);
     }
 
+    // Defense note: Adds the entry entry into the target collection or UI.
     private static void AddEntry<T>(List<RuntimeUiAssetCatalog.Entry> entries, string assetPath) where T : Object
     {
         T asset = AssetDatabase.LoadAssetAtPath<T>(assetPath);
@@ -198,6 +211,7 @@ public static class RuntimeAssetCatalogBuilder
         entries.Add(new RuntimeUiAssetCatalog.Entry { path = assetPath, asset = asset });
     }
 
+    // Defense note: Loads the or create asset or data needed at runtime.
     private static T LoadOrCreate<T>(string assetPath) where T : ScriptableObject
     {
         T asset = AssetDatabase.LoadAssetAtPath<T>(assetPath);
@@ -210,6 +224,7 @@ public static class RuntimeAssetCatalogBuilder
         return asset;
     }
 
+    // Defense note: Ensures the folder dependency or state exists before use.
     private static void EnsureFolder(string folderPath)
     {
         if (AssetDatabase.IsValidFolder(folderPath))
@@ -223,6 +238,7 @@ public static class RuntimeAssetCatalogBuilder
             AssetDatabase.CreateFolder(parent, name);
     }
 
+    // Defense note: Runs the to display case helper used by this script.
     private static string ToDisplayCase(string folderName)
     {
         if (string.IsNullOrEmpty(folderName))

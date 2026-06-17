@@ -11,11 +11,13 @@ using System.Collections.Generic;
 ///   Publish:     EventBus.Publish(new DamageEvent { Amount = 30 });
 ///   Unsubscribe: EventBus.Unsubscribe<DamageEvent>(OnDamage);
 /// </summary>
+// Defense note: EventBus is the main event bus type used by this part of the project.
 public static class EventBus
 {
     private static readonly Dictionary<Type, List<Delegate>> _handlers =
         new Dictionary<Type, List<Delegate>>();
 
+    // Defense note: Runs the subscribe helper used by this script.
     public static void Subscribe<T>(Action<T> handler)
     {
         Type type = typeof(T);
@@ -32,6 +34,7 @@ public static class EventBus
             list.Add(handler);
     }
 
+    // Defense note: Runs the unsubscribe helper used by this script.
     public static void Unsubscribe<T>(Action<T> handler)
     {
         Type type = typeof(T);
@@ -39,6 +42,7 @@ public static class EventBus
             _handlers[type].Remove(handler);
     }
 
+    // Defense note: Runs the publish helper used by this script.
     public static void Publish<T>(T eventData)
     {
         Type type = typeof(T);
@@ -52,6 +56,7 @@ public static class EventBus
     /// Clears all subscriptions. Call this on scene unload to prevent
     /// stale references from destroyed objects.
     /// </summary>
+    // Defense note: Runs the clear helper used by this script.
     public static void Clear()
     {
         _handlers.Clear();

@@ -16,6 +16,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 [DisallowMultipleComponent]
+// Defense note: BattleLinkTransition handles the animated transition between gameplay scenes.
 public sealed class BattleLinkTransition : MonoBehaviour
 {
     private const float WarmupSeconds = 0.22f;
@@ -54,6 +55,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
     private string encounterLabel;
     private string riskLabel;
 
+    // Defense note: Runs the play helper used by this script.
     public static void Play(string encounter, string risk, Action prepareBattle, Action loadArena)
     {
         if (IsActive)
@@ -76,17 +78,20 @@ public sealed class BattleLinkTransition : MonoBehaviour
         transition.Begin(prepareBattle, loadArena);
     }
 
+    // Defense note: Runs the begin helper used by this script.
     private void Begin(Action prepareBattle, Action loadArena)
     {
         IsActive = true;
         StartCoroutine(TransitionRoutine(prepareBattle, loadArena));
     }
 
+    // Defense note: Unity lifecycle hook that runs the on destroy step for this component.
     private void OnDestroy()
     {
         IsActive = false;
     }
 
+    // Defense note: Runs the transition routine helper used by this script.
     private IEnumerator TransitionRoutine(Action prepareBattle, Action loadArena)
     {
         bool prepared = false;
@@ -144,6 +149,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         Destroy(gameObject);
     }
 
+    // Defense note: Runs the invoke safely helper used by this script.
     private void InvokeSafely(Action action, string errorMessage)
     {
         if (action == null)
@@ -161,6 +167,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the visual tree data or UI structure.
     private void BuildVisualTree()
     {
         transitionFont = ResolveFont();
@@ -195,6 +202,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         BuildTextAndProgress();
     }
 
+    // Defense note: Builds the scanlines data or UI structure.
     private void BuildScanlines()
     {
         for (int i = 0; i < 20; i++)
@@ -225,6 +233,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         CreateSweepDash("SweepDashRight", scanBand, new Vector2(374f, 12f), new Vector2(156f, 1f), 0.16f);
     }
 
+    // Defense note: Creates the sweep line object used by the scene or runtime.
     private Image CreateSweepLine(string objectName, RectTransform parent, float y, float height, float alpha)
     {
         Image line = CreateImage(objectName, parent, new Color(1f, 0.30f, 0.58f, alpha), false);
@@ -237,6 +246,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         return line;
     }
 
+    // Defense note: Creates the sweep dash object used by the scene or runtime.
     private Image CreateSweepDash(string objectName, RectTransform parent, Vector2 position, Vector2 size, float alpha)
     {
         Image dash = CreateImage(objectName, parent, new Color(1f, 0.70f, 0.36f, alpha), false);
@@ -249,6 +259,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         return dash;
     }
 
+    // Defense note: Builds the data bars data or UI structure.
     private void BuildDataBars()
     {
         for (int i = 0; i < 18; i++)
@@ -266,6 +277,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the target lock data or UI structure.
     private void BuildTargetLock()
     {
         targetRoot = CreateRect("EncounterTargetLock", root);
@@ -347,6 +359,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         riskText.color = new Color(1f, 0.58f, 0.32f, 0f);
     }
 
+    // Defense note: Creates the lock segment object used by the scene or runtime.
     private void CreateLockSegment(string objectName, Vector2 position, Vector2 size)
     {
         Image segment = CreateImage(objectName, targetRoot, new Color(1f, 0.26f, 0.46f, 0.28f), false);
@@ -359,6 +372,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         lockSegments.Add(segment);
     }
 
+    // Defense note: Builds the text and progress data or UI structure.
     private void BuildTextAndProgress()
     {
         titleText = CreateText("Title", root, 28, FontStyle.Bold, TextAnchor.MiddleCenter);
@@ -407,6 +421,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         progressText.color = new Color(1f, 0.75f, 0.48f, 0f);
     }
 
+    // Defense note: Updates the visuals state each time it changes.
     private void UpdateVisuals(float elapsed, float lockProgress, float displayedProgress, bool exiting)
     {
         float pulse = 0.5f + Mathf.Sin(elapsed * 11.5f) * 0.5f;
@@ -450,6 +465,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         UpdateTargetLock(elapsed, lockReveal, pulse, slowPulse, exitBoost);
     }
 
+    // Defense note: Updates the scanlines state each time it changes.
     private void UpdateScanlines(float elapsed, float alpha)
     {
         for (int i = 0; i < scanlines.Count; i++)
@@ -463,6 +479,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the data bars state each time it changes.
     private void UpdateDataBars(float elapsed, float lockReveal)
     {
         for (int i = 0; i < dataBarRects.Count; i++)
@@ -479,6 +496,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the target lock state each time it changes.
     private void UpdateTargetLock(float elapsed, float lockReveal, float pulse, float slowPulse, float exitBoost)
     {
         if (targetRoot != null && exitBoost <= 0f)
@@ -517,12 +535,14 @@ public sealed class BattleLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the status state or visual value.
     private void SetStatus(string text)
     {
         if (statusText != null)
             statusText.text = text;
     }
 
+    // Defense note: Runs the stream color helper used by this script.
     private static Color StreamColor(int index, float alpha)
     {
         return index % 4 == 0
@@ -530,12 +550,14 @@ public sealed class BattleLinkTransition : MonoBehaviour
             : new Color(1f, 0.22f, 0.48f, alpha);
     }
 
+    // Defense note: Runs the smooth01 helper used by this script.
     private static float Smooth01(float value)
     {
         value = Mathf.Clamp01(value);
         return value * value * (3f - 2f * value);
     }
 
+    // Defense note: Resolves the font step and updates dependent state.
     private Font ResolveFont()
     {
         Font font = Resources.Load<Font>(FontResourcePath);
@@ -544,6 +566,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         return font;
     }
 
+    // Defense note: Creates the rect object used by the scene or runtime.
     private RectTransform CreateRect(string objectName, Transform parent)
     {
         GameObject rectObject = new GameObject(objectName, typeof(RectTransform));
@@ -555,6 +578,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         return rect;
     }
 
+    // Defense note: Creates the image object used by the scene or runtime.
     private Image CreateImage(string objectName, Transform parent, Color color, bool raycastTarget)
     {
         RectTransform rect = CreateRect(objectName, parent);
@@ -564,6 +588,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         return image;
     }
 
+    // Defense note: Creates the text object used by the scene or runtime.
     private Text CreateText(
         string objectName,
         Transform parent,
@@ -583,6 +608,7 @@ public sealed class BattleLinkTransition : MonoBehaviour
         return text;
     }
 
+    // Defense note: Runs the stretch helper used by this script.
     private static void Stretch(RectTransform rect)
     {
         if (rect == null)

@@ -20,6 +20,7 @@ using UnityEditor;
 /// Creates deterministic runtime opponents for route-map encounters.
 /// GameManager owns the run state; this factory owns encounter balancing rules.
 /// </summary>
+// Defense note: EncounterFactory creates runtime encounter objects from configured data.
 public static class EncounterFactory
 {
     private const string AlgoMonAssetSearchFolder = "Assets/_AlgoMon/ScriptableObjects/AlgoMons";
@@ -41,26 +42,31 @@ public static class EncounterFactory
     private const int HackerBasePartySize = 2;
     private const int HackerMaxPartySize = 3;
 
+    // Defense note: Runs the create helper used by this script.
     public static AlgoMonInstance Create(int runSeed, GridNode node)
     {
         return Create(runSeed, node, ThreatTier.Tier1);
     }
 
+    // Defense note: Runs the create helper used by this script.
     public static AlgoMonInstance Create(int runSeed, GridNode node, ThreatTier threatTier)
     {
         return Create(runSeed, node, threatTier, null);
     }
 
+    // Defense note: Runs the create helper used by this script.
     public static AlgoMonInstance Create(int runSeed, GridNode node, ThreatTier threatTier, string preferredBossSpeciesCodeName)
     {
         return Create(runSeed, node, threatTier, 0, 1, preferredBossSpeciesCodeName);
     }
 
+    // Defense note: Creates the party object used by the scene or runtime.
     public static List<AlgoMonInstance> CreateParty(int runSeed, GridNode node, ThreatTier threatTier)
     {
         return CreateParty(runSeed, node, threatTier, null);
     }
 
+    // Defense note: Creates the party object used by the scene or runtime.
     public static List<AlgoMonInstance> CreateParty(int runSeed, GridNode node, ThreatTier threatTier, string preferredBossSpeciesCodeName)
     {
         var party = new List<AlgoMonInstance>();
@@ -81,6 +87,7 @@ public static class EncounterFactory
         return party;
     }
 
+    // Defense note: Runs the create helper used by this script.
     private static AlgoMonInstance Create(
         int runSeed,
         GridNode node,
@@ -125,6 +132,7 @@ public static class EncounterFactory
         return opponent;
     }
 
+    // Defense note: Runs the hacker party size helper used by this script.
     private static int HackerPartySize(GridNode node)
     {
         if (node == null || node.nodeType != NodeType.Hacker)
@@ -135,6 +143,7 @@ public static class EncounterFactory
             : HackerBasePartySize;
     }
 
+    // Defense note: Runs the encounter grade helper used by this script.
     private static int EncounterGrade(NodeType type)
     {
         switch (type)
@@ -148,11 +157,13 @@ public static class EncounterFactory
         }
     }
 
+    // Defense note: Runs the roll encounter stat helper used by this script.
     private static int RollEncounterStat(System.Random rng, int baseValue, int spread)
     {
         return Mathf.Clamp(baseValue + rng.Next(-spread, spread + 1), 1, 255);
     }
 
+    // Defense note: Runs the pick encounter species helper used by this script.
     private static AlgoMonData PickEncounterSpecies(GridNode node, int hash, string preferredBossSpeciesCodeName, out bool usesTransientData)
     {
         AlgoMonData[] pool = LoadEncounterSpecies();
@@ -174,6 +185,7 @@ public static class EncounterFactory
         return pool[index];
     }
 
+    // Defense note: Finds the species by code name reference used by this component.
     private static AlgoMonData FindSpeciesByCodeName(AlgoMonData[] pool, string codeName)
     {
         string normalized = NormalizeSpeciesKey(codeName);
@@ -193,6 +205,7 @@ public static class EncounterFactory
         return null;
     }
 
+    // Defense note: Loads the encounter species asset or data needed at runtime.
     private static AlgoMonData[] LoadEncounterSpecies()
     {
         EncounterSpeciesCatalog catalog = Resources.Load<EncounterSpeciesCatalog>(EncounterSpeciesCatalogResourcePath);
@@ -221,6 +234,7 @@ public static class EncounterFactory
 #endif
     }
 
+    // Defense note: Creates the fallback species object used by the scene or runtime.
     private static AlgoMonData CreateFallbackSpecies(GridNode node, int hash, string preferredBossSpeciesCodeName)
     {
         AlgoMonData data = ScriptableObject.CreateInstance<AlgoMonData>();
@@ -234,11 +248,13 @@ public static class EncounterFactory
         return data;
     }
 
+    // Defense note: Runs the normalize species key helper used by this script.
     private static string NormalizeSpeciesKey(string codeName)
     {
         return string.IsNullOrWhiteSpace(codeName) ? string.Empty : codeName.Trim();
     }
 
+    // Defense note: Builds the opponent name data or UI structure.
     private static string BuildOpponentName(AlgoMonData species, GridNode node, int partySlot, int partySize)
     {
         string speciesName = species != null && !string.IsNullOrWhiteSpace(species.codeName)
@@ -248,9 +264,7 @@ public static class EncounterFactory
         switch (node.nodeType)
         {
             case NodeType.Hacker:
-                return partySize > 1
-                    ? $"{speciesName} Intrusion {partySlot + 1}"
-                    : $"{speciesName} Intrusion";
+                return speciesName;
             case NodeType.Boss:
                 return $"{speciesName} Prime";
             case NodeType.Elite:
@@ -260,11 +274,13 @@ public static class EncounterFactory
         }
     }
 
+    // Defense note: Runs the battle form name helper used by this script.
     private static string BattleFormName(GridNode node)
     {
         return node != null && node.nodeType == NodeType.Boss ? "Evolved" : "Base";
     }
 
+    // Defense note: Runs the fallback encounter level helper used by this script.
     private static int FallbackEncounterLevel(ThreatTier threatTier, GridNode node, System.Random rng)
     {
         int assumedBossLayer = Mathf.Max(node != null ? node.layer + 3 : 3, 3);
@@ -279,6 +295,7 @@ public static class EncounterFactory
             rng.Next(0, LevelRandomExclusiveMax));
     }
 
+    // Defense note: Runs the stable hash helper used by this script.
     private static int StableHash(string value)
     {
         unchecked

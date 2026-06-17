@@ -12,6 +12,7 @@ using UnityEngine;
 /// resolve passive effects with the same target/status/duration semantics.
 /// </summary>
 [CreateAssetMenu(fileName = "New Subroutine", menuName = "AlgoMon/Subroutine Data")]
+// Defense note: SubroutineData is a data definition object that designers configure in Unity.
 public class SubroutineData : ScriptableObject
 {
     [Header("Identity")]
@@ -90,6 +91,7 @@ public class SubroutineData : ScriptableObject
     /// inspector card, the battle HUD badge, and the subroutine-fired banner so
     /// the wording stays consistent everywhere a subroutine is surfaced.
     /// </summary>
+    // Defense note: Runs the label for helper used by this script.
     public static string LabelFor(SubroutineTrigger trigger)
     {
         switch (trigger)

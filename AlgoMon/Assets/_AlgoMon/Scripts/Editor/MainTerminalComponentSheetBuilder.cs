@@ -5,6 +5,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
 
+// Defense note: MainTerminalComponentSheetBuilder is the main main terminal component sheet builder type used by this part of the project.
 public static class MainTerminalComponentSheetBuilder
 {
     private const string SpriteRoot = "Assets/_AlgoMon/Sprites/UI/MainTerminal/Components";
@@ -51,6 +52,7 @@ public static class MainTerminalComponentSheetBuilder
     };
 
     [MenuItem("Tools/AlgoMon/UI/Rebuild MainTerminal Component Sheet")]
+    // Defense note: Runs the rebuild helper used by this script.
     public static void Rebuild()
     {
         EnsureFolder(SpriteRoot);
@@ -112,6 +114,7 @@ public static class MainTerminalComponentSheetBuilder
     }
 
     [MenuItem("Tools/AlgoMon/UI/Show MainTerminal Component Sheet Preview")]
+    // Defense note: Shows the preview UI or feedback state.
     public static void ShowPreview()
     {
         ClearPreview();
@@ -133,6 +136,7 @@ public static class MainTerminalComponentSheetBuilder
     }
 
     [MenuItem("Tools/AlgoMon/UI/Clear MainTerminal Component Sheet Preview")]
+    // Defense note: Clears the preview state so it can be rebuilt safely.
     public static void ClearPreview()
     {
         GameObject existing = GameObject.Find("MainTerminal_ComponentSheet_Preview");
@@ -141,18 +145,21 @@ public static class MainTerminalComponentSheetBuilder
     }
 
     [MenuItem("Tools/AlgoMon/UI/Export MainTerminal Component Sheet Preview PNG")]
+    // Defense note: Runs the export preview png helper used by this script.
     public static void ExportPreviewPng()
     {
         ExportPrefabPreviewPng(PrefabRoot + "/MainTerminal_ComponentSheet.prefab", "Assets/Screenshots/MainTerminal_component_sheet_assetpack_preview.png");
     }
 
     [MenuItem("Tools/AlgoMon/UI/Export MainTerminal Source Layout Preview PNG")]
+    // Defense note: Runs the export source layout preview png helper used by this script.
     public static void ExportSourceLayoutPreviewPng()
     {
         ExportPrefabPreviewPng(PrefabRoot + "/MainTerminal_SourceLayout.prefab", "Assets/Screenshots/MainTerminal_source_layout_preview.png");
     }
 
     [MenuItem("Tools/AlgoMon/UI/Install Source Layout Trial Into MainTerminal Scene")]
+    // Defense note: Runs the install source layout trial in main terminal scene helper used by this script.
     public static void InstallSourceLayoutTrialInMainTerminalScene()
     {
         RectTransform mainTerminalRoot = FindMainTerminalRoot();
@@ -202,6 +209,7 @@ public static class MainTerminalComponentSheetBuilder
     }
 
     [MenuItem("Tools/AlgoMon/UI/Clear Source Layout Trial From MainTerminal Scene")]
+    // Defense note: Clears the source layout trial from main terminal scene state so it can be rebuilt safely.
     public static void ClearSourceLayoutTrialFromMainTerminalScene()
     {
         GameObject existing = GameObject.Find(SourceLayoutTrialName);
@@ -215,11 +223,13 @@ public static class MainTerminalComponentSheetBuilder
     }
 
     [MenuItem("Tools/AlgoMon/UI/Export MainTerminal Source Layout Trial Scene PNG")]
+    // Defense note: Runs the export source layout trial scene png helper used by this script.
     public static void ExportSourceLayoutTrialScenePng()
     {
         ExportMainTerminalCanvasPng("Assets/Screenshots/MainTerminal_source_layout_trial_scene.png");
     }
 
+    // Defense note: Runs the export prefab preview png helper used by this script.
     private static void ExportPrefabPreviewPng(string prefabPath, string screenshotPath)
     {
         const int width = 1600;
@@ -284,6 +294,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Runs the export main terminal canvas png helper used by this script.
     private static void ExportMainTerminalCanvasPng(string screenshotPath)
     {
         const int width = 1672;
@@ -349,6 +360,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Finds the main terminal root reference used by this component.
     private static RectTransform FindMainTerminalRoot()
     {
         GameObject root = GameObject.Find("Canvas_MainTerminal/MainTerminalRoot");
@@ -357,6 +369,7 @@ public static class MainTerminalComponentSheetBuilder
         return root != null ? root.GetComponent<RectTransform>() : null;
     }
 
+    // Defense note: Runs the force visual layer non interactive helper used by this script.
     private static void ForceVisualLayerNonInteractive(GameObject root)
     {
         CanvasGroup canvasGroup = root.GetComponent<CanvasGroup>();
@@ -375,6 +388,7 @@ public static class MainTerminalComponentSheetBuilder
             selectables[i].interactable = false;
     }
 
+    // Defense note: Configures the source layout trial interaction layout, style, or behavior.
     private static void ConfigureSourceLayoutTrialInteraction(GameObject root)
     {
         CanvasGroup canvasGroup = root.GetComponent<CanvasGroup>();
@@ -406,6 +420,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Runs the align main menu hitboxes helper used by this script.
     private static void AlignMainMenuHitboxes(RectTransform mainTerminalRoot, Vector2 trialCenter, float trialScale)
     {
         Transform systemLogHitbox = mainTerminalRoot.Find("SystemLogButton");
@@ -449,6 +464,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Generates the sprites content from current settings.
     private static void GenerateSprites()
     {
         GenerateHudTintMask("panel_base_01.png", new Vector4(190f, 190f, 120f, 120f), 1.15f);
@@ -508,6 +524,7 @@ public static class MainTerminalComponentSheetBuilder
         GenerateCroppedPseudoSprites();
     }
 
+    // Defense note: Creates the terminal panel prefab object used by the scene or runtime.
     private static GameObject CreateTerminalPanelPrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_TerminalPanel", new Vector2(900f, 420f));
@@ -554,6 +571,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Adds the embedded tier cards entry into the target collection or UI.
     private static void AddEmbeddedTierCards(Transform parent)
     {
         Color[] accents = { Success, Selected, Primary, Reward, Danger };
@@ -570,6 +588,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Creates the command button prefab object used by the scene or runtime.
     private static GameObject CreateCommandButtonPrefab(string objectName, string label, Color accent, string iconFileName, bool disabled)
     {
         GameObject root = CreateUiRoot(objectName, new Vector2(320f, 72f));
@@ -599,6 +618,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the tier card prefab object used by the scene or runtime.
     private static GameObject CreateTierCardPrefab(string objectName, int tier, Color accent, bool selected)
     {
         GameObject root = CreateUiRoot(objectName, new Vector2(168f, 104f));
@@ -625,6 +645,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the pseudo sprite window prefab object used by the scene or runtime.
     private static GameObject CreatePseudoSpriteWindowPrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_PseudoSpriteWindow", new Vector2(300f, 220f));
@@ -643,6 +664,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the scanline strip prefab object used by the scene or runtime.
     private static GameObject CreateScanlineStripPrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_ScanlineStrip", new Vector2(520f, 72f));
@@ -654,6 +676,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the accent rail prefab object used by the scene or runtime.
     private static GameObject CreateAccentRailPrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_AccentRail", new Vector2(380f, 34f));
@@ -667,6 +690,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the status chip prefab object used by the scene or runtime.
     private static GameObject CreateStatusChipPrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_StatusChip", new Vector2(172f, 50f));
@@ -678,6 +702,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the dag node prefab object used by the scene or runtime.
     private static GameObject CreateDagNodePrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_DagNode", new Vector2(104f, 104f));
@@ -693,6 +718,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the value bar prefab object used by the scene or runtime.
     private static GameObject CreateValueBarPrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_ValueBar", new Vector2(252f, 52f));
@@ -711,6 +737,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the module slot prefab object used by the scene or runtime.
     private static GameObject CreateModuleSlotPrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_ModuleSlot", new Vector2(82f, 82f));
@@ -726,6 +753,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the dag preview prefab object used by the scene or runtime.
     private static GameObject CreateDagPreviewPrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_DagPreview", new Vector2(560f, 260f));
@@ -754,12 +782,14 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Adds the dag connector entry into the target collection or UI.
     private static void AddDagConnector(Transform parent, string name, string pixelPath, Vector2 anchoredPosition, Vector2 size, float rotation, Color color, float alpha)
     {
         Image connector = AddPixelSprite(parent, name, pixelPath, CyberUiTheme.WithAlpha(color, alpha), anchoredPosition, size, Image.Type.Simple, true);
         connector.rectTransform.localEulerAngles = new Vector3(0f, 0f, rotation);
     }
 
+    // Defense note: Creates the dag node visual object used by the scene or runtime.
     private static RectTransform CreateDagNodeVisual(Transform parent, string name, Vector2 anchoredPosition, Color accent, string hudIcon, string label, bool active, bool selected)
     {
         RectTransform node = CreateRect(name, parent);
@@ -771,6 +801,7 @@ public static class MainTerminalComponentSheetBuilder
         return node;
     }
 
+    // Defense note: Creates the component sheet prefab object used by the scene or runtime.
     private static GameObject CreateComponentSheetPrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_ComponentSheet", new Vector2(1600f, 900f));
@@ -827,6 +858,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the source layout prefab object used by the scene or runtime.
     private static GameObject CreateSourceLayoutPrefab()
     {
         GameObject root = CreateUiRoot("MainTerminal_SourceLayout", new Vector2(1600f, 900f));
@@ -891,6 +923,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Creates the main menu source layout trial prefab object used by the scene or runtime.
     private static GameObject CreateMainMenuSourceLayoutTrialPrefab()
     {
         GameObject root = CreateUiRoot(SourceLayoutTrialName, new Vector2(1600f, 900f));
@@ -936,6 +969,8 @@ public static class MainTerminalComponentSheetBuilder
         for (int i = 0; i < labels.Length; i++)
             AddSourceButton(menuPanel, labels[i], icons[i], accents[i], new Vector2(0f, TrialButtonTopY - i * TrialButtonSpacing), true);
 
+        AddSystemLogMiniButton(root.transform);
+
         AddTrialDepthSelectPanel(root.transform);
         AddTrialBossRouteSelector(root.transform);
 
@@ -943,6 +978,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Adds the trial system title entry into the target collection or UI.
     private static void AddTrialSystemTitle(Transform parent)
     {
         RectTransform titleBand = CreateRect("Trial_SystemTitle", parent);
@@ -953,6 +989,7 @@ public static class MainTerminalComponentSheetBuilder
         AddAccentRail(titleBand, "TitleRail", new Vector2(-56f, -25f), new Vector2(960f, 3f), CyberUiTheme.WithAlpha(Primary, 0.72f));
     }
 
+    // Defense note: Adds the trial main menu outer shell entry into the target collection or UI.
     private static void AddTrialMainMenuOuterShell(Transform parent)
     {
         RectTransform shell = CreateRect("Trial_MainMenuOuterShell", parent);
@@ -962,6 +999,7 @@ public static class MainTerminalComponentSheetBuilder
         shell.SetAsFirstSibling();
     }
 
+    // Defense note: Adds the trial depth select panel entry into the target collection or UI.
     private static void AddTrialDepthSelectPanel(Transform parent)
     {
         RectTransform panel = CreateRect("Trial_DepthSelect", parent);
@@ -974,6 +1012,7 @@ public static class MainTerminalComponentSheetBuilder
         AddTrialDepthPalette(panel, new Vector2(124f, 48f));
     }
 
+    // Defense note: Adds the depth panel shell entry into the target collection or UI.
     private static void AddDepthPanelShell(RectTransform panel)
     {
         Color line = CyberUiTheme.WithAlpha(Primary, 0.74f);
@@ -983,6 +1022,7 @@ public static class MainTerminalComponentSheetBuilder
         AddAccentRail(panel, "ShellOuterRight", new Vector2(414f, 0f), new Vector2(4f, 224f), line);
     }
 
+    // Defense note: Adds the trial depth preview entry into the target collection or UI.
     private static void AddTrialDepthPreview(Transform parent)
     {
         RectTransform preview = CreateRect("DepthPreviewWindow", parent);
@@ -993,6 +1033,7 @@ public static class MainTerminalComponentSheetBuilder
         AddCornerTicks(preview, Selected);
     }
 
+    // Defense note: Adds the trial depth palette entry into the target collection or UI.
     private static void AddTrialDepthPalette(Transform parent, Vector2 origin)
     {
         const int selectedTier = 3;
@@ -1024,6 +1065,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Adds the trial boss route selector entry into the target collection or UI.
     private static void AddTrialBossRouteSelector(Transform parent)
     {
         RectTransform group = CreateRect("Trial_BossRouteSelector", parent);
@@ -1061,6 +1103,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Adds the trial boss route strip entry into the target collection or UI.
     private static void AddTrialBossRouteStrip(Transform parent, int routeNumber, string bossName, string elementTag, Color accent, Vector2 anchoredPosition, bool selected)
     {
         RectTransform button = CreateRect("BossRoute_" + bossName, parent);
@@ -1108,6 +1151,7 @@ public static class MainTerminalComponentSheetBuilder
         feedback.Selected = selected;
     }
 
+    // Defense note: Adds the boss route portrait entry into the target collection or UI.
     private static void AddBossRoutePortrait(Transform parent, string bossName, bool selected, Color accent)
     {
         RectTransform viewport = CreateRect("BossPortraitMask", parent);
@@ -1126,6 +1170,7 @@ public static class MainTerminalComponentSheetBuilder
         AddAccentRail(viewport, "PortraitScan", new Vector2(0f, -70f), new Vector2(72f, 2f), CyberUiTheme.WithAlpha(selected ? Primary : CyberUiTheme.RoomPurple, selected ? 0.86f : 0.36f));
     }
 
+    // Defense note: Runs the boss portrait offset helper used by this script.
     private static Vector2 BossPortraitOffset(string bossName)
     {
         switch (bossName)
@@ -1144,6 +1189,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Runs the boss portrait size helper used by this script.
     private static Vector2 BossPortraitSize(string bossName)
     {
         switch (bossName)
@@ -1159,6 +1205,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Runs the boss route sprite helper used by this script.
     private static Sprite BossRouteSprite(string bossName)
     {
         switch (bossName)
@@ -1180,6 +1227,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Runs the boss route accent helper used by this script.
     private static Color BossRouteAccent(int index)
     {
         Color purple = CyberUiTheme.RoomPurple;
@@ -1201,6 +1249,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Runs the depth panel frame path helper used by this script.
     private static string DepthPanelFramePath(int tier)
     {
         switch (tier)
@@ -1219,6 +1268,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Runs the trial depth accent helper used by this script.
     private static Color TrialDepthAccent(int tier)
     {
         switch (tier)
@@ -1237,6 +1287,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Adds the trial status cluster entry into the target collection or UI.
     private static void AddTrialStatusCluster(Transform parent)
     {
         AddRawHudSprite(parent, "BatteryUnder", "health_bar_under.png", CyberUiTheme.WithAlpha(TextSecondary, 0.68f), new Vector2(-174f, -98f), new Vector2(330f, 52f), true);
@@ -1251,6 +1302,7 @@ public static class MainTerminalComponentSheetBuilder
         AddSourceSlotRow(parent, new Vector2(-132f, -260f));
     }
 
+    // Defense note: Adds the trial payload inspect panel entry into the target collection or UI.
     private static void AddTrialPayloadInspectPanel(Transform parent)
     {
         RectTransform payload = CreateRect("Trial_PayloadInspect", parent);
@@ -1264,6 +1316,7 @@ public static class MainTerminalComponentSheetBuilder
         AddText(payload, "PayloadStats", "FRAGMENTS 00\nGENE SLOTS 02\nARCHIVE OK", 8, FontStyle.Bold, TextAnchor.MiddleLeft, TextSecondary, new Vector2(-32f, -118f), new Vector2(140f, 48f));
     }
 
+    // Defense note: Adds the trial bottom console entry into the target collection or UI.
     private static void AddTrialBottomConsole(Transform parent)
     {
         RectTransform bottom = CreateRect("Trial_BottomConsole", parent);
@@ -1274,6 +1327,7 @@ public static class MainTerminalComponentSheetBuilder
         AddAccentRail(bottom, "MagentaRail", new Vector2(288f, -26f), new Vector2(250f, 4f), Danger);
     }
 
+    // Defense note: Creates the stretch child object used by the scene or runtime.
     private static RectTransform CreateStretchChild(string name, Transform parent)
     {
         RectTransform rect = CreateRect(name, parent);
@@ -1281,6 +1335,7 @@ public static class MainTerminalComponentSheetBuilder
         return rect;
     }
 
+    // Defense note: Adds the source button entry into the target collection or UI.
     private static void AddSourceButton(Transform parent, string label, string iconFileName, Color accent, Vector2 anchoredPosition, bool enabled)
     {
         RectTransform button = CreateRect("Button_" + label.Replace(" ", ""), parent);
@@ -1308,6 +1363,30 @@ public static class MainTerminalComponentSheetBuilder
         feedback.CustomAccentColor = accent;
     }
 
+    // Defense note: Adds a compact System Log entry beside the terminal rather than in the main menu.
+    private static void AddSystemLogMiniButton(Transform parent)
+    {
+        RectTransform button = CreateRect("Button_SYSTEMLOG_MINI", parent);
+        SetRect(button, new Vector2(482f, 304f), new Vector2(118f, 36f));
+        Image frame = AddSlicedImage(button.gameObject, HudRawSprite("btn_wide_01.png"), CyberUiTheme.WithAlpha(Primary, 0.78f), Image.Type.Sliced, true);
+
+        RectTransform glow = CreateRect("HoverGlow", button);
+        SetRect(glow, Vector2.zero, new Vector2(132f, 48f));
+        AddSlicedImage(glow.gameObject, HudTintSprite("btn_wide_01.png"), CyberUiTheme.WithAlpha(Primary, 0f), Image.Type.Sliced, false);
+
+        AddText(button, "LabelShadow", "LOG", 14, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0f, 0f, 0f, 0.74f), new Vector2(1f, -1f), new Vector2(90f, 22f));
+        AddText(button, "Label", "LOG", 14, FontStyle.Bold, TextAnchor.MiddleCenter, TextPrimary, Vector2.zero, new Vector2(90f, 22f));
+
+        Button uiButton = button.gameObject.AddComponent<Button>();
+        uiButton.targetGraphic = frame;
+        uiButton.transition = Selectable.Transition.None;
+        uiButton.interactable = true;
+
+        CyberImageButtonFeedback feedback = button.gameObject.AddComponent<CyberImageButtonFeedback>();
+        feedback.CustomAccentColor = Primary;
+    }
+
+    // Defense note: Adds the source slot row entry into the target collection or UI.
     private static void AddSourceSlotRow(Transform parent, Vector2 origin)
     {
         string[] icons =
@@ -1329,6 +1408,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Adds the source bottom bar entry into the target collection or UI.
     private static void AddSourceBottomBar(Transform parent)
     {
         RectTransform bottom = CreateRect("SourceBottomBar", parent);
@@ -1339,6 +1419,7 @@ public static class MainTerminalComponentSheetBuilder
         AddAccentRail(bottom, "MagentaRail", new Vector2(284f, -26f), new Vector2(260f, 4f), Danger);
     }
 
+    // Defense note: Creates the button stack object used by the scene or runtime.
     private static void CreateButtonStack(Transform parent)
     {
         Color[] accents = { Primary, Reward, Danger };
@@ -1354,6 +1435,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Creates the utility stack object used by the scene or runtime.
     private static void CreateUtilityStack(Transform parent)
     {
         GameObject barA = CreateValueBarPrefab();
@@ -1385,6 +1467,7 @@ public static class MainTerminalComponentSheetBuilder
         SetRect(node.GetComponent<RectTransform>(), new Vector2(-116f, -260f), new Vector2(104f, 104f));
     }
 
+    // Defense note: Runs the tint first named graphic helper used by this script.
     private static void TintFirstNamedGraphic(Transform root, string childName, Color color)
     {
         Transform found = root.Find(childName);
@@ -1408,6 +1491,7 @@ public static class MainTerminalComponentSheetBuilder
             graphic.color = color;
     }
 
+    // Defense note: Creates the tier rail object used by the scene or runtime.
     private static void CreateTierRail(Transform parent)
     {
         Color[] accents = { Success, Selected, Primary, Reward, Danger };
@@ -1420,6 +1504,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Creates the swatch strip object used by the scene or runtime.
     private static void CreateSwatchStrip(Transform parent)
     {
         Color[] colors = { Background, Panel, Primary, Selected, Danger, Reward, Success };
@@ -1434,6 +1519,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Adds the status bars entry into the target collection or UI.
     private static void AddStatusBars(Transform parent, Vector2 anchoredPosition)
     {
         Color[] colors = { Success, Success, Success, Primary, Primary, Danger, Danger };
@@ -1445,6 +1531,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Adds the mini info box entry into the target collection or UI.
     private static void AddMiniInfoBox(Transform parent, string name, string label, Vector2 anchoredPosition, Color accent)
     {
         RectTransform box = CreateRect(name, parent);
@@ -1453,6 +1540,7 @@ public static class MainTerminalComponentSheetBuilder
         AddText(box, "Text", label, 9, FontStyle.Bold, TextAnchor.MiddleLeft, accent, new Vector2(6f, 0f), new Vector2(62f, 34f));
     }
 
+    // Defense note: Adds the grid lines entry into the target collection or UI.
     private static void AddGridLines(RectTransform parent, Color color, int columns, int rows)
     {
         for (int i = 1; i < columns; i++)
@@ -1472,6 +1560,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Adds the corner ticks entry into the target collection or UI.
     private static void AddCornerTicks(RectTransform parent, Color accent)
     {
         const float length = 24f;
@@ -1487,6 +1576,7 @@ public static class MainTerminalComponentSheetBuilder
         AddAccentRail(parent, "CornerBR_V", new Vector2(half.x - 16f, -half.y + 34f), new Vector2(thickness, length), accent);
     }
 
+    // Defense note: Adds the micro bars entry into the target collection or UI.
     private static void AddMicroBars(Transform parent, string prefix, Vector2 anchoredPosition, Color accent)
     {
         for (int i = 0; i < 5; i++)
@@ -1497,6 +1587,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Adds the pseudo sprite entry into the target collection or UI.
     private static Image AddPseudoSprite(Transform parent, int tier, Vector2 anchoredPosition, Vector2 size, Color color)
     {
         RectTransform spriteRect = CreateRect("PseudoSprite_Tier" + tier, parent);
@@ -1506,6 +1597,7 @@ public static class MainTerminalComponentSheetBuilder
         return image;
     }
 
+    // Defense note: Adds the cropped pseudo sprite entry into the target collection or UI.
     private static Image AddCroppedPseudoSprite(Transform parent, int tier, Vector2 anchoredPosition, Vector2 size, Color color)
     {
         RectTransform spriteRect = CreateRect("PseudoSprite_Tier" + tier, parent);
@@ -1515,6 +1607,7 @@ public static class MainTerminalComponentSheetBuilder
         return image;
     }
 
+    // Defense note: Adds the hud sprite entry into the target collection or UI.
     private static Image AddHudSprite(Transform parent, string name, string sourceFileName, Color color, Vector2 anchoredPosition, Vector2 size, Image.Type imageType, bool preserveAspect = false)
     {
         RectTransform rect = CreateRect(name, parent);
@@ -1524,6 +1617,7 @@ public static class MainTerminalComponentSheetBuilder
         return image;
     }
 
+    // Defense note: Adds the raw hud sprite entry into the target collection or UI.
     private static Image AddRawHudSprite(Transform parent, string name, string sourceFileName, Color color, Vector2 anchoredPosition, Vector2 size, bool preserveAspect = false)
     {
         RectTransform rect = CreateRect(name, parent);
@@ -1533,11 +1627,13 @@ public static class MainTerminalComponentSheetBuilder
         return image;
     }
 
+    // Defense note: Adds the hud icon entry into the target collection or UI.
     private static Image AddHudIcon(Transform parent, string name, string sourceFileName, Color color, Vector2 anchoredPosition, float size)
     {
         return AddHudSprite(parent, name, sourceFileName, color, anchoredPosition, new Vector2(size, size), Image.Type.Simple, true);
     }
 
+    // Defense note: Adds the pixel sprite entry into the target collection or UI.
     private static Image AddPixelSprite(Transform parent, string name, string relativePath, Color color, Vector2 anchoredPosition, Vector2 size, Image.Type imageType, bool preserveAspect = false)
     {
         RectTransform rect = CreateRect(name, parent);
@@ -1547,11 +1643,13 @@ public static class MainTerminalComponentSheetBuilder
         return image;
     }
 
+    // Defense note: Adds the pixel icon entry into the target collection or UI.
     private static Image AddPixelIcon(Transform parent, string name, string relativePath, Color color, Vector2 anchoredPosition, float size)
     {
         return AddPixelSprite(parent, name, relativePath, color, anchoredPosition, new Vector2(size, size), Image.Type.Simple, true);
     }
 
+    // Defense note: Adds the scanline layer entry into the target collection or UI.
     private static void AddScanlineLayer(Transform parent, float alpha)
     {
         RectTransform scan = CreateRect("ScanlineOverlay", parent);
@@ -1566,6 +1664,7 @@ public static class MainTerminalComponentSheetBuilder
         graphic.TickColor = new Color(1f, 0.23f, 0.53f, 0.14f);
     }
 
+    // Defense note: Adds the accent rail entry into the target collection or UI.
     private static void AddAccentRail(Transform parent, string name, Vector2 anchoredPosition, Vector2 size, Color color)
     {
         RectTransform rail = CreateRect(name, parent);
@@ -1573,6 +1672,7 @@ public static class MainTerminalComponentSheetBuilder
         AddSlicedImage(rail.gameObject, null, color, Image.Type.Simple, false);
     }
 
+    // Defense note: Adds the text entry into the target collection or UI.
     private static void AddText(Transform parent, string name, string value, int size, FontStyle style, TextAnchor alignment, Color color, Vector2 anchoredPosition, Vector2 textSize)
     {
         RectTransform rect = CreateRect(name, parent);
@@ -1590,6 +1690,7 @@ public static class MainTerminalComponentSheetBuilder
         text.raycastTarget = false;
     }
 
+    // Defense note: Adds the sliced image entry into the target collection or UI.
     private static Image AddSlicedImage(GameObject target, Sprite sprite, Color color, Image.Type imageType, bool raycastTarget)
     {
         Image image = target.GetComponent<Image>();
@@ -1602,6 +1703,7 @@ public static class MainTerminalComponentSheetBuilder
         return image;
     }
 
+    // Defense note: Creates the rect object used by the scene or runtime.
     private static RectTransform CreateRect(string name, Transform parent)
     {
         GameObject child = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
@@ -1609,6 +1711,7 @@ public static class MainTerminalComponentSheetBuilder
         return child.GetComponent<RectTransform>();
     }
 
+    // Defense note: Creates the ui root object used by the scene or runtime.
     private static GameObject CreateUiRoot(string name, Vector2 size)
     {
         GameObject root = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer));
@@ -1621,6 +1724,7 @@ public static class MainTerminalComponentSheetBuilder
         return root;
     }
 
+    // Defense note: Updates the rect state or visual value.
     private static void SetRect(RectTransform rect, Vector2 anchoredPosition, Vector2 size)
     {
         rect.anchorMin = new Vector2(0.5f, 0.5f);
@@ -1631,6 +1735,7 @@ public static class MainTerminalComponentSheetBuilder
         rect.localScale = Vector3.one;
     }
 
+    // Defense note: Updates the stretch state or visual value.
     private static void SetStretch(RectTransform rect)
     {
         rect.anchorMin = Vector2.zero;
@@ -1640,6 +1745,7 @@ public static class MainTerminalComponentSheetBuilder
         rect.localScale = Vector3.one;
     }
 
+    // Defense note: Runs the button colors helper used by this script.
     private static ColorBlock ButtonColors(Color accent)
     {
         ColorBlock colors = ColorBlock.defaultColorBlock;
@@ -1653,22 +1759,26 @@ public static class MainTerminalComponentSheetBuilder
         return colors;
     }
 
+    // Defense note: Runs the bitmap font atlas helper used by this script.
     private static Texture2D BitmapFontAtlas()
     {
         return AssetDatabase.LoadAssetAtPath<Texture2D>(BitmapFontAtlasPath);
     }
 
+    // Defense note: Runs the bitmap font metrics helper used by this script.
     private static TextAsset BitmapFontMetrics()
     {
         return AssetDatabase.LoadAssetAtPath<TextAsset>(BitmapFontMetricsPath);
     }
 
+    // Defense note: Runs the terminal font helper used by this script.
     private static Font TerminalFont()
     {
         Font font = AssetDatabase.LoadAssetAtPath<Font>(TerminalFontPath);
         return font != null ? font : Resources.GetBuiltinResource<Font>("Arial.ttf");
     }
 
+    // Defense note: Ensures the bitmap font import settings dependency or state exists before use.
     private static void EnsureBitmapFontImportSettings()
     {
         TextureImporter importer = AssetImporter.GetAtPath(BitmapFontAtlasPath) as TextureImporter;
@@ -1712,6 +1822,7 @@ public static class MainTerminalComponentSheetBuilder
             importer.SaveAndReimport();
     }
 
+    // Defense note: Ensures the hud source import settings dependency or state exists before use.
     private static void EnsureHudSourceImportSettings()
     {
         if (!AssetDatabase.IsValidFolder(HudRoot))
@@ -1773,6 +1884,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Ensures the main menu outer shell import settings dependency or state exists before use.
     private static void EnsureMainMenuOuterShellImportSettings()
     {
         TextureImporter importer = AssetImporter.GetAtPath(MainMenuOuterShellPath) as TextureImporter;
@@ -1822,6 +1934,7 @@ public static class MainTerminalComponentSheetBuilder
             importer.SaveAndReimport();
     }
 
+    // Defense note: Runs the uses sharp hud sampling helper used by this script.
     private static bool UsesSharpHudSampling(string assetPath)
     {
         string fileName = Path.GetFileName(assetPath);
@@ -1837,6 +1950,7 @@ public static class MainTerminalComponentSheetBuilder
         return false;
     }
 
+    // Defense note: Ensures the pixel source import settings dependency or state exists before use.
     private static void EnsurePixelSourceImportSettings()
     {
         if (!AssetDatabase.IsValidFolder(PixelRoot))
@@ -1897,6 +2011,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Ensures the uncompressed platform settings dependency or state exists before use.
     private static bool EnsureUncompressedPlatformSettings(TextureImporter importer)
     {
         bool dirty = false;
@@ -1922,6 +2037,7 @@ public static class MainTerminalComponentSheetBuilder
         return dirty;
     }
 
+    // Defense note: Generates the hud tint mask content from current settings.
     private static void GenerateHudTintMask(string sourceFileName, Vector4 spriteBorder, float alphaMultiplier)
     {
         string sourceAssetPath = HudRoot + "/" + sourceFileName;
@@ -1957,67 +2073,80 @@ public static class MainTerminalComponentSheetBuilder
         Object.DestroyImmediate(source);
     }
 
+    // Defense note: Runs the hud tint path helper used by this script.
     private static string HudTintPath(string sourceFileName)
     {
         return HudDerivedRoot + "/" + Path.GetFileNameWithoutExtension(sourceFileName) + "_tint.png";
     }
 
+    // Defense note: Runs the hud tint sprite helper used by this script.
     private static Sprite HudTintSprite(string sourceFileName)
     {
         return AssetDatabase.LoadAssetAtPath<Sprite>(HudTintPath(sourceFileName));
     }
 
+    // Defense note: Runs the hud raw sprite helper used by this script.
     private static Sprite HudRawSprite(string sourceFileName)
     {
         return AssetDatabase.LoadAssetAtPath<Sprite>(HudRoot + "/" + sourceFileName);
     }
 
+    // Defense note: Runs the main menu outer shell sprite helper used by this script.
     private static Sprite MainMenuOuterShellSprite()
     {
         return AssetDatabase.LoadAssetAtPath<Sprite>(MainMenuOuterShellPath);
     }
 
+    // Defense note: Runs the pixel sprite helper used by this script.
     private static Sprite PixelSprite(string relativePath)
     {
         return AssetDatabase.LoadAssetAtPath<Sprite>(PixelRoot + "/" + relativePath);
     }
 
+    // Defense note: Runs the terminal panel sprite helper used by this script.
     private static Sprite TerminalPanelSprite()
     {
         return HudTintSprite("panel_menu_frame_full.png");
     }
 
+    // Defense note: Runs the command button sprite helper used by this script.
     private static Sprite CommandButtonSprite()
     {
         return HudTintSprite("btn_trapezoid_base_01.png");
     }
 
+    // Defense note: Runs the tier card sprite helper used by this script.
     private static Sprite TierCardSprite()
     {
         return HudTintSprite("frame_square_05.png");
     }
 
+    // Defense note: Runs the thin frame sprite helper used by this script.
     private static Sprite ThinFrameSprite()
     {
         return HudTintSprite("frame_square_04.png");
     }
 
+    // Defense note: Runs the pseudo sprite helper used by this script.
     private static Sprite PseudoSprite(int tier)
     {
         return AssetDatabase.LoadAssetAtPath<Sprite>(PseudoSpriteRoot + Mathf.Clamp(tier, 1, 5) + ".png");
     }
 
+    // Defense note: Runs the cropped pseudo sprite helper used by this script.
     private static Sprite CroppedPseudoSprite(int tier)
     {
         return AssetDatabase.LoadAssetAtPath<Sprite>(CroppedPseudoSpriteRoot + Mathf.Clamp(tier, 1, 5) + ".png");
     }
 
+    // Defense note: Generates the cropped pseudo sprites content from current settings.
     private static void GenerateCroppedPseudoSprites()
     {
         for (int tier = 1; tier <= 5; tier++)
             GenerateCroppedPseudoSprite(tier);
     }
 
+    // Defense note: Generates the cropped pseudo sprite content from current settings.
     private static void GenerateCroppedPseudoSprite(int tier)
     {
         string sourceAssetPath = PseudoSpriteRoot + tier + ".png";
@@ -2078,6 +2207,7 @@ public static class MainTerminalComponentSheetBuilder
         Object.DestroyImmediate(source);
     }
 
+    // Defense note: Saves the prefab asset or data for later use.
     private static void SavePrefab(GameObject root, string path)
     {
         EnsureFolder(Path.GetDirectoryName(path)?.Replace("\\", "/"));
@@ -2085,6 +2215,7 @@ public static class MainTerminalComponentSheetBuilder
         Object.DestroyImmediate(root);
     }
 
+    // Defense note: Ensures the folder dependency or state exists before use.
     private static void EnsureFolder(string path)
     {
         if (string.IsNullOrWhiteSpace(path) || AssetDatabase.IsValidFolder(path))
@@ -2101,6 +2232,7 @@ public static class MainTerminalComponentSheetBuilder
             AssetDatabase.CreateFolder(parent, folderName);
     }
 
+    // Defense note: Runs the write frame sprite helper used by this script.
     private static void WriteFrameSprite(string assetPath, int width, int height, int cornerCut, int border, Color fill, Color borderColor, Color quietLine, Color accent, Vector4 spriteBorder)
     {
         Texture2D texture = NewTexture(width, height);
@@ -2113,6 +2245,7 @@ public static class MainTerminalComponentSheetBuilder
         SaveTexture(assetPath, texture, spriteBorder);
     }
 
+    // Defense note: Runs the draw circuit details helper used by this script.
     private static void DrawCircuitDetails(Texture2D texture, int width, int height, int cornerCut, Color borderColor, Color quietLine, Color accent)
     {
         Color dimCyan = new Color(borderColor.r, borderColor.g, borderColor.b, 0.42f);
@@ -2146,6 +2279,7 @@ public static class MainTerminalComponentSheetBuilder
             FillRect(texture, cornerCut + 28 + i * 12, 18, i % 2 == 0 ? 8 : 4, 2, dimCyan);
     }
 
+    // Defense note: Runs the write scanline sprite helper used by this script.
     private static void WriteScanlineSprite(string assetPath)
     {
         Texture2D texture = NewTexture(16, 16);
@@ -2155,6 +2289,7 @@ public static class MainTerminalComponentSheetBuilder
         SaveTexture(assetPath, texture, Vector4.zero);
     }
 
+    // Defense note: Runs the new texture helper used by this script.
     private static Texture2D NewTexture(int width, int height)
     {
         Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false);
@@ -2168,6 +2303,7 @@ public static class MainTerminalComponentSheetBuilder
         return texture;
     }
 
+    // Defense note: Runs the draw cut panel helper used by this script.
     private static void DrawCutPanel(Texture2D texture, int width, int height, int cornerCut, Color color)
     {
         for (int y = 0; y < height; y++)
@@ -2182,6 +2318,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Runs the draw cut border helper used by this script.
     private static void DrawCutBorder(Texture2D texture, int width, int height, int cornerCut, int border, Color color)
     {
         FillRect(texture, cornerCut, height - border, width - cornerCut * 2, border, color);
@@ -2198,6 +2335,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Runs the draw inset frame helper used by this script.
     private static void DrawInsetFrame(Texture2D texture, int width, int height, int inset, int thickness, Color color)
     {
         FillRect(texture, inset, height - inset, width - inset * 2, thickness, color);
@@ -2206,6 +2344,7 @@ public static class MainTerminalComponentSheetBuilder
         FillRect(texture, width - inset, inset, thickness, height - inset * 2, color);
     }
 
+    // Defense note: Runs the fill rect helper used by this script.
     private static void FillRect(Texture2D texture, int x, int y, int width, int height, Color color)
     {
         Color32 pixel = color;
@@ -2220,6 +2359,7 @@ public static class MainTerminalComponentSheetBuilder
         }
     }
 
+    // Defense note: Saves the texture asset or data for later use.
     private static void SaveTexture(string assetPath, Texture2D texture, Vector4 spriteBorder, FilterMode filterMode = FilterMode.Point)
     {
         texture.Apply();

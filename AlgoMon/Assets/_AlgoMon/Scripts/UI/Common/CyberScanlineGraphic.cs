@@ -3,6 +3,7 @@ using UnityEngine.UI;
 
 [ExecuteAlways]
 [DisallowMultipleComponent]
+// Defense note: CyberScanlineGraphic draws a custom UI graphic procedurally in Unity.
 public sealed class CyberScanlineGraphic : MaskableGraphic
 {
     [SerializeField, Min(1f)] private float lineSpacing = 6f;
@@ -77,6 +78,7 @@ public sealed class CyberScanlineGraphic : MaskableGraphic
 #if UNITY_EDITOR
     // Graphic.OnValidate only exists in the editor assembly; the override
     // must be compiled out of player builds.
+    // Defense note: Unity lifecycle hook that runs the on validate step for this component.
     protected override void OnValidate()
     {
         base.OnValidate();
@@ -88,6 +90,7 @@ public sealed class CyberScanlineGraphic : MaskableGraphic
     }
 #endif
 
+    // Defense note: Runs the on populate mesh helper used by this script.
     protected override void OnPopulateMesh(VertexHelper vertexHelper)
     {
         vertexHelper.Clear();
@@ -119,6 +122,7 @@ public sealed class CyberScanlineGraphic : MaskableGraphic
         }
     }
 
+    // Defense note: Adds the rect entry into the target collection or UI.
     private static void AddRect(VertexHelper vertexHelper, Rect rect, Color32 tint)
     {
         if (rect.width <= 0f || rect.height <= 0f)
@@ -133,6 +137,7 @@ public sealed class CyberScanlineGraphic : MaskableGraphic
         vertexHelper.AddTriangle(start, start + 2, start + 3);
     }
 
+    // Defense note: Runs the tinted helper used by this script.
     private Color32 Tinted(Color source)
     {
         Color graphicColor = color;

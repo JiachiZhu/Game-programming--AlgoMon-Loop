@@ -18,6 +18,7 @@ using UnityEngine;
 /// transform/color feedback as a fallback when no profile is assigned.
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: BattleSpriteAnimator is a Unity component attached to a scene object for this feature.
 public class BattleSpriteAnimator : MonoBehaviour
 {
     [Header("Targets")]
@@ -119,6 +120,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the side feedback world position helper used by this script.
     public Vector3 SideFeedbackWorldPosition(float horizontalDirection, float horizontalPadding, float verticalOffset)
     {
         Initialize();
@@ -146,6 +148,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Returns whether profile clip exists or is active.
     public bool HasProfileClip(BattleAnimationState state)
     {
         BattleAnimationClipData clip = animationProfile != null ? animationProfile.ClipFor(state) : null;
@@ -194,6 +197,7 @@ public class BattleSpriteAnimator : MonoBehaviour
 
     public BattleAnimationProfile AnimationProfile => animationProfile;
 
+    // Defense note: Configures the sprite bindings layout, style, or behavior.
     public void ConfigureSpriteBindings(
         Transform bodyTransform,
         SpriteRenderer primarySpriteRenderer,
@@ -215,6 +219,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         BeginIdleClip();
     }
 
+    // Defense note: Attempts to get action marker delay and reports success or failure.
     public bool TryGetActionMarkerDelay(BattleAnimationState state, out float delaySeconds)
     {
         delaySeconds = 0f;
@@ -227,6 +232,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return true;
     }
 
+    // Defense note: Attempts to get clip timing and reports success or failure.
     public bool TryGetClipTiming(BattleAnimationState state, out float actionDelaySeconds, out float durationSeconds)
     {
         actionDelaySeconds = 0f;
@@ -241,18 +247,21 @@ public class BattleSpriteAnimator : MonoBehaviour
         return true;
     }
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         Initialize();
         BeginIdleClip();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         Initialize();
         BeginIdleClip();
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         Initialize();
@@ -288,6 +297,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         ApplyRendererColors();
     }
 
+    // Defense note: Updates the battle side facing state or visual value.
     public void SetBattleSideFacing(bool playerSide)
     {
         Initialize();
@@ -298,6 +308,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         ApplyBaseScaleImmediately();
     }
 
+    // Defense note: Updates the animation profile state or visual value.
     public void SetAnimationProfile(BattleAnimationProfile profile)
     {
         Initialize();
@@ -310,6 +321,7 @@ public class BattleSpriteAnimator : MonoBehaviour
             PlayEntry();
     }
 
+    // Defense note: Runs the reset to idle helper used by this script.
     public void ResetToIdle()
     {
         Initialize();
@@ -326,6 +338,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         BeginIdleClip();
     }
 
+    // Defense note: Plays the switch reveal animation, audio, or feedback.
     public IEnumerator PlaySwitchReveal(float duration = -1f)
     {
         Initialize();
@@ -387,6 +400,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         ApplySwitchRevealShadowColor();
     }
 
+    // Defense note: Plays the entry animation, audio, or feedback.
     public bool PlayEntry()
     {
         Initialize();
@@ -396,11 +410,13 @@ public class BattleSpriteAnimator : MonoBehaviour
         return TryPlayProfileClip(BattleAnimationState.Entry, FeedbackWorldPosition, false);
     }
 
+    // Defense note: Plays the attack toward animation, audio, or feedback.
     public void PlayAttackToward(Vector3 worldTarget)
     {
         PlayAttackToward(worldTarget, null);
     }
 
+    // Defense note: Plays the attack toward animation, audio, or feedback.
     public void PlayAttackToward(Vector3 worldTarget, BattleSpriteAnimator targetAnimator)
     {
         Initialize();
@@ -410,6 +426,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         PlayActionToward(worldTarget);
     }
 
+    // Defense note: Plays the action toward animation, audio, or feedback.
     public void PlayActionToward(Vector3 worldTarget)
     {
         Initialize();
@@ -426,6 +443,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         actionRoutine = StartCoroutine(ActionRoutine(direction.normalized));
     }
 
+    // Defense note: Plays the defense animation, audio, or feedback.
     public void PlayDefense()
     {
         Initialize();
@@ -435,6 +453,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         PlayStatus(new Color(0.72f, 0.94f, 1f, 1f));
     }
 
+    // Defense note: Plays the status action animation, audio, or feedback.
     public void PlayStatusAction(Color color)
     {
         Initialize();
@@ -448,6 +467,7 @@ public class BattleSpriteAnimator : MonoBehaviour
     // Hard-stops whatever action clip is playing and drops back to idle. Used to
     // truncate a countered action (e.g. cut the rest of a status windup the moment
     // an Attack counter connects) regardless of whether a Hit clip exists.
+    // Defense note: Checks whether cel action to idle is currently allowed.
     public void CancelActionToIdle()
     {
         Initialize();
@@ -464,6 +484,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         BeginIdleClip();
     }
 
+    // Defense note: Plays the hit animation, audio, or feedback.
     public void PlayHit()
     {
         Initialize();
@@ -477,6 +498,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         hitRoutine = StartCoroutine(HitRoutine(hitDuration));
     }
 
+    // Defense note: Plays the status animation, audio, or feedback.
     public void PlayStatus(Color color)
     {
         Initialize();
@@ -489,6 +511,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         statusRoutine = StartCoroutine(StatusRoutine());
     }
 
+    // Defense note: Plays the faint animation, audio, or feedback.
     public void PlayFaint()
     {
         Initialize();
@@ -512,6 +535,7 @@ public class BattleSpriteAnimator : MonoBehaviour
             ApplyFaintFallback();
     }
 
+    // Defense note: Plays the state to action marker and hold animation, audio, or feedback.
     public bool PlayStateToActionMarkerAndHold(
         BattleAnimationState state,
         Vector3 worldTarget,
@@ -534,6 +558,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the continue held profile clip helper used by this script.
     public bool ContinueHeldProfileClip()
     {
         Initialize();
@@ -552,6 +577,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the initialize helper used by this script.
     private void Initialize()
     {
         if (initialized)
@@ -598,6 +624,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         ApplyProfileFacing();
     }
 
+    // Defense note: Applies the profile facing change to gameplay or UI state.
     private void ApplyProfileFacing()
     {
         if (body == null)
@@ -607,10 +634,12 @@ public class BattleSpriteAnimator : MonoBehaviour
         scale.x = Mathf.Abs(scale.x);
         scale *= ProfileVisualScaleMultiplier();
         scale *= ProfileAuthoredScaleMultiplier();
+        scale.x *= ProfileHorizontalScaleMultiplier();
         scale.x *= FacingSign();
         baseBodyLocalScale = scale;
     }
 
+    // Defense note: Runs the facing sign helper used by this script.
     private float FacingSign()
     {
         float sign = useBattleSideFacing ? battleSideFacingSign : AuthoredFacingSign();
@@ -619,11 +648,13 @@ public class BattleSpriteAnimator : MonoBehaviour
         return sign;
     }
 
+    // Defense note: Runs the authored facing sign helper used by this script.
     private float AuthoredFacingSign()
     {
         return authoredBodyLocalScale.x < 0f ? -1f : 1f;
     }
 
+    // Defense note: Applies the base scale immediately change to gameplay or UI state.
     private void ApplyBaseScaleImmediately()
     {
         if (body == null)
@@ -635,6 +666,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         body.localScale = Vector3.Scale(facingScale * contactScaleMultiplier, revealScale);
     }
 
+    // Defense note: Runs the profile authored scale multiplier helper used by this script.
     private float ProfileAuthoredScaleMultiplier()
     {
         if (animationProfile == null)
@@ -643,6 +675,16 @@ public class BattleSpriteAnimator : MonoBehaviour
         return Mathf.Max(0.1f, animationProfile.visualScaleMultiplier);
     }
 
+    // Defense note: Runs the profile horizontal scale multiplier helper used by this script.
+    private float ProfileHorizontalScaleMultiplier()
+    {
+        if (animationProfile == null)
+            return 1f;
+
+        return Mathf.Max(0.1f, animationProfile.horizontalScaleMultiplier);
+    }
+
+    // Defense note: Runs the profile visual scale multiplier helper used by this script.
     private float ProfileVisualScaleMultiplier()
     {
         if (!normalizeProfileVisualHeight || animationProfile == null || targetProfileVisualHeight <= 0f)
@@ -659,6 +701,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return Mathf.Clamp(multiplier, min, max);
     }
 
+    // Defense note: Runs the estimate profile sprite height helper used by this script.
     private static float EstimateProfileSpriteHeight(BattleAnimationProfile profile)
     {
         if (profile == null)
@@ -677,6 +720,7 @@ public class BattleSpriteAnimator : MonoBehaviour
             MaxFrameSpriteHeight(profile.faint));
     }
 
+    // Defense note: Runs the max frame sprite height helper used by this script.
     private static float MaxFrameSpriteHeight(params BattleAnimationClipData[] clips)
     {
         float maxHeight = 0f;
@@ -698,6 +742,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return maxHeight;
     }
 
+    // Defense note: Runs the sprite visual height helper used by this script.
     private static float SpriteVisualHeight(Sprite sprite)
     {
         if (sprite == null)
@@ -722,6 +767,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return sprite.bounds.size.y;
     }
 
+    // Defense note: Finds the body renderers reference used by this component.
     private SpriteRenderer[] FindBodyRenderers()
     {
         SpriteRenderer[] renderers = GetComponentsInChildren<SpriteRenderer>(true);
@@ -745,6 +791,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return filtered;
     }
 
+    // Defense note: Runs the disable legacy looping effects helper used by this script.
     private void DisableLegacyLoopingEffects()
     {
         BattleLoopingSpriteEffect[] legacyEffects = GetComponentsInChildren<BattleLoopingSpriteEffect>(true);
@@ -764,6 +811,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Attempts to play profile clip and reports success or failure.
     private bool TryPlayProfileClip(
         BattleAnimationState state,
         Vector3 worldTarget,
@@ -785,6 +833,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the clip start frame index helper used by this script.
     private static int ClipStartFrameIndex(BattleAnimationClipData clip)
     {
         if (clip == null || clip.FrameCount <= 0)
@@ -794,6 +843,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return startFrame >= 0 ? startFrame : 0;
     }
 
+    // Defense note: Runs the profile clip routine helper used by this script.
     private IEnumerator ProfileClipRoutine(
         BattleAnimationClipData clip,
         BattleAnimationState state,
@@ -849,6 +899,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         BeginIdleClip();
     }
 
+    // Defense note: Plays the action marker window loop animation, audio, or feedback.
     public bool PlayActionMarkerWindowLoop(BattleAnimationState state, float durationSeconds)
     {
         Initialize();
@@ -867,6 +918,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return true;
     }
 
+    // Defense note: Runs the action marker window loop routine helper used by this script.
     private IEnumerator ActionMarkerWindowLoopRoutine(BattleAnimationClipData clip, float durationSeconds)
     {
         profileClipPlaying = true;
@@ -910,6 +962,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         BeginIdleClip();
     }
 
+    // Defense note: Applies the clip motion change to gameplay or UI state.
     private void ApplyClipMotion(
         BattleAnimationClipData clip,
         int frameIndex,
@@ -962,6 +1015,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the should sort above target helper used by this script.
     private static bool ShouldSortAboveTarget(
         BattleAnimationClipData clip,
         int frameIndex,
@@ -978,6 +1032,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return clip.ReturnFrameIndex < 0 || frameIndex < clip.ReturnFrameIndex;
     }
 
+    // Defense note: Applies the contact sorting change to gameplay or UI state.
     private void ApplyContactSorting(BattleSpriteAnimator targetAnimator, bool active)
     {
         if (!active || targetAnimator == null || contactSortingOrderBoost <= 0)
@@ -1001,6 +1056,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         contactSortingActive = true;
     }
 
+    // Defense note: Runs the base body sorting order helper used by this script.
     private int BaseBodySortingOrder()
     {
         int minOrder = int.MaxValue;
@@ -1013,6 +1069,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return minOrder == int.MaxValue ? 0 : minOrder;
     }
 
+    // Defense note: Runs the restore sorting orders helper used by this script.
     private void RestoreSortingOrders()
     {
         if (!contactSortingActive)
@@ -1030,12 +1087,14 @@ public class BattleSpriteAnimator : MonoBehaviour
         contactSortingActive = false;
     }
 
+    // Defense note: Runs the smooth step01 helper used by this script.
     private static float SmoothStep01(float value)
     {
         float t = Mathf.Clamp01(value);
         return t * t * (3f - 2f * t);
     }
 
+    // Defense note: Runs the contact scale multiplier for helper used by this script.
     private float ContactScaleMultiplierFor(BattleSpriteAnimator targetAnimator)
     {
         if (targetAnimator == null || contactPerspectiveScaleBlend <= 0f)
@@ -1060,6 +1119,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Attempts to get visual bounds and reports success or failure.
     private bool TryGetVisualBounds(out Bounds bounds)
     {
         bounds = new Bounds(Vector3.zero, Vector3.zero);
@@ -1087,6 +1147,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return hasBounds && bounds.size.sqrMagnitude > 0.0001f;
     }
 
+    // Defense note: Runs the hold profile clip helper used by this script.
     private void HoldProfileClip(
         BattleAnimationClipData clip,
         BattleAnimationState state,
@@ -1103,6 +1164,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         heldProfileNextFrameIndex = Mathf.Clamp(nextFrameIndex, 0, clip.FrameCount);
     }
 
+    // Defense note: Clears the held profile clip state so it can be rebuilt safely.
     private void ClearHeldProfileClip()
     {
         heldProfileClip = null;
@@ -1110,6 +1172,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         heldProfileNextFrameIndex = 0;
     }
 
+    // Defense note: Runs the contact offset for helper used by this script.
     private Vector3 ContactOffsetFor(
         BattleAnimationClipData clip,
         Vector3 worldTarget,
@@ -1131,6 +1194,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return WorldOffsetToBodyLocal(worldOffset);
     }
 
+    // Defense note: Runs the adjusted target contact point helper used by this script.
     private Vector3 AdjustedTargetContactPoint(
         Vector3 worldTarget,
         BattleSpriteAnimator targetAnimator,
@@ -1150,6 +1214,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return adjusted;
     }
 
+    // Defense note: Runs the world offset to body local helper used by this script.
     private Vector3 WorldOffsetToBodyLocal(Vector3 worldOffset)
     {
         Transform localSpace = body != null && body.parent != null ? body.parent : transform;
@@ -1158,6 +1223,7 @@ public class BattleSpriteAnimator : MonoBehaviour
             : worldOffset;
     }
 
+    // Defense note: Begins the idle clip flow and initializes its state.
     private void BeginIdleClip()
     {
         idleFrameIndex = 0;
@@ -1170,6 +1236,7 @@ public class BattleSpriteAnimator : MonoBehaviour
             primaryRenderer.sprite = basePrimarySprite;
     }
 
+    // Defense note: Runs the advance idle clip helper used by this script.
     private void AdvanceIdleClip(float deltaTime)
     {
         BattleAnimationClipData idle = animationProfile != null ? animationProfile.idle : null;
@@ -1187,12 +1254,14 @@ public class BattleSpriteAnimator : MonoBehaviour
         SetPrimarySprite(idle.frames[idleFrameIndex]);
     }
 
+    // Defense note: Updates the primary sprite state or visual value.
     private void SetPrimarySprite(Sprite sprite)
     {
         if (primaryRenderer != null && sprite != null)
             primaryRenderer.sprite = sprite;
     }
 
+    // Defense note: Stops the profile clip routine or feedback safely.
     private void StopProfileClip()
     {
         if (profileClipRoutine != null)
@@ -1207,6 +1276,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         ClearHeldProfileClip();
     }
 
+    // Defense note: Runs the reset switch reveal visuals helper used by this script.
     private void ResetSwitchRevealVisuals()
     {
         switchRevealAlpha = 1f;
@@ -1214,6 +1284,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         switchRevealScaleOffset = 0f;
     }
 
+    // Defense note: Runs the restore renderer base colors helper used by this script.
     private void RestoreRendererBaseColors()
     {
         if (!initialized)
@@ -1232,6 +1303,7 @@ public class BattleSpriteAnimator : MonoBehaviour
             shadowRenderer.color = baseShadowColor;
     }
 
+    // Defense note: Applies the switch reveal shadow color change to gameplay or UI state.
     private void ApplySwitchRevealShadowColor()
     {
         if (shadowRenderer == null)
@@ -1242,6 +1314,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         shadowRenderer.color = shadowColor;
     }
 
+    // Defense note: Runs the action routine helper used by this script.
     private IEnumerator ActionRoutine(Vector3 direction)
     {
         float elapsed = 0f;
@@ -1261,6 +1334,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         actionRoutine = null;
     }
 
+    // Defense note: Runs the hit playback duration helper used by this script.
     private float HitPlaybackDuration()
     {
         BattleAnimationClipData clip = animationProfile != null ? animationProfile.hit : null;
@@ -1270,6 +1344,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         return hitDuration;
     }
 
+    // Defense note: Runs the hit routine helper used by this script.
     private IEnumerator HitRoutine(float duration)
     {
         float elapsed = 0f;
@@ -1292,6 +1367,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         hitRoutine = null;
     }
 
+    // Defense note: Runs the status routine helper used by this script.
     private IEnumerator StatusRoutine()
     {
         float elapsed = 0f;
@@ -1307,6 +1383,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         statusRoutine = null;
     }
 
+    // Defense note: Applies the renderer colors change to gameplay or UI state.
     private void ApplyRendererColors()
     {
         if (bodyRenderers == null || baseRendererColors == null)
@@ -1329,6 +1406,7 @@ public class BattleSpriteAnimator : MonoBehaviour
         }
     }
 
+    // Defense note: Applies the faint fallback change to gameplay or UI state.
     private void ApplyFaintFallback()
     {
         faintFallbackApplied = true;

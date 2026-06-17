@@ -1,5 +1,6 @@
 using UnityEngine;
 
+// Defense note: ThreatTier defines the valid threat tier options used by the gameplay systems.
 public enum ThreatTier
 {
     Tier1 = 1,
@@ -9,6 +10,7 @@ public enum ThreatTier
     Tier5 = 5
 }
 
+// Defense note: EncounterDepthBand defines the valid encounter depth band options used by the gameplay systems.
 public enum EncounterDepthBand
 {
     None,
@@ -18,6 +20,7 @@ public enum EncounterDepthBand
     Boss
 }
 
+// Defense note: ThreatTierRules is the main threat tier rules type used by this part of the project.
 public static class ThreatTierRules
 {
     public const int MinTier = 1;
@@ -28,48 +31,57 @@ public static class ThreatTierRules
     private const int MaxPlayerLevelCorrection = 1;
     private const int PlayerCorrectionStep = 8;
 
+    // Defense note: Runs the clamp tier helper used by this script.
     public static ThreatTier ClampTier(int tier)
     {
         return (ThreatTier)Mathf.Clamp(tier, MinTier, MaxTier);
     }
 
+    // Defense note: Runs the to int helper used by this script.
     public static int ToInt(ThreatTier tier)
     {
         return Mathf.Clamp((int)tier, MinTier, MaxTier);
     }
 
+    // Defense note: Runs the clamp selectable tier helper used by this script.
     public static ThreatTier ClampSelectableTier(int requestedTier, int highestUnlockedTier)
     {
         return ClampTier(requestedTier);
     }
 
+    // Defense note: Checks whether enter tier is currently allowed.
     public static bool CanEnterTier(int requestedTier, int highestUnlockedTier)
     {
         int requested = ToInt(ClampTier(requestedTier));
         return requested >= MinTier && requested <= MaxTier;
     }
 
+    // Defense note: Runs the min level helper used by this script.
     public static int MinLevel(ThreatTier tier)
     {
         return (ToInt(tier) - 1) * LevelsPerTier + 1;
     }
 
+    // Defense note: Runs the max level helper used by this script.
     public static int MaxLevel(ThreatTier tier)
     {
         int sprintCap = Mathf.Min(SprintLevelCap, AlgoMonInstance.MAX_LEVEL);
         return Mathf.Min(ToInt(tier) * LevelsPerTier, sprintCap);
     }
 
+    // Defense note: Runs the reward multiplier helper used by this script.
     public static float RewardMultiplier(ThreatTier selectedTier, ThreatTier highestUnlockedTier)
     {
         return 1f;
     }
 
+    // Defense note: Runs the reward multiplier percent helper used by this script.
     public static int RewardMultiplierPercent(ThreatTier selectedTier, ThreatTier highestUnlockedTier)
     {
         return Mathf.RoundToInt(RewardMultiplier(selectedTier, highestUnlockedTier) * 100f);
     }
 
+    // Defense note: Applies the difficulty to graph change to gameplay or UI state.
     public static void ApplyDifficultyToGraph(GridGraph graph, ThreatTier tier, int partyAverageLevel)
     {
         if (graph == null || graph.nodes == null)
@@ -92,6 +104,7 @@ public static class ThreatTierRules
         }
     }
 
+    // Defense note: Runs the encounter level helper used by this script.
     public static int EncounterLevel(
         ThreatTier tier,
         NodeType nodeType,
@@ -117,6 +130,7 @@ public static class ThreatTierRules
         return Mathf.Clamp(level, minLevel, nonBossMax);
     }
 
+    // Defense note: Runs the depth band helper used by this script.
     public static EncounterDepthBand DepthBand(NodeType nodeType, int nodeLayer, int bossLayer)
     {
         if (nodeType == NodeType.Boss)
@@ -132,6 +146,7 @@ public static class ThreatTierRules
         return EncounterDepthBand.Late;
     }
 
+    // Defense note: Returns whether this value is encounter node.
     public static bool IsEncounterNode(NodeType nodeType)
     {
         return nodeType == NodeType.Combat ||
@@ -140,6 +155,7 @@ public static class ThreatTierRules
                nodeType == NodeType.Boss;
     }
 
+    // Defense note: Runs the depth progress helper used by this script.
     private static float DepthProgress(int nodeLayer, int bossLayer)
     {
         if (bossLayer <= 1)
@@ -147,6 +163,7 @@ public static class ThreatTierRules
         return Mathf.Clamp01((float)Mathf.Max(0, nodeLayer) / bossLayer);
     }
 
+    // Defense note: Runs the encounter type offset helper used by this script.
     private static int EncounterTypeOffset(NodeType nodeType)
     {
         switch (nodeType)
@@ -162,6 +179,7 @@ public static class ThreatTierRules
         }
     }
 
+    // Defense note: Plays the er level correction animation, audio, or feedback.
     private static int PlayerLevelCorrection(ThreatTier tier, int partyAverageLevel)
     {
         if (partyAverageLevel <= 0)
@@ -172,6 +190,7 @@ public static class ThreatTierRules
         return Mathf.Clamp(Mathf.RoundToInt(delta / (float)PlayerCorrectionStep), -MaxPlayerLevelCorrection, MaxPlayerLevelCorrection);
     }
 
+    // Defense note: Runs the danger rating helper used by this script.
     private static int DangerRating(ThreatTier tier, NodeType nodeType, EncounterDepthBand depthBand)
     {
         if (nodeType == NodeType.Boss)

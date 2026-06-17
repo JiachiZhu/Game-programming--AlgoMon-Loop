@@ -6,10 +6,13 @@ using UnityEngine;
 /// Runtime status container for one active battle unit.
 /// It tracks stacks, source/caster, duration, and battle-only modifiers.
 /// </summary>
+// Defense note: BattleStatusSet is the main battle status set type used by this part of the project.
 public sealed class BattleStatusSet
 {
+    // Defense note: StatusApplyResult groups small runtime values that are passed around together.
     public struct StatusApplyResult
     {
+        // Defense note: Initializes the StatusApplyResult instance and its default runtime state.
         public StatusApplyResult(
             int addedStacks,
             int finalStacks,
@@ -36,6 +39,7 @@ public sealed class BattleStatusSet
     private const float OffensiveStatBuffPerStack = 0.12f;
     private const float DefensiveStatBuffPerStack = 0.10f;
 
+    // Defense note: StatusState is the main status state type used by this part of the project.
     private sealed class StatusState
     {
         public StatusType Type;
@@ -46,6 +50,7 @@ public sealed class BattleStatusSet
         public AlgoMonInstance Source;
     }
 
+    // Defense note: TimedIntModifier groups small runtime values that are passed around together.
     private struct TimedIntModifier
     {
         public int Amount;
@@ -54,6 +59,7 @@ public sealed class BattleStatusSet
         public int AppliedRound;
     }
 
+    // Defense note: TimedFloatModifier groups small runtime values that are passed around together.
     private struct TimedFloatModifier
     {
         public float Amount;
@@ -73,6 +79,7 @@ public sealed class BattleStatusSet
     public float BurnDamagePerLayer => BurnDamagePerStack;
     public float LeechDamagePerLayer => LeechDamagePerStack;
 
+    // Defense note: Runs the clear helper used by this script.
     public void Clear()
     {
         states.Clear();
@@ -82,21 +89,25 @@ public sealed class BattleStatusSet
         firewallShred = default;
     }
 
+    // Defense note: Runs the has helper used by this script.
     public bool Has(StatusType status)
     {
         return GetStacks(status) > 0;
     }
 
+    // Defense note: Retrieves the stacks value used by this system.
     public int GetStacks(StatusType status)
     {
         return states.TryGetValue(status, out StatusState state) ? state.Stacks : 0;
     }
 
+    // Defense note: Retrieves the source value used by this system.
     public AlgoMonInstance GetSource(StatusType status)
     {
         return states.TryGetValue(status, out StatusState state) ? state.Source : null;
     }
 
+    // Defense note: Applies the status change to gameplay or UI state.
     public StatusApplyResult ApplyStatus(
         StatusType status,
         int stacks,
@@ -133,6 +144,7 @@ public sealed class BattleStatusSet
             state.RemainingTurns);
     }
 
+    // Defense note: Updates the stacks state or visual value.
     public void SetStacks(StatusType status, int stacks)
     {
         if (stacks <= 0)
@@ -145,11 +157,13 @@ public sealed class BattleStatusSet
             state.Stacks = stacks;
     }
 
+    // Defense note: Runs the remove helper used by this script.
     public bool Remove(StatusType status)
     {
         return states.Remove(status);
     }
 
+    // Defense note: Clears the temporary debuffs state so it can be rebuilt safely.
     public int ClearTemporaryDebuffs()
     {
         int removed = 0;
@@ -176,6 +190,7 @@ public sealed class BattleStatusSet
         return removed;
     }
 
+    // Defense note: Clears the swap limited effects state so it can be rebuilt safely.
     public int ClearSwapLimitedEffects()
     {
         int removed = 0;
@@ -211,6 +226,7 @@ public sealed class BattleStatusSet
         return removed;
     }
 
+    // Defense note: Applies the to stats change to gameplay or UI state.
     public BattleStats ApplyToStats(BattleStats stats)
     {
         stats.ClockSpeed = BattleStats.ApplyPercent(
@@ -236,6 +252,7 @@ public sealed class BattleStatusSet
         return stats;
     }
 
+    // Defense note: Runs the effective skill cost helper used by this script.
     public int EffectiveSkillCost(int baseCost, int currentRound)
     {
         int cost = Mathf.Max(0, baseCost);
@@ -250,11 +267,13 @@ public sealed class BattleStatusSet
         return Mathf.Max(0, cost);
     }
 
+    // Defense note: Runs the skill repeat count helper used by this script.
     public int SkillRepeatCount(int currentRound)
     {
         return IsActiveForSkillUse(StatusType.Concurrent, currentRound) ? 2 : 1;
     }
 
+    // Defense note: Runs the priority bonus helper used by this script.
     public int PriorityBonus(int currentRound)
     {
         int bonus = IsActiveForSkillUse(StatusType.Overclock, currentRound)
@@ -267,6 +286,7 @@ public sealed class BattleStatusSet
         return bonus;
     }
 
+    // Defense note: Runs the base power bonus helper used by this script.
     public int BasePowerBonus(int currentRound)
     {
         return IsOneShotModifierActive(nextBasePowerBonus, currentRound)
@@ -274,6 +294,7 @@ public sealed class BattleStatusSet
             : 0;
     }
 
+    // Defense note: Runs the consume skill use modifiers helper used by this script.
     public void ConsumeSkillUseModifiers(int currentRound)
     {
         if (IsActiveForSkillUse(StatusType.BufferLoad, currentRound))
@@ -288,6 +309,7 @@ public sealed class BattleStatusSet
             nextBasePowerBonus = default;
     }
 
+    // Defense note: Applies the cp discount change to gameplay or UI state.
     public void ApplyCPDiscount(
         int amount,
         StatusDurationType durationType,
@@ -308,6 +330,7 @@ public sealed class BattleStatusSet
         cpDiscount.AppliedRound = currentRound;
     }
 
+    // Defense note: Applies the firewall shred change to gameplay or UI state.
     public void ApplyFirewallShred(
         float amount,
         StatusDurationType durationType,
@@ -330,6 +353,7 @@ public sealed class BattleStatusSet
         firewallShred.AppliedRound = currentRound;
     }
 
+    // Defense note: Applies the next priority bonus change to gameplay or UI state.
     public void ApplyNextPriorityBonus(int amount, int currentRound)
     {
         if (amount == 0)
@@ -341,6 +365,7 @@ public sealed class BattleStatusSet
         nextPriorityBonus.AppliedRound = currentRound;
     }
 
+    // Defense note: Applies the next base power bonus change to gameplay or UI state.
     public void ApplyNextBasePowerBonus(int amount, int currentRound)
     {
         if (amount == 0)
@@ -352,6 +377,7 @@ public sealed class BattleStatusSet
         nextBasePowerBonus.AppliedRound = currentRound;
     }
 
+    // Defense note: Runs the tick durations helper used by this script.
     public List<string> TickDurations(int currentRound)
     {
         var expired = new List<string>();
@@ -389,6 +415,7 @@ public sealed class BattleStatusSet
     public int NextPriorityBonusAmount => nextPriorityBonus.Amount;
     public int NextBasePowerBonusAmount => nextBasePowerBonus.Amount;
 
+    // Defense note: Builds the summary data or UI structure.
     public string BuildSummary()
     {
         var builder = new StringBuilder();
@@ -417,6 +444,7 @@ public sealed class BattleStatusSet
         return builder.ToString();
     }
 
+    // Defense note: Returns whether this value is timed modifier active.
     private static bool IsTimedModifierActive(TimedIntModifier modifier, int currentRound)
     {
         if (modifier.Amount <= 0)
@@ -426,6 +454,7 @@ public sealed class BattleStatusSet
         return modifier.AppliedRound < currentRound;
     }
 
+    // Defense note: Returns whether this value is active for skill use.
     private bool IsActiveForSkillUse(StatusType status, int currentRound)
     {
         if (!states.TryGetValue(status, out StatusState state))
@@ -433,11 +462,13 @@ public sealed class BattleStatusSet
         return state.AppliedRound < currentRound;
     }
 
+    // Defense note: Returns whether this value is one shot modifier active.
     private static bool IsOneShotModifierActive(TimedIntModifier modifier, int currentRound)
     {
         return modifier.Amount != 0 && modifier.AppliedRound < currentRound;
     }
 
+    // Defense note: Runs the append status helper used by this script.
     private void AppendStatus(StringBuilder builder, StatusType status, string label)
     {
         int stacks = GetStacks(status);
@@ -445,6 +476,7 @@ public sealed class BattleStatusSet
             Append(builder, $"{label} {stacks}");
     }
 
+    // Defense note: Runs the append helper used by this script.
     private static void Append(StringBuilder builder, string text)
     {
         if (builder.Length > 0)
@@ -452,11 +484,13 @@ public sealed class BattleStatusSet
         builder.Append(text);
     }
 
+    // Defense note: Runs the format signed helper used by this script.
     private static string FormatSigned(int value)
     {
         return value > 0 ? $"+{value}" : value.ToString();
     }
 
+    // Defense note: Runs the max stacks helper used by this script.
     private static int MaxStacks(StatusType status)
     {
         switch (status)
@@ -473,6 +507,7 @@ public sealed class BattleStatusSet
         }
     }
 
+    // Defense note: Runs the normalize duration helper used by this script.
     private static void NormalizeDuration(
         StatusType status,
         ref StatusDurationType durationType,
@@ -488,6 +523,7 @@ public sealed class BattleStatusSet
         NormalizeModifierDuration(ref durationType, ref duration);
     }
 
+    // Defense note: Runs the normalize modifier duration helper used by this script.
     private static void NormalizeModifierDuration(
         ref StatusDurationType durationType,
         ref int duration)
@@ -498,6 +534,7 @@ public sealed class BattleStatusSet
             duration = 0;
     }
 
+    // Defense note: Runs the merge duration helper used by this script.
     private static void MergeDuration(
         StatusState state,
         StatusDurationType durationType,
@@ -512,6 +549,7 @@ public sealed class BattleStatusSet
         state.AppliedRound = currentRound;
     }
 
+    // Defense note: Runs the stronger duration helper used by this script.
     private static StatusDurationType StrongerDuration(
         StatusDurationType current,
         StatusDurationType incoming)
@@ -523,6 +561,7 @@ public sealed class BattleStatusSet
         return StatusDurationType.Turns;
     }
 
+    // Defense note: Runs the tick modifier duration helper used by this script.
     private static void TickModifierDuration(
         ref TimedIntModifier modifier,
         string label,
@@ -544,6 +583,7 @@ public sealed class BattleStatusSet
         }
     }
 
+    // Defense note: Runs the tick modifier duration helper used by this script.
     private static void TickModifierDuration(
         ref TimedFloatModifier modifier,
         string label,
@@ -565,6 +605,7 @@ public sealed class BattleStatusSet
         }
     }
 
+    // Defense note: Clears the temporary modifier state so it can be rebuilt safely.
     private static bool ClearTemporaryModifier(ref TimedIntModifier modifier)
     {
         if (modifier.Amount <= 0 || modifier.DurationType == StatusDurationType.Permanent)
@@ -574,6 +615,7 @@ public sealed class BattleStatusSet
         return true;
     }
 
+    // Defense note: Clears the temporary modifier state so it can be rebuilt safely.
     private static bool ClearTemporaryModifier(ref TimedFloatModifier modifier)
     {
         if (modifier.Amount <= 0f || modifier.DurationType == StatusDurationType.Permanent)

@@ -8,6 +8,7 @@ using UnityEditor;
 #endif
 
 [DisallowMultipleComponent]
+// Defense note: GridLinkTransition handles the animated transition between gameplay scenes.
 public sealed class GridLinkTransition : MonoBehaviour
 {
     private const float WarmupSeconds = 0.28f;
@@ -60,6 +61,7 @@ public sealed class GridLinkTransition : MonoBehaviour
     private Sprite progressTrackSprite;
     private Sprite progressFillSprite;
 
+    // Defense note: NodeView presents one piece of gameplay data in the UI.
     private sealed class NodeView
     {
         public RectTransform Rect;
@@ -70,6 +72,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         public float RevealAt;
     }
 
+    // Defense note: EdgeView presents one piece of gameplay data in the UI.
     private sealed class EdgeView
     {
         public RectTransform Root;
@@ -79,6 +82,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         public float RevealAt;
     }
 
+    // Defense note: Runs the play helper used by this script.
     public static void Play(Action prepareRun, Action loadGrid)
     {
         if (IsActive)
@@ -99,17 +103,20 @@ public sealed class GridLinkTransition : MonoBehaviour
         transition.Begin(prepareRun, loadGrid);
     }
 
+    // Defense note: Runs the begin helper used by this script.
     private void Begin(Action prepareRun, Action loadGrid)
     {
         IsActive = true;
         StartCoroutine(TransitionRoutine(prepareRun, loadGrid));
     }
 
+    // Defense note: Unity lifecycle hook that runs the on destroy step for this component.
     private void OnDestroy()
     {
         IsActive = false;
     }
 
+    // Defense note: Runs the transition routine helper used by this script.
     private IEnumerator TransitionRoutine(Action prepareRun, Action loadGrid)
     {
         bool prepared = false;
@@ -166,6 +173,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         Destroy(gameObject);
     }
 
+    // Defense note: Runs the invoke safely helper used by this script.
     private void InvokeSafely(Action action, string errorMessage)
     {
         if (action == null)
@@ -183,6 +191,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the visual tree data or UI structure.
     private void BuildVisualTree()
     {
         transitionFont = ResolveFont();
@@ -220,6 +229,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         BuildTextAndProgress();
     }
 
+    // Defense note: Builds the scanlines data or UI structure.
     private void BuildScanlines()
     {
         for (int i = 0; i < 18; i++)
@@ -248,6 +258,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         CreateSweepDash("SweepDash_C", scanBand, new Vector2(360f, 11f), new Vector2(148f, 1f), 0.14f);
     }
 
+    // Defense note: Creates the sweep line object used by the scene or runtime.
     private Image CreateSweepLine(string objectName, RectTransform parent, float y, float height, float alpha)
     {
         Image line = CreateImage(objectName, parent, new Color(0.22f, 0.92f, 1f, alpha), false);
@@ -260,6 +271,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         return line;
     }
 
+    // Defense note: Creates the sweep dash object used by the scene or runtime.
     private Image CreateSweepDash(string objectName, RectTransform parent, Vector2 position, Vector2 size, float alpha)
     {
         Image dash = CreateImage(objectName, parent, new Color(0.66f, 1f, 0.96f, alpha), false);
@@ -272,6 +284,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         return dash;
     }
 
+    // Defense note: Builds the data bars data or UI structure.
     private void BuildDataBars()
     {
         for (int i = 0; i < 16; i++)
@@ -291,6 +304,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the portal frame data or UI structure.
     private void BuildPortalFrame()
     {
         Image backplate = CreateImage("GridLinkBackplate", root, new Color(0.02f, 0.12f, 0.19f, 0.055f), false);
@@ -355,6 +369,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the tunnel frames data or UI structure.
     private void BuildTunnelFrames()
     {
         Vector2[] sizes =
@@ -385,6 +400,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the graph data or UI structure.
     private void BuildGraph()
     {
         graphRoot = CreateRect("RouteGraphAssembly", root);
@@ -432,6 +448,7 @@ public sealed class GridLinkTransition : MonoBehaviour
             nodes.Add(CreateNode("Node_" + labels[i], positions[i], labels[i], i));
     }
 
+    // Defense note: Creates the edge object used by the scene or runtime.
     private EdgeView CreateEdge(string objectName, Vector2 start, Vector2 end, int index)
     {
         Vector2 delta = end - start;
@@ -473,6 +490,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         };
     }
 
+    // Defense note: Creates the edge head object used by the scene or runtime.
     private Image CreateEdgeHead(string objectName, RectTransform parent, float length, float rotation)
     {
         Image head = CreateImage(objectName, parent, new Color(0.56f, 1f, 0.98f, 0.86f), false);
@@ -492,6 +510,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         return head;
     }
 
+    // Defense note: Creates the node object used by the scene or runtime.
     private NodeView CreateNode(string objectName, Vector2 position, string label, int index)
     {
         RectTransform rect = CreateRect(objectName, graphRoot);
@@ -558,6 +577,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         };
     }
 
+    // Defense note: Builds the text and progress data or UI structure.
     private void BuildTextAndProgress()
     {
         titleText = CreateText("Title", root, 28, FontStyle.Bold, TextAnchor.MiddleCenter);
@@ -618,6 +638,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         progressText.color = new Color(0.72f, 1f, 0.96f, 0f);
     }
 
+    // Defense note: Updates the visuals state each time it changes.
     private void UpdateVisuals(float elapsed, float graphProgress, float displayedProgress, bool exiting)
     {
         float pulse = 0.5f + Mathf.Sin(elapsed * 9.5f) * 0.5f;
@@ -658,6 +679,7 @@ public sealed class GridLinkTransition : MonoBehaviour
             graphRoot.localScale = Vector3.one * Mathf.Lerp(0.92f, 1.04f, Smooth01(graphProgress));
     }
 
+    // Defense note: Updates the tunnel frames state each time it changes.
     private void UpdateTunnelFrames(float elapsed, float graphProgress)
     {
         for (int i = 0; i < tunnelFrames.Count; i++)
@@ -673,6 +695,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the portal frame state each time it changes.
     private void UpdatePortalFrame(float elapsed, float graphProgress, float pulse, bool exiting)
     {
         float reveal = Smooth01(Mathf.Clamp01((graphProgress + 0.12f) / 0.82f));
@@ -722,6 +745,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the data bars state each time it changes.
     private void UpdateDataBars(float elapsed, float graphProgress)
     {
         for (int i = 0; i < dataBars.Count; i++)
@@ -738,6 +762,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the edges state each time it changes.
     private void UpdateEdges(float graphProgress, float pulse)
     {
         for (int i = 0; i < edges.Count; i++)
@@ -755,6 +780,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the nodes state each time it changes.
     private void UpdateNodes(float elapsed, float graphProgress, float pulse)
     {
         for (int i = 0; i < nodes.Count; i++)
@@ -781,12 +807,14 @@ public sealed class GridLinkTransition : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the status state or visual value.
     private void SetStatus(string text)
     {
         if (statusText != null)
             statusText.text = text;
     }
 
+    // Defense note: Runs the node color helper used by this script.
     private static Color NodeColor(int index, float alpha)
     {
         Color baseColor;
@@ -807,6 +835,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         return baseColor;
     }
 
+    // Defense note: Runs the color for stream helper used by this script.
     private static Color ColorForStream(int index, float alpha)
     {
         Color color = index % 5 == 0
@@ -815,12 +844,14 @@ public sealed class GridLinkTransition : MonoBehaviour
         return color;
     }
 
+    // Defense note: Runs the smooth01 helper used by this script.
     private static float Smooth01(float value)
     {
         value = Mathf.Clamp01(value);
         return value * value * (3f - 2f * value);
     }
 
+    // Defense note: Loads the visual sprites asset or data needed at runtime.
     private void LoadVisualSprites()
     {
         portalBackplateSprite =
@@ -846,6 +877,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         progressFillSprite = LoadSprite(CyberHudSpriteRoot + "/progress_fill_striped_texture.png");
     }
 
+    // Defense note: Loads the sprite asset or data needed at runtime.
     private static Sprite LoadSprite(string assetPath)
     {
         Sprite sprite = null;
@@ -857,6 +889,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         return sprite;
     }
 
+    // Defense note: Resolves the font step and updates dependent state.
     private Font ResolveFont()
     {
         Font font = Resources.Load<Font>(FontResourcePath);
@@ -865,6 +898,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         return font;
     }
 
+    // Defense note: Creates the rect object used by the scene or runtime.
     private RectTransform CreateRect(string objectName, Transform parent)
     {
         GameObject rectObject = new GameObject(objectName, typeof(RectTransform));
@@ -876,6 +910,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         return rect;
     }
 
+    // Defense note: Creates the image object used by the scene or runtime.
     private Image CreateImage(string objectName, Transform parent, Color color, bool raycastTarget)
     {
         RectTransform rect = CreateRect(objectName, parent);
@@ -885,6 +920,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         return image;
     }
 
+    // Defense note: Creates the text object used by the scene or runtime.
     private Text CreateText(
         string objectName,
         Transform parent,
@@ -904,6 +940,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         return text;
     }
 
+    // Defense note: Runs the stretch helper used by this script.
     private static void Stretch(RectTransform rect)
     {
         if (rect == null)
@@ -916,6 +953,7 @@ public sealed class GridLinkTransition : MonoBehaviour
         rect.localScale = Vector3.one;
     }
 
+    // Defense note: Updates the image color state or visual value.
     private static void SetImageColor(Image image, Color color)
     {
         if (image != null)

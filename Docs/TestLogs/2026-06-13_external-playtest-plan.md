@@ -42,7 +42,7 @@ the game communicates by itself.
 
 | Observation / quote | Where it happened | Action |
 |---|---|---|
-|  |  | Fixed now / explain in report / future work |
+| See follow-up feedback log. | External first-time playtest sessions | Recorded in `Docs/TestLogs/2026-06-17_external-playtest-feedback.md`. |
 
 ## Follow-ups
 

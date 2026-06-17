@@ -17,6 +17,7 @@ using UnityEngine.SceneManagement;
 /// Game-wide UI sound effects, routed through AudioManager.PlayUiSfx so call
 /// sites never juggle raw AudioClip references and spam is debounced centrally.
 /// </summary>
+// Defense note: UiSfx defines the valid ui sfx options used by the gameplay systems.
 public enum UiSfx
 {
     Hover,        // pointer enters an interactable button
@@ -47,6 +48,7 @@ public enum UiSfx
 /// scene transition (only GameManager re-subscribes). sceneLoaded is owned by
 /// Unity and survives that reset.
 /// </summary>
+// Defense note: AudioManager coordinates the main state and flow for the audio system.
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
@@ -90,6 +92,7 @@ public class AudioManager : MonoBehaviour
 
     /// <summary>Attack sound for one species; evolvedAttack falls back to baseAttack when unset.</summary>
     [System.Serializable]
+    // Defense note: SpeciesAttackSfx groups small runtime values that are passed around together.
     public struct SpeciesAttackSfx
     {
         public string codeName;          // e.g. "Heapion" — matched case-insensitively
@@ -137,11 +140,13 @@ public class AudioManager : MonoBehaviour
     private AudioSource _keyboardSource;  // looping keyboard ambience
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    // Defense note: Runs the bootstrap helper used by this script.
     private static void Bootstrap()
     {
         EnsureInstance();
     }
 
+    // Defense note: Ensures the instance dependency or state exists before use.
     public static AudioManager EnsureInstance()
     {
         if (Instance != null)
@@ -161,6 +166,7 @@ public class AudioManager : MonoBehaviour
         return instance;
     }
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -201,6 +207,7 @@ public class AudioManager : MonoBehaviour
         HandleScene(SceneManager.GetActiveScene().name);
     }
 
+    // Defense note: Unity lifecycle hook that runs the on destroy step for this component.
     private void OnDestroy()
     {
         SceneManager.sceneLoaded -= OnSceneLoaded;
@@ -208,6 +215,7 @@ public class AudioManager : MonoBehaviour
             Instance = null;
     }
 
+    // Defense note: Creates the source object used by the scene or runtime.
     private AudioSource CreateSource()
     {
         AudioSource source = gameObject.AddComponent<AudioSource>();
@@ -221,11 +229,13 @@ public class AudioManager : MonoBehaviour
     // ----------------------------------------------------------------
     // Scene-driven track selection
 
+    // Defense note: Runs the on scene loaded helper used by this script.
     private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
         HandleScene(scene.name);
     }
 
+    // Defense note: Handles the scene event or player interaction.
     private void HandleScene(string sceneName)
     {
         if (!System.Enum.TryParse(sceneName, out GameScene scene))
@@ -254,6 +264,7 @@ public class AudioManager : MonoBehaviour
         }
     }
 
+    // Defense note: Plays the battle music animation, audio, or feedback.
     private void PlayBattleMusic()
     {
         NodeType type = NodeType.Combat;
@@ -279,6 +290,7 @@ public class AudioManager : MonoBehaviour
         }
     }
 
+    // Defense note: Plays the result music animation, audio, or feedback.
     private void PlayResultMusic()
     {
         GameManager gm = GameManager.Instance;
@@ -308,6 +320,7 @@ public class AudioManager : MonoBehaviour
     public int SelectedMenuTrackIndex => selectedMenuTrackIndex;
 
     /// <summary>Display label for a selectable menu track (falls back to clip name).</summary>
+    // Defense note: Retrieves the menu track name value used by this system.
     public string GetMenuTrackName(int index)
     {
         if (menuTrackNames != null && index >= 0 && index < menuTrackNames.Length &&
@@ -322,6 +335,7 @@ public class AudioManager : MonoBehaviour
     /// Choose the main-menu track. Persists the choice and, if the menu is the
     /// current context, switches to it immediately.
     /// </summary>
+    // Defense note: Updates the menu track state or visual value.
     public void SetMenuTrack(int index)
     {
         if (MenuTrackCount == 0)
@@ -338,11 +352,13 @@ public class AudioManager : MonoBehaviour
     }
 
     /// <summary>Advance to the next menu track (handy for a single cycle button).</summary>
+    // Defense note: Runs the cycle menu track helper used by this script.
     public void CycleMenuTrack() => SetMenuTrack(selectedMenuTrackIndex + 1);
 
     public float MusicVolume => musicVolume;
 
     /// <summary>Set music volume (0..1). Persists and applies live.</summary>
+    // Defense note: Updates the music volume state or visual value.
     public void SetMusicVolume(float volume)
     {
         musicVolume = Mathf.Clamp01(volume);
@@ -353,17 +369,20 @@ public class AudioManager : MonoBehaviour
 
     public bool IsMusicMuted => _muted;
 
+    // Defense note: Updates the music muted state or visual value.
     public void SetMusicMuted(bool muted)
     {
         _muted = muted;
         ApplyActiveVolume();
     }
 
+    // Defense note: Toggles the music muted mode or selection state.
     public void ToggleMusicMuted() => SetMusicMuted(!_muted);
 
     public float SfxVolume => sfxVolume;
 
     /// <summary>Set SFX volume (0..1). Persists and applies live to active SFX sources.</summary>
+    // Defense note: Updates the sfx volume state or visual value.
     public void SetSfxVolume(float volume)
     {
         sfxVolume = Mathf.Clamp01(volume);
@@ -379,6 +398,7 @@ public class AudioManager : MonoBehaviour
     // SFX
 
     /// <summary>Play a one-shot sound effect (button clicks, transitions, etc.) at the current SFX volume.</summary>
+    // Defense note: Plays the sfx animation, audio, or feedback.
     public void PlaySfx(AudioClip clip)
     {
         if (clip == null || _sfxSource == null)
@@ -395,6 +415,7 @@ public class AudioManager : MonoBehaviour
     private readonly float[] _uiSfxLastTime = { -10f, -10f, -10f, -10f, -10f, -10f };
 
     /// <summary>Play a UI sound by kind, with per-kind anti-spam debounce.</summary>
+    // Defense note: Plays the ui sfx animation, audio, or feedback.
     public void PlayUiSfx(UiSfx kind)
     {
         int index = (int)kind;
@@ -413,6 +434,7 @@ public class AudioManager : MonoBehaviour
         PlaySfx(clip);
     }
 
+    // Defense note: Runs the clip for helper used by this script.
     private AudioClip ClipFor(UiSfx kind)
     {
         switch (kind)
@@ -435,6 +457,7 @@ public class AudioManager : MonoBehaviour
     /// Play the status-change cue: positive (buff / charge / heal) or negative
     /// (debuff). Debounced per polarity so a multi-hit resolution doesn't stack.
     /// </summary>
+    // Defense note: Plays the status sfx animation, audio, or feedback.
     public void PlayStatusSfx(bool positive)
     {
         float now = Time.unscaledTime;
@@ -455,24 +478,30 @@ public class AudioManager : MonoBehaviour
     }
 
     /// <summary>Play the shared defense-skill sound.</summary>
+    // Defense note: Plays the defense sfx animation, audio, or feedback.
     public void PlayDefenseSfx() => PlaySfx(defenseClip);
 
     /// <summary>Play the ASD-counter-success sound.</summary>
+    // Defense note: Plays the counter sfx animation, audio, or feedback.
     public void PlayCounterSfx() => PlaySfx(counterClip);
 
     /// <summary>Play the successful-shop-purchase sound.</summary>
+    // Defense note: Plays the purchase sfx animation, audio, or feedback.
     public void PlayPurchaseSfx() => PlaySfx(purchaseClip);
 
     /// <summary>Play the node-clear reward sound.</summary>
+    // Defense note: Plays the reward sfx animation, audio, or feedback.
     public void PlayRewardSfx() => PlaySfx(rewardClip);
 
     /// <summary>Play the run-defeat sting.</summary>
+    // Defense note: Plays the defeat sfx animation, audio, or feedback.
     public void PlayDefeatSfx() => PlaySfx(defeatClip);
 
     /// <summary>
     /// Play the attack sound for a species/form. formName follows the battle
     /// presentation convention ("Base"/"Evolved"); unknown species are silent.
     /// </summary>
+    // Defense note: Plays the attack sfx animation, audio, or feedback.
     public void PlayAttackSfx(string speciesCodeName, string formName)
     {
         if (string.IsNullOrEmpty(speciesCodeName) || speciesAttackSfx == null)
@@ -498,6 +527,7 @@ public class AudioManager : MonoBehaviour
     /// calls this from its zoom toggle: play while the typing character is shown
     /// (zoom off), stop when zoom mode hides it.
     /// </summary>
+    // Defense note: Updates the keyboard loop active state or visual value.
     public void SetKeyboardLoopActive(bool active)
     {
         if (_keyboardSource == null)
@@ -519,11 +549,13 @@ public class AudioManager : MonoBehaviour
         }
     }
 
+    // Defense note: Stops the keyboard loop routine or feedback safely.
     public void StopKeyboardLoop() => SetKeyboardLoopActive(false);
 
     // ----------------------------------------------------------------
     // Playback core
 
+    // Defense note: Plays the menu music animation, audio, or feedback.
     private void PlayMenuMusic()
     {
         if (MenuTrackCount == 0)
@@ -537,6 +569,7 @@ public class AudioManager : MonoBehaviour
     }
 
     /// <summary>Crossfade to <paramref name="clip"/>. No-op if it is already playing.</summary>
+    // Defense note: Plays the bgm animation, audio, or feedback.
     private void PlayBGM(AudioClip clip)
     {
         if (clip == null)
@@ -551,6 +584,7 @@ public class AudioManager : MonoBehaviour
         StartFade(clip);
     }
 
+    // Defense note: Stops the music routine or feedback safely.
     private void StopMusic()
     {
         _currentClip = null;
@@ -562,17 +596,20 @@ public class AudioManager : MonoBehaviour
     /// so the Impact SFX punches into silence instead of fighting the BGM; the
     /// next scene's track comes back in via the normal sceneLoaded crossfade.
     /// </summary>
+    // Defense note: Runs the fade out music helper used by this script.
     public void FadeOutMusic(float seconds = 0.35f)
     {
         _currentClip = null;
         StartFade(null, seconds);
     }
 
+    // Defense note: Runs the start fade helper used by this script.
     private void StartFade(AudioClip incomingClip)
     {
         StartFade(incomingClip, crossfadeSeconds);
     }
 
+    // Defense note: Runs the start fade helper used by this script.
     private void StartFade(AudioClip incomingClip, float seconds)
     {
         if (_fadeRoutine != null)
@@ -580,6 +617,7 @@ public class AudioManager : MonoBehaviour
         _fadeRoutine = StartCoroutine(CrossfadeRoutine(incomingClip, seconds));
     }
 
+    // Defense note: Runs the crossfade routine helper used by this script.
     private IEnumerator CrossfadeRoutine(AudioClip incomingClip, float fadeSeconds)
     {
         AudioSource outgoing = _active;
@@ -620,8 +658,10 @@ public class AudioManager : MonoBehaviour
         _fadeRoutine = null;
     }
 
+    // Defense note: Runs the target volume helper used by this script.
     private float TargetVolume() => _muted ? 0f : musicVolume;
 
+    // Defense note: Applies the active volume change to gameplay or UI state.
     private void ApplyActiveVolume()
     {
         // Only touch the live source while no crossfade is mid-flight; the fade
@@ -630,6 +670,7 @@ public class AudioManager : MonoBehaviour
             _active.volume = TargetVolume();
     }
 
+    // Defense note: Returns whether this value is menu track.
     private bool IsMenuTrack(AudioClip clip)
     {
         if (clip == null || menuTracks == null)

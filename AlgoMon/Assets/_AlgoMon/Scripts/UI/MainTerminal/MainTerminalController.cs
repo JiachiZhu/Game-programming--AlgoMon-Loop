@@ -26,6 +26,7 @@ using UnityEditor;
 /// and small status text updates.
 /// </summary>
 [DisallowMultipleComponent]
+// Defense note: MainTerminalController controls the main terminal UI or gameplay flow.
 public class MainTerminalController : MonoBehaviour
 {
     private const int StarterLevel = 20;
@@ -93,6 +94,88 @@ public class MainTerminalController : MonoBehaviour
         "Overflux",
         "Recursix",
         "Sortex"
+    };
+
+    private const string GlossaryGridIconRoot = "Assets/_AlgoMon/Sprites/UI/Grid/Icons";
+    private const string GlossaryArenaIconRoot = "Assets/_AlgoMon/Sprites/UI/Arena/Icons";
+    private const string GlossaryMainTerminalSpriteRoot = "Assets/_AlgoMon/Sprites/UI/MainTerminal";
+    private const string GlossaryPixelHudSpriteRoot = GlossaryMainTerminalSpriteRoot + "/PixelUIHUD";
+    private const string GlossaryCyberHudIconRoot = GlossaryMainTerminalSpriteRoot + "/CyberpunkHUD";
+    private const string GlossaryPanelSpritePath = GlossaryPixelHudSpriteRoot + "/Panels/Blue/PanelDigital.png";
+    private const string GlossaryConnectorSpritePath = GlossaryPixelHudSpriteRoot + "/SkillTree/White/ConnectorHorizontal.png";
+    private const string GlossaryInstructionIconRoot = "UI/Instructions/Instruction_";
+    private const string GlossaryElementIconRoot = "UI/Elements/Element_";
+
+    private enum GlossaryVisualKind
+    {
+        Story,
+        Battle,
+        Nodes,
+        Stats,
+        Status,
+        LabPayload
+    }
+
+    private struct GlossaryPageInfo
+    {
+        public readonly string Title;
+        public readonly string Subtitle;
+        public readonly string Body;
+        public readonly GlossaryVisualKind VisualKind;
+
+        public GlossaryPageInfo(string title, string subtitle, string body, GlossaryVisualKind visualKind)
+        {
+            Title = title;
+            Subtitle = subtitle;
+            Body = body;
+            VisualKind = visualKind;
+        }
+    }
+
+    private static readonly GlossaryPageInfo[] GlossaryPages =
+    {
+        new GlossaryPageInfo(
+            "01 / BREACH STORY",
+            "Become the cyber hacker who turns bugs back into data.",
+            "You enter a corrupted network as a cyber hacker sent to repair visible bugs.\n\n" +
+            "Every bug materializes as an algorithm sprite: fight it, stabilize it, and recover its bug data as a new AlgoMon record.\n\n" +
+            "Clear nodes, recover bug data, and keep the network environment alive.",
+            GlossaryVisualKind.Story),
+        new GlossaryPageInfo(
+            "02 / ASD + PRIORITY",
+            "Turn order: ASD counter, then skill priority, then Clock Speed.",
+            "ASD means Attack, Status, Defense. Counter-enabled skills compare their instruction: Attack beats Status, Status beats Defense, Defense beats Attack.\n\n" +
+            "The ASD winner acts first, overriding normal priority. Without a counter, skill Priority acts before Clock Speed.\n\n" +
+            "Element matchups use x1.5 strong, x1.0 neutral, and x0.75 weak.",
+            GlossaryVisualKind.Battle),
+        new GlossaryPageInfo(
+            "03 / GRID NODES + CREDIT",
+            "Permanent currency, route stops, and boss rewards.",
+            "Credit / CR is permanent. It stays after a route ends and can be spent in Shop nodes for run buffs and resource changes.\n\n" +
+            "Nodes: START begins the route. COMBAT is a normal fight. HACKER is an enemy squad. ELITE is harder with better rewards. SHOP spends CR. REBOOT reconnects the route. BOSS ends the run.\n\n" +
+            "Boss reward: AlgoMon EXP = 75 + LV x 4, CR = 6 + Danger x 2, plus High Base Form data.",
+            GlossaryVisualKind.Nodes),
+        new GlossaryPageInfo(
+            "04 / SIX STATS",
+            "What each hardware value changes in battle.",
+            "Battery is HP. At 0 Battery, an AlgoMon goes Offline. CP is skill energy, not one of the six stats.\n\n" +
+            "Computing Power raises Computing damage. Throughput raises Throughput damage. Firewall defends against Computing damage. Encryption defends against Throughput damage.\n\n" +
+            "Clock Speed decides turn order when priority is tied.",
+            GlossaryVisualKind.Stats),
+        new GlossaryPageInfo(
+            "05 / STATUS CHIPS",
+            "Read the short chip, then check the effect.",
+            "BRN deals 2% max Battery per stack at round end, then halves. FRZ gives -15% Clock Speed and +1 CP cost per stack, max 3.\n\n" +
+            "LCH drains 3% max Battery per stack to the source, max 3. SNR prevents switching.\n\n" +
+            "X2 repeats the next skill if CP remains. CP -4 discounts the next skill. CPU / TP / FW / ENC buff stats. PRI raises next priority. FW -% means Firewall shred.",
+            GlossaryVisualKind.Status),
+        new GlossaryPageInfo(
+            "06 / GENE LAB + PAYLOAD",
+            "Storage, squad setup, skills, fusion, and evolution.",
+            "Payload is permanent storage. Squad holds up to 4 AlgoMons; only the squad enters a route. Slot #1 is the lead. Use Payload to add or remove squad members, set lead, and open SKILLS.\n\n" +
+            "Gene Lab fusion requires two different same-species Base Form records outside a run. UNIT 1 stays; UNIT 2 is consumed. Each Talent keeps the higher value.\n\n" +
+            "After 3/3 same-species Base fusions, EVOLVE unlocks. Evolved form gains x1.15 to all stats.",
+            GlossaryVisualKind.LabPayload)
     };
 
     [Header("Actions")]
@@ -242,6 +325,15 @@ public class MainTerminalController : MonoBehaviour
     private Button exitReturnButton;
     private Button exitConfirmButton;
     private RectTransform settingsPanelRoot;
+    private RectTransform glossaryPanelRoot;
+    private RectTransform glossaryVisualRoot;
+    private Text glossaryPageTitleText;
+    private Text glossaryPageSubtitleText;
+    private Text glossaryPageIndicatorText;
+    private Text glossaryBodyText;
+    private Button glossaryPreviousButton;
+    private Button glossaryNextButton;
+    private int glossaryPageIndex;
     private Button terminalZoomToggleButton;
     private Image terminalZoomToggleImage;
     private Text terminalZoomStatusText;
@@ -324,6 +416,7 @@ public class MainTerminalController : MonoBehaviour
     private Text skillSwapDetailBody;
 
     /// <summary>Child references for one battle-style skill card in the swap popup.</summary>
+    // Defense note: SkillCardRefs is the main skill card refs type used by this part of the project.
     private sealed class SkillCardRefs
     {
         public RectTransform Root;
@@ -392,6 +485,7 @@ public class MainTerminalController : MonoBehaviour
     private Button sourceLayoutEnterGridButton;
     private Button sourceLayoutGeneLabButton;
     private Button sourceLayoutPayloadButton;
+    private Button sourceLayoutSystemLogButton;
     private Button sourceLayoutSettingsButton;
     private Button sourceLayoutExitButton;
     private Button[] sourceLayoutBossRouteButtons;
@@ -431,8 +525,10 @@ public class MainTerminalController : MonoBehaviour
     private static Sprite bossRouteSelectionBarSprite;
     private static Sprite bossRouteSelectionPanelSprite;
     private static Font bossRouteDefaultFont;
+    private static Font glossaryReadableFont;
     private static TMP_FontAsset tmpMirrorFontAsset;
 
+    // Defense note: Unity lifecycle hook that runs the awake step for this component.
     private void Awake()
     {
         defaultFont = ResolveTerminalDefaultFont();
@@ -448,6 +544,7 @@ public class MainTerminalController : MonoBehaviour
         RefreshRunOverview();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on enable step for this component.
     private void OnEnable()
     {
         WireButton(enterGridButton, StartRun);
@@ -459,6 +556,7 @@ public class MainTerminalController : MonoBehaviour
         WireButton(sourceLayoutEnterGridButton, StartRun);
         WireButton(sourceLayoutGeneLabButton, ShowGeneLab);
         WireButton(sourceLayoutPayloadButton, ShowPayloadBox);
+        WireButton(sourceLayoutSystemLogButton, ShowSystemLogPlaceholder);
         WireButton(sourceLayoutSettingsButton, ShowSettingsPanel);
         WireButton(sourceLayoutExitButton, ShowExitPanel);
         WireButton(launchProtocolButton, StartRun);
@@ -471,6 +569,7 @@ public class MainTerminalController : MonoBehaviour
         WireBossRouteButtons();
     }
 
+    // Defense note: Unity lifecycle hook that runs the on disable step for this component.
     private void OnDisable()
     {
         UnwireButton(enterGridButton, StartRun);
@@ -482,6 +581,7 @@ public class MainTerminalController : MonoBehaviour
         UnwireButton(sourceLayoutEnterGridButton, StartRun);
         UnwireButton(sourceLayoutGeneLabButton, ShowGeneLab);
         UnwireButton(sourceLayoutPayloadButton, ShowPayloadBox);
+        UnwireButton(sourceLayoutSystemLogButton, ShowSystemLogPlaceholder);
         UnwireButton(sourceLayoutSettingsButton, ShowSettingsPanel);
         UnwireButton(sourceLayoutExitButton, ShowExitPanel);
         UnwireButton(launchProtocolButton, StartRun);
@@ -490,10 +590,13 @@ public class MainTerminalController : MonoBehaviour
         UnwireButton(geneLabFuseButton, FuseSelectedPayload);
         UnwireButton(geneLabEvolveButton, EvolveSelectedPayload);
         UnwireButton(sectionBackButton, ExitSectionView);
+        UnwireButton(glossaryPreviousButton, ShowPreviousGlossaryPage);
+        UnwireButton(glossaryNextButton, ShowNextGlossaryPage);
         UnwireDepthTierButtons();
         UnwireBossRouteButtons();
     }
 
+    // Defense note: Unity lifecycle hook that runs the start step for this component.
     private void Start()
     {
         bootTime = Time.unscaledTime;
@@ -501,6 +604,7 @@ public class MainTerminalController : MonoBehaviour
         RefreshRunOverview();
     }
 
+    // Defense note: Unity lifecycle hook that runs the update step for this component.
     private void Update()
     {
         if (footerText != null)
@@ -546,6 +650,7 @@ public class MainTerminalController : MonoBehaviour
         RefreshRunOverview();
     }
 
+    // Defense note: Runs the start run helper used by this script.
     private void StartRun()
     {
         if (GridLinkTransition.IsActive)
@@ -577,6 +682,7 @@ public class MainTerminalController : MonoBehaviour
             () => GameManager.GoTo(GameScene.TheGrid));
     }
 
+    // Defense note: Runs the select depth tier helper used by this script.
     private void SelectDepthTier(int tier)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -605,6 +711,7 @@ public class MainTerminalController : MonoBehaviour
         RefreshRunOverview();
     }
 
+    // Defense note: Runs the select boss route helper used by this script.
     private void SelectBossRoute(string speciesCodeName)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -634,6 +741,7 @@ public class MainTerminalController : MonoBehaviour
         RefreshRunOverview();
     }
 
+    // Defense note: Shows the gene lab UI or feedback state.
     private void ShowGeneLab()
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -648,9 +756,11 @@ public class MainTerminalController : MonoBehaviour
         ShowGeneLabPanel(true);
         ShowExitPanelRoot(false);
         ShowSettingsPanelRoot(false);
+        ShowGlossaryPanelRoot(false);
         RefreshGeneLabModule();
     }
 
+    // Defense note: Shows the payload box UI or feedback state.
     private void ShowPayloadBox()
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -674,11 +784,13 @@ public class MainTerminalController : MonoBehaviour
         ShowGeneLabPanel(false);
         ShowExitPanelRoot(false);
         ShowSettingsPanelRoot(false);
+        ShowGlossaryPanelRoot(false);
         CloseSquadPanel();
         ShowPayloadGrid(true);
         RenderPayloadGrid(manager);
     }
 
+    // Defense note: Runs the enter section view helper used by this script.
     private void EnterSectionView(string title)
     {
         inSectionView = true;
@@ -699,6 +811,7 @@ public class MainTerminalController : MonoBehaviour
             sectionViewRoot.gameObject.SetActive(true);
     }
 
+    // Defense note: Runs the exit section view helper used by this script.
     private void ExitSectionView()
     {
         if (showingGeneLabPanel && !geneLabRouteSelectionMode)
@@ -722,6 +835,7 @@ public class MainTerminalController : MonoBehaviour
         ShowGeneLabPanel(false);
         ShowExitPanelRoot(false);
         ShowSettingsPanelRoot(false);
+        ShowGlossaryPanelRoot(false);
         CloseSquadPanel();
 
         if (sectionViewRoot != null)
@@ -737,6 +851,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Refreshes the gene lab module display from current data.
     private void RefreshGeneLabModule()
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -766,16 +881,19 @@ public class MainTerminalController : MonoBehaviour
         RenderGeneLabPanel(manager);
     }
 
+    // Defense note: Runs the select previous payload helper used by this script.
     private void SelectPreviousPayload()
     {
         MovePayloadSelection(-1);
     }
 
+    // Defense note: Runs the select next payload helper used by this script.
     private void SelectNextPayload()
     {
         MovePayloadSelection(1);
     }
 
+    // Defense note: Runs the move payload selection helper used by this script.
     private void MovePayloadSelection(int direction)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -795,11 +913,13 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the select gene lab species helper used by this script.
     private void SelectGeneLabSpecies(string speciesCodeName)
     {
         SelectGeneLabSpecies(speciesCodeName, true);
     }
 
+    // Defense note: Runs the select gene lab species helper used by this script.
     private void SelectGeneLabSpecies(string speciesCodeName, bool refresh)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -818,6 +938,7 @@ public class MainTerminalController : MonoBehaviour
             RefreshGeneLabModule();
     }
 
+    // Defense note: Runs the move gene lab target helper used by this script.
     private void MoveGeneLabTarget(int direction)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -844,6 +965,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the fuse selected payload helper used by this script.
     private void FuseSelectedPayload()
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -871,6 +993,7 @@ public class MainTerminalController : MonoBehaviour
         RefreshGeneLabModule();
     }
 
+    // Defense note: Runs the evolve selected payload helper used by this script.
     private void EvolveSelectedPayload()
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -885,11 +1008,33 @@ public class MainTerminalController : MonoBehaviour
         RefreshGeneLabModule();
     }
 
+    // Defense note: Shows the system log placeholder UI or feedback state.
     private void ShowSystemLogPlaceholder()
     {
-        SetModule("SYSTEM_LOG", "LOG:", "GRID MODULE READY.", "Start Run will initialize a fresh route graph.");
+        showingGeneLabPanel = false;
+        geneLabActionMessage = string.Empty;
+        geneLabSkillMessage = string.Empty;
+        geneLabFusionSecondIndex = -1;
+        payloadSkillMessage = string.Empty;
+        pendingPayloadSkillReplacement = null;
+        EnterSectionView("SYSTEM LOG");
+        HidePayloadPanel();
+        ShowPayloadGrid(false);
+        ShowGeneLabPanel(false);
+        ShowExitPanelRoot(false);
+        ShowSettingsPanelRoot(false);
+        glossaryPageIndex = Mathf.Clamp(glossaryPageIndex, 0, Mathf.Max(0, GlossaryPages.Length - 1));
+        EnsureGlossaryPanelAvailable();
+        ShowGlossaryPanelRoot(true);
+        CloseSquadPanel();
+        SetModule(
+            "SYSTEM_LOG",
+            "FIELD MANUAL:",
+            "TERMS INDEX READY.",
+            "Open terms explain the run, combat, and node labels used by the terminal.");
     }
 
+    // Defense note: Shows the settings panel UI or feedback state.
     private void ShowSettingsPanel()
     {
         showingGeneLabPanel = false;
@@ -903,6 +1048,7 @@ public class MainTerminalController : MonoBehaviour
         ShowPayloadGrid(false);
         ShowGeneLabPanel(false);
         ShowExitPanelRoot(false);
+        ShowGlossaryPanelRoot(false);
         ShowSettingsPanelRoot(true);
         CloseSquadPanel();
         SetModule(
@@ -913,6 +1059,7 @@ public class MainTerminalController : MonoBehaviour
         RenderSettingsPanel();
     }
 
+    // Defense note: Shows the exit panel UI or feedback state.
     private void ShowExitPanel()
     {
         showingGeneLabPanel = false;
@@ -924,17 +1071,20 @@ public class MainTerminalController : MonoBehaviour
         ShowPayloadGrid(false);
         ShowGeneLabPanel(false);
         ShowSettingsPanelRoot(false);
+        ShowGlossaryPanelRoot(false);
         ShowExitPanelRoot(true);
         SetModule("EXIT_SYSTEM", "SESSION:", "EXIT PROTOCOL READY.", "Return to the terminal or close the current build session.");
         RenderExitPanel();
     }
 
+    // Defense note: Runs the return from exit panel helper used by this script.
     private void ReturnFromExitPanel()
     {
         ExitSectionView();
         SetModule("ENTER_GRID", "DEPTH TIER:", "GRID LINK READY", BuildDepthTierDetail(manager));
     }
 
+    // Defense note: Runs the confirm exit helper used by this script.
     private void ConfirmExit()
     {
         if (exitPanelStatusText != null)
@@ -947,6 +1097,7 @@ public class MainTerminalController : MonoBehaviour
 #endif
     }
 
+    // Defense note: Updates the module state or visual value.
     private void SetModule(string moduleId, string warning, string headline, string detail)
     {
         if (moduleText != null)
@@ -955,15 +1106,22 @@ public class MainTerminalController : MonoBehaviour
             warningText.text = warning;
         if (detailText != null)
             detailText.text = $"{headline}\n\n{detail}";
-        if (moduleId != "PAYLOAD_BOX" && moduleId != "GENE_LAB" && moduleId != "EXIT_SYSTEM")
+        if (moduleId != "PAYLOAD_BOX" &&
+            moduleId != "GENE_LAB" &&
+            moduleId != "EXIT_SYSTEM" &&
+            moduleId != "SETTINGS" &&
+            moduleId != "SYSTEM_LOG")
         {
             showingGeneLabPanel = false;
             HidePayloadPanel();
             ShowGeneLabPanel(false);
             ShowExitPanelRoot(false);
+            ShowSettingsPanelRoot(false);
+            ShowGlossaryPanelRoot(false);
         }
     }
 
+    // Defense note: Refreshes the run overview display from current data.
     private void RefreshRunOverview()
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -1014,6 +1172,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the threat tier access dependency or state exists before use.
     private void EnsureThreatTierAccess(GameManager targetManager)
     {
         if (targetManager == null || !unlockAllThreatTiersForVerticalSlice)
@@ -1023,6 +1182,7 @@ public class MainTerminalController : MonoBehaviour
             targetManager.SetHighestUnlockedThreatTier(ThreatTierRules.MaxTier);
     }
 
+    // Defense note: Builds the depth tier detail data or UI structure.
     private string BuildDepthTierDetail(GameManager targetManager)
     {
         if (targetManager == null)
@@ -1034,6 +1194,7 @@ public class MainTerminalController : MonoBehaviour
         return $"DEPTH {selected}F\nROUTE {GridGenerationSettings.TotalLayerRangeLabel(selected)} LAYERS\nENEMY LV {ThreatTierRules.MinLevel(tier):00}-{ThreatTierRules.MaxLevel(tier):00}";
     }
 
+    // Defense note: Builds the boss target detail data or UI structure.
     private string BuildBossTargetDetail(GameManager targetManager)
     {
         if (targetManager == null)
@@ -1044,6 +1205,7 @@ public class MainTerminalController : MonoBehaviour
         return $"FINAL BOSS: {selected} PRIME\nDEPTH {depth}F / EVOLVED FORM LOCK\nCLICK ANOTHER ROUTE BEFORE LAUNCH TO RE-TARGET.";
     }
 
+    // Defense note: Resolves the depth tier sprite step and updates dependent state.
     private Sprite ResolveDepthTierSprite(int tier)
     {
         int index = Mathf.Clamp(tier, ThreatTierRules.MinTier, ThreatTierRules.MaxTier) - ThreatTierRules.MinTier;
@@ -1059,6 +1221,7 @@ public class MainTerminalController : MonoBehaviour
         return cached;
     }
 
+    // Defense note: Runs the accent color for tier helper used by this script.
     private static Color AccentColorForTier(int tier)
     {
         switch (Mathf.Clamp(tier, ThreatTierRules.MinTier, ThreatTierRules.MaxTier))
@@ -1077,6 +1240,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the accent role for tier helper used by this script.
     private static CyberUiColorRole AccentRoleForTier(int tier)
     {
         switch (Mathf.Clamp(tier, ThreatTierRules.MinTier, ThreatTierRules.MaxTier))
@@ -1095,6 +1259,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the party preview data or UI structure.
     private string BuildPartyPreview(GameManager targetManager)
     {
         if (targetManager == null || targetManager.party == null || targetManager.party.Count == 0)
@@ -1112,6 +1277,7 @@ public class MainTerminalController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Runs the format party mon helper used by this script.
     private static string FormatPartyMon(AlgoMonInstance mon, int slot)
     {
         if (mon == null)
@@ -1122,6 +1288,7 @@ public class MainTerminalController : MonoBehaviour
         return $"{slot:00}// {name.ToUpperInvariant()}\nL{mon.level:00} [{ShortElement(element)}]\nBAT{mon.Battery:00} SPD{mon.ClockSpeed:00}";
     }
 
+    // Defense note: Builds the payload preview data or UI structure.
     private static string BuildPayloadPreview(GameManager targetManager)
     {
         if (targetManager == null || targetManager.payload == null || targetManager.payload.Count == 0)
@@ -1143,6 +1310,7 @@ public class MainTerminalController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Runs the format payload mon helper used by this script.
     private static string FormatPayloadMon(AlgoMonInstance mon, int slot)
     {
         if (mon == null)
@@ -1154,6 +1322,7 @@ public class MainTerminalController : MonoBehaviour
         return $"{slot:00}// {name.ToUpperInvariant()} {form} L{mon.level:00} [{ShortElement(element)}] BAT{mon.Battery:00} CPU{mon.ComputingPower:00} TP{mon.Throughput:00}";
     }
 
+    // Defense note: Renders the payload panel view from runtime state.
     private void RenderPayloadPanel(GameManager targetManager)
     {
         if (payloadPanel == null)
@@ -1183,6 +1352,7 @@ public class MainTerminalController : MonoBehaviour
         SetPayloadPanelControls(targetManager.payload.Count > 1, targetManager.payload.Count > 1, false, false);
     }
 
+    // Defense note: Renders the gene lab panel view from runtime state.
     private void RenderGeneLabPanel(GameManager targetManager)
     {
         if (geneLabPanelRoot != null)
@@ -1227,6 +1397,7 @@ public class MainTerminalController : MonoBehaviour
             canEvolve);
     }
 
+    // Defense note: Renders the gene lab dashboard view from runtime state.
     private void RenderGeneLabDashboard(GameManager targetManager)
     {
         string speciesCode = SelectedGeneLabSpeciesCode(targetManager);
@@ -1287,12 +1458,14 @@ public class MainTerminalController : MonoBehaviour
         SetPanelButtonState(geneLabEvolveActionButton, true, canEvolve);
     }
 
+    // Defense note: Hides the payload panel UI or feedback state.
     private void HidePayloadPanel()
     {
         if (payloadPanel != null)
             payloadPanel.gameObject.SetActive(false);
     }
 
+    // Defense note: Builds the payload display order data or UI structure.
     private void BuildPayloadDisplayOrder(GameManager targetManager)
     {
         payloadDisplayOrder.Clear();
@@ -1319,6 +1492,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Resolves the payload slot sprite step and updates dependent state.
     private Sprite ResolvePayloadSlotSprite(GameManager targetManager, AlgoMonInstance mon, bool selected)
     {
         if (selected && slotSelectedSprite != null)
@@ -1330,6 +1504,7 @@ public class MainTerminalController : MonoBehaviour
         return slotNormalSprite;
     }
 
+    // Defense note: Renders the payload grid view from runtime state.
     private void RenderPayloadGrid(GameManager targetManager)
     {
         if (payloadCellFrames == null)
@@ -1423,6 +1598,7 @@ public class MainTerminalController : MonoBehaviour
         RenderPayloadDetailStub(selectedMon, targetManager);
     }
 
+    // Defense note: Runs the exp progress for helper used by this script.
     private static float ExpProgressFor(AlgoMonInstance mon)
     {
         if (mon == null)
@@ -1434,6 +1610,7 @@ public class MainTerminalController : MonoBehaviour
         return Mathf.Clamp01(mon.exp / (float)required);
     }
 
+    // Defense note: Renders the payload detail stub view from runtime state.
     private void RenderPayloadDetailStub(AlgoMonInstance mon, GameManager targetManager)
     {
         SetInspectorIdle(mon);
@@ -1498,6 +1675,7 @@ public class MainTerminalController : MonoBehaviour
         UpdateInspectorSkillPanel(mon);
     }
 
+    // Defense note: Updates the inspector exp state each time it changes.
     private void UpdateInspectorExp(AlgoMonInstance mon)
     {
         if (inspectorExpFill != null)
@@ -1526,6 +1704,7 @@ public class MainTerminalController : MonoBehaviour
 
     // Keeps the SKILLS button enabled only for a real unit, and live-refreshes the
     // popup if it is already open when the inspector re-renders (selection change).
+    // Defense note: Updates the inspector skill panel state each time it changes.
     private void UpdateInspectorSkillPanel(AlgoMonInstance mon)
     {
         if (inspectorSkillsButton != null)
@@ -1546,6 +1725,7 @@ public class MainTerminalController : MonoBehaviour
             RenderSkillSwapPanel();
     }
 
+    // Defense note: Runs the open skill swap panel helper used by this script.
     private void OpenSkillSwapPanel()
     {
         if (skillSwapPanelRoot == null)
@@ -1566,6 +1746,7 @@ public class MainTerminalController : MonoBehaviour
         ShowSkillSwapDetail(first, first != null ? UnlockLevelFor(mon, first) : 0);
     }
 
+    // Defense note: Runs the close skill swap panel helper used by this script.
     private void CloseSkillSwapPanel()
     {
         pendingPayloadSkillReplacement = null;
@@ -1575,6 +1756,7 @@ public class MainTerminalController : MonoBehaviour
             skillSwapPanelRoot.gameObject.SetActive(false);
     }
 
+    // Defense note: Ensures the skill swap panel built dependency or state exists before use.
     private bool EnsureSkillSwapPanelBuilt()
     {
         if (skillSwapPanelRoot == null)
@@ -1596,6 +1778,7 @@ public class MainTerminalController : MonoBehaviour
         return skillSwapPanelRoot != null && skillSwapLoadoutCards != null && skillSwapLearnCards != null && skillSwapLearnEntries != null;
     }
 
+    // Defense note: Ensures the skill swap panel dependency or state exists before use.
     private void EnsureSkillSwapPanel(Transform parent)
     {
         skillSwapPanelRoot = CreateRect("SkillSwapPanel", parent);
@@ -1684,6 +1867,7 @@ public class MainTerminalController : MonoBehaviour
     /// otherwise a wide learnable row (state badge right). Hover drives the same
     /// scale/glow feedback as battle skill slots and feeds the detail panel.
     /// </summary>
+    // Defense note: Builds the skill card data or UI structure.
     private SkillCardRefs BuildSkillCard(string objectName, Transform parent, Vector2 anchorMin, Vector2 anchorMax, bool compact, int hoverIndex)
     {
         RectTransform root = CreateRect(objectName, parent);
@@ -1822,6 +2006,7 @@ public class MainTerminalController : MonoBehaviour
         };
     }
 
+    // Defense note: Creates the skill tag chip object used by the scene or runtime.
     private Image CreateSkillTagChip(Transform parent, string objectName, Color tint, out Text text)
     {
         Image chip = CreateImage(objectName, parent, tint);
@@ -1840,6 +2025,7 @@ public class MainTerminalController : MonoBehaviour
     }
 
     /// <summary>Right-hand skill data board, fed by hovering any card (battle detail-panel style).</summary>
+    // Defense note: Builds the skill swap detail panel data or UI structure.
     private void BuildSkillSwapDetailPanel(Transform box)
     {
         Text caption = CreateText("SkillSwapDetailLabel", box, 13, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.6f, 0.92f, 1f, 0.92f));
@@ -1911,6 +2097,7 @@ public class MainTerminalController : MonoBehaviour
     }
 
     /// <summary>Fills the data board with rich-text detail (same formatter as the battle HUD).</summary>
+    // Defense note: Shows the skill swap detail UI or feedback state.
     private void ShowSkillSwapDetail(SkillData skill, int unlockLevel)
     {
         if (skillSwapDetailName == null)
@@ -1973,6 +2160,7 @@ public class MainTerminalController : MonoBehaviour
     }
 
     /// <summary>SUBROUTINE button: render the selected unit's passive into the shared data board, values highlighted.</summary>
+    // Defense note: Shows the subroutine detail UI or feedback state.
     private void ShowSubroutineDetail()
     {
         if (skillSwapDetailName == null)
@@ -2016,6 +2204,7 @@ public class MainTerminalController : MonoBehaviour
                 subroutine.description != null ? subroutine.description.Trim() : string.Empty);
     }
 
+    // Defense note: Runs the on skill swap card hover helper used by this script.
     private void OnSkillSwapCardHover(bool isLoadout, int index)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -2039,6 +2228,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the unlock level for helper used by this script.
     private static int UnlockLevelFor(AlgoMonInstance mon, SkillData skill)
     {
         if (mon == null || mon.data == null || mon.data.learnset == null || skill == null)
@@ -2052,6 +2242,7 @@ public class MainTerminalController : MonoBehaviour
         return 0;
     }
 
+    // Defense note: Renders the skill swap panel view from runtime state.
     private void RenderSkillSwapPanel()
     {
         if (skillSwapPanelRoot == null)
@@ -2113,6 +2304,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Applies the loadout card change to gameplay or UI state.
     private void ApplyLoadoutCard(SkillCardRefs card, int slotIndex, SkillData skill, bool armed)
     {
         if (card == null)
@@ -2143,6 +2335,7 @@ public class MainTerminalController : MonoBehaviour
             card.Frame.color = armed ? new Color(1f, 0.92f, 0.66f, 1f) : Color.white;
     }
 
+    // Defense note: Applies the learn card change to gameplay or UI state.
     private void ApplyLearnCard(SkillCardRefs card, AlgoMonInstance mon, LearnsetEntry entry)
     {
         if (card == null)
@@ -2206,6 +2399,7 @@ public class MainTerminalController : MonoBehaviour
                         : Color.white;
     }
 
+    // Defense note: Runs the fill skill card content helper used by this script.
     private void FillSkillCardContent(SkillCardRefs card, SkillData skill)
     {
         InstructionType instruction = skill.instructionType;
@@ -2254,6 +2448,7 @@ public class MainTerminalController : MonoBehaviour
             card.CounterText.text = "C";
     }
 
+    // Defense note: Clears the skill card content state so it can be rebuilt safely.
     private void ClearSkillCardContent(SkillCardRefs card, string placeholder)
     {
         if (card.InstructionBadge != null)
@@ -2279,6 +2474,7 @@ public class MainTerminalController : MonoBehaviour
 
     // Tap a learnable card: respects the level gate, then fills a free slot, drops
     // into an armed slot, or stages itself for a replace when the loadout is full.
+    // Defense note: Runs the on skill swap learn clicked helper used by this script.
     private void OnSkillSwapLearnClicked(int index)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -2345,6 +2541,7 @@ public class MainTerminalController : MonoBehaviour
     }
 
     // Tap a loadout slot: receives a staged skill, or arms the slot for the next pick.
+    // Defense note: Runs the on skill swap loadout clicked helper used by this script.
     private void OnSkillSwapLoadoutClicked(int slot)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -2384,6 +2581,7 @@ public class MainTerminalController : MonoBehaviour
         RenderSkillSwapPanel();
     }
 
+    // Defense note: Applies the skill to slot change to gameplay or UI state.
     private void ApplySkillToSlot(AlgoMonInstance mon, int slot, SkillData skill)
     {
         string newName = SkillDisplayName(skill).ToUpperInvariant();
@@ -2402,6 +2600,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the known skill list dependency or state exists before use.
     private static void EnsureKnownSkillList(AlgoMonInstance mon)
     {
         mon.EnsurePersistentRuntimeState();
@@ -2410,6 +2609,7 @@ public class MainTerminalController : MonoBehaviour
         mon.knownSkills.RemoveAll(s => s == null);
     }
 
+    // Defense note: Toggles the selected favorite mode or selection state.
     private void ToggleSelectedFavorite()
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -2422,6 +2622,7 @@ public class MainTerminalController : MonoBehaviour
         RenderPayloadGrid(manager);
     }
 
+    // Defense note: Runs the focus payload page on helper used by this script.
     private void FocusPayloadPageOn(AlgoMonInstance mon, GameManager targetManager)
     {
         if (mon == null || targetManager == null || payloadCellFrames == null || payloadCellFrames.Length == 0)
@@ -2433,6 +2634,7 @@ public class MainTerminalController : MonoBehaviour
             payloadPage = orderIndex / payloadCellFrames.Length;
     }
 
+    // Defense note: Toggles the selected squad mode or selection state.
     private void ToggleSelectedSquad()
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -2457,6 +2659,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the squad panel dependency or state exists before use.
     private void EnsureSquadPanel(Transform parent)
     {
         squadPanelRoot = CreateRect("SquadPanel", parent);
@@ -2545,6 +2748,7 @@ public class MainTerminalController : MonoBehaviour
         squadPanelRoot.gameObject.SetActive(false);
     }
 
+    // Defense note: Runs the open squad panel helper used by this script.
     private void OpenSquadPanel(bool replaceMode, AlgoMonInstance incoming)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -2558,6 +2762,7 @@ public class MainTerminalController : MonoBehaviour
         RenderSquadPanel();
     }
 
+    // Defense note: Runs the close squad panel helper used by this script.
     private void CloseSquadPanel()
     {
         squadReplaceMode = false;
@@ -2566,6 +2771,7 @@ public class MainTerminalController : MonoBehaviour
             squadPanelRoot.gameObject.SetActive(false);
     }
 
+    // Defense note: Renders the squad panel view from runtime state.
     private void RenderSquadPanel()
     {
         if (squadPanelRoot == null)
@@ -2609,6 +2815,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the squad set lead helper used by this script.
     private void SquadSetLead(int index)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -2623,6 +2830,7 @@ public class MainTerminalController : MonoBehaviour
         RenderPayloadGrid(manager);
     }
 
+    // Defense note: Runs the squad slot action helper used by this script.
     private void SquadSlotAction(int index)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -2648,6 +2856,7 @@ public class MainTerminalController : MonoBehaviour
         RenderPayloadGrid(manager);
     }
 
+    // Defense note: Updates the squad button state each time it changes.
     private void UpdateSquadButton(AlgoMonInstance mon, GameManager targetManager)
     {
         if (inspectorSquadButton == null)
@@ -2678,11 +2887,11 @@ public class MainTerminalController : MonoBehaviour
         }
         else if (count >= max)
         {
-            inspectorSquadButton.interactable = false;
+            inspectorSquadButton.interactable = true;
             if (inspectorSquadButtonLabel != null)
             {
-                inspectorSquadButtonLabel.text = "SQUAD FULL";
-                inspectorSquadButtonLabel.color = new Color(0.56f, 0.68f, 0.72f, 1f);
+                inspectorSquadButtonLabel.text = "REPLACE SQUAD";
+                inspectorSquadButtonLabel.color = new Color(1f, 0.78f, 0.36f, 1f);
             }
         }
         else
@@ -2696,6 +2905,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the favorite button state each time it changes.
     private void UpdateFavoriteButton(AlgoMonInstance mon)
     {
         if (inspectorFavoriteButton == null)
@@ -2717,6 +2927,7 @@ public class MainTerminalController : MonoBehaviour
                 : new Color(0.78f, 0.94f, 0.98f, 0.95f);
     }
 
+    // Defense note: Updates the inspector idle state or visual value.
     private void SetInspectorIdle(AlgoMonInstance mon)
     {
         string nextIdleKey = InspectorIdleKey(mon);
@@ -2740,14 +2951,17 @@ public class MainTerminalController : MonoBehaviour
         }
 
         // Match battle: prefer the form-aware idle clip so evolved bodies animate
-        // with their evolved frames, and honor the per-species visualScaleMultiplier
+        // with their evolved frames, and honor per-species profile scale settings
         // so framing-heavy sprites (e.g. Nullbyte) read at a consistent size.
         float scale = 1f;
+        float horizontalScale = 1f;
         BattleAnimationProfile profile = ResolveInspectorProfile(mon);
         if (profile != null)
         {
             if (profile.visualScaleMultiplier > 0f)
                 scale = profile.visualScaleMultiplier;
+            if (profile.horizontalScaleMultiplier > 0f)
+                horizontalScale = profile.horizontalScaleMultiplier;
             if (profile.idle != null && profile.idle.HasFrames)
             {
                 inspectorIdleFrames = profile.idle.frames;
@@ -2760,9 +2974,10 @@ public class MainTerminalController : MonoBehaviour
             : ResolvePayloadSprite(mon);
         inspectorPortraitImage.sprite = first;
         inspectorPortraitImage.enabled = first != null;
-        ApplyInspectorPortraitScale(scale);
+        ApplyInspectorPortraitScale(scale, horizontalScale);
     }
 
+    // Defense note: Runs the inspector idle key helper used by this script.
     private static string InspectorIdleKey(AlgoMonInstance mon)
     {
         if (mon == null)
@@ -2772,6 +2987,7 @@ public class MainTerminalController : MonoBehaviour
         return $"{mon.instanceId}:{mon.SpeciesCodeName}:{mon.FormName}";
     }
 
+    // Defense note: Resolves the inspector profile step and updates dependent state.
     private BattleAnimationProfile ResolveInspectorProfile(AlgoMonInstance mon)
     {
         if (mon == null)
@@ -2786,13 +3002,15 @@ public class MainTerminalController : MonoBehaviour
         return mon.data != null ? mon.data.battleAnimationProfile : null;
     }
 
-    private void ApplyInspectorPortraitScale(float scale)
+    // Defense note: Applies the inspector portrait scale change to gameplay or UI state.
+    private void ApplyInspectorPortraitScale(float scale, float horizontalScale = 1f)
     {
         if (inspectorPortraitImage == null)
             return;
-        inspectorPortraitImage.rectTransform.localScale = new Vector3(scale, scale, 1f);
+        inspectorPortraitImage.rectTransform.localScale = new Vector3(scale * horizontalScale, scale, 1f);
     }
 
+    // Defense note: Updates the radar label text state each time it changes.
     private void UpdateRadarLabelText(int[] stats)
     {
         if (inspectorRadarLabels == null)
@@ -2805,6 +3023,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the position radar labels helper used by this script.
     private void PositionRadarLabels()
     {
         if (inspectorRadarLabels == null || inspectorRadar == null || inspectorRadarRoot == null)
@@ -2822,6 +3041,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the tick inspector idle helper used by this script.
     private void TickInspectorIdle()
     {
         if (!inSectionView || showingGeneLabPanel)
@@ -2846,6 +3066,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the on payload cell clicked helper used by this script.
     private void OnPayloadCellClicked(int cellIndex)
     {
         if (payloadCellPayloadIndices == null || cellIndex < 0 || cellIndex >= payloadCellPayloadIndices.Length)
@@ -2866,6 +3087,7 @@ public class MainTerminalController : MonoBehaviour
         RenderPayloadGrid(manager);
     }
 
+    // Defense note: Configures the payload cell hover layout, style, or behavior.
     private void ConfigurePayloadCellHover(Button button, int cellIndex)
     {
         if (button == null)
@@ -2893,6 +3115,7 @@ public class MainTerminalController : MonoBehaviour
         trigger.triggers.Add(exit);
     }
 
+    // Defense note: Updates the payload cell hover state or visual value.
     private void SetPayloadCellHover(int cellIndex, bool hovered)
     {
         if (payloadCellPayloadIndices == null)
@@ -2914,6 +3137,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Shows the payload grid UI or feedback state.
     private void ShowPayloadGrid(bool show)
     {
         if (payloadGridRoot != null)
@@ -2922,36 +3146,51 @@ public class MainTerminalController : MonoBehaviour
             inspectorViewSquadButton.gameObject.SetActive(show);
     }
 
+    // Defense note: Shows the gene lab panel UI or feedback state.
     private void ShowGeneLabPanel(bool show)
     {
         if (geneLabPanelRoot != null)
             geneLabPanelRoot.gameObject.SetActive(show);
     }
 
+    // Defense note: Shows the gene lab route selection UI or feedback state.
     private void ShowGeneLabRouteSelection(bool show)
     {
         if (geneLabRouteSelectionRoot != null)
             geneLabRouteSelectionRoot.gameObject.SetActive(show);
     }
 
+    // Defense note: Shows the gene lab bench UI or feedback state.
     private void ShowGeneLabBench(bool show)
     {
         if (geneLabBenchRoot != null)
             geneLabBenchRoot.gameObject.SetActive(show);
     }
 
+    // Defense note: Shows the exit panel root UI or feedback state.
     private void ShowExitPanelRoot(bool show)
     {
         if (exitPanelRoot != null)
             exitPanelRoot.gameObject.SetActive(show);
     }
 
+    // Defense note: Shows the settings panel root UI or feedback state.
     private void ShowSettingsPanelRoot(bool show)
     {
         if (settingsPanelRoot != null)
             settingsPanelRoot.gameObject.SetActive(show);
     }
 
+    // Defense note: Shows the glossary panel root UI or feedback state.
+    private void ShowGlossaryPanelRoot(bool show)
+    {
+        if (glossaryPanelRoot != null)
+            glossaryPanelRoot.gameObject.SetActive(show);
+        if (show)
+            RenderGlossaryPanel();
+    }
+
+    // Defense note: Toggles the terminal zoom mode mode or selection state.
     private void ToggleTerminalZoomMode()
     {
         terminalZoomModeEnabled = !terminalZoomModeEnabled;
@@ -2967,6 +3206,7 @@ public class MainTerminalController : MonoBehaviour
             "Toggle terminal zoom when you want a closer UI pass.");
     }
 
+    // Defense note: Applies the terminal zoom mode change to gameplay or UI state.
     private void ApplyTerminalZoomMode()
     {
         // Keyboard ambience follows the typing character: it animates when zoom is
@@ -3060,6 +3300,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the capture terminal base rect helper used by this script.
     private void CaptureTerminalBaseRect(RectTransform zoomRect)
     {
         if (terminalBaseRectCaptured || zoomRect == null)
@@ -3078,6 +3319,7 @@ public class MainTerminalController : MonoBehaviour
         terminalBaseRectCaptured = true;
     }
 
+    // Defense note: Runs the restore terminal base rect helper used by this script.
     private void RestoreTerminalBaseRect(RectTransform zoomRect)
     {
         if (!terminalBaseRectCaptured || zoomRect == null)
@@ -3095,6 +3337,7 @@ public class MainTerminalController : MonoBehaviour
             zoomRect.SetSiblingIndex(Mathf.Clamp(terminalBaseSiblingIndex, 0, zoomRect.parent.childCount - 1));
     }
 
+    // Defense note: Runs the calculate terminal zoom content bounds helper used by this script.
     private Bounds CalculateTerminalZoomContentBounds(RectTransform zoomRect)
     {
         RectTransform shell = zoomRect != null
@@ -3134,6 +3377,7 @@ public class MainTerminalController : MonoBehaviour
         return hasBounds ? combined : combined;
     }
 
+    // Defense note: Runs the calculate rect bounds in root helper used by this script.
     private static Bounds CalculateRectBoundsInRoot(RectTransform root, RectTransform target)
     {
         Vector3[] corners = new Vector3[4];
@@ -3152,6 +3396,7 @@ public class MainTerminalController : MonoBehaviour
         return bounds;
     }
 
+    // Defense note: Ensures the terminal zoom blackout dependency or state exists before use.
     private void EnsureTerminalZoomBlackout(RectTransform zoomRect)
     {
         RectTransform parentRect = zoomRect != null ? zoomRect.parent as RectTransform : null;
@@ -3176,6 +3421,7 @@ public class MainTerminalController : MonoBehaviour
             terminalZoomBlackoutImage.color = Color.black;
     }
 
+    // Defense note: Updates the terminal zoom blackout visible state or visual value.
     private void SetTerminalZoomBlackoutVisible(bool visible, RectTransform zoomRect)
     {
         if (terminalZoomBlackoutRoot == null)
@@ -3189,6 +3435,7 @@ public class MainTerminalController : MonoBehaviour
         zoomRect.SetAsLastSibling();
     }
 
+    // Defense note: Renders the settings panel view from runtime state.
     private void RenderSettingsPanel()
     {
         if (terminalZoomToggleImage != null)
@@ -3232,6 +3479,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Renders the exit panel view from runtime state.
     private void RenderExitPanel()
     {
         if (exitPanelStatusText != null)
@@ -3248,12 +3496,14 @@ public class MainTerminalController : MonoBehaviour
             exitConfirmButton.interactable = true;
     }
 
+    // Defense note: Renders the gene lab fusion displays view from runtime state.
     private void RenderGeneLabFusionDisplays(AlgoMonInstance target, int targetIndex, AlgoMonInstance material, int materialIndex)
     {
         SetGeneLabFusionDisplay(0, target, targetIndex);
         SetGeneLabFusionDisplay(1, material, materialIndex);
     }
 
+    // Defense note: Renders the gene lab fusion talent bars view from runtime state.
     private void RenderGeneLabFusionTalentBars(AlgoMonInstance target, AlgoMonInstance material)
     {
         if (geneLabFusionTalentRoot == null)
@@ -3284,6 +3534,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the gene lab talent fill state or visual value.
     private static void SetGeneLabTalentFill(Image[] fills, int index, int value, Color color)
     {
         if (fills == null || index < 0 || index >= fills.Length || fills[index] == null)
@@ -3293,6 +3544,7 @@ public class MainTerminalController : MonoBehaviour
         fills[index].color = color;
     }
 
+    // Defense note: Updates the gene lab talent value state or visual value.
     private static void SetGeneLabTalentValue(Text[] values, int index, string text)
     {
         if (values == null || index < 0 || index >= values.Length || values[index] == null)
@@ -3301,6 +3553,7 @@ public class MainTerminalController : MonoBehaviour
         values[index].text = text;
     }
 
+    // Defense note: Updates the gene lab fusion display state or visual value.
     private void SetGeneLabFusionDisplay(int slot, AlgoMonInstance mon, int payloadIndex)
     {
         if (geneLabFusionNameTexts == null || slot < 0 || slot >= geneLabFusionNameTexts.Length)
@@ -3338,6 +3591,7 @@ public class MainTerminalController : MonoBehaviour
         SetGeneLabFusionIdle(slot, mon);
     }
 
+    // Defense note: Updates the gene lab fusion idle state or visual value.
     private void SetGeneLabFusionIdle(int slot, AlgoMonInstance mon)
     {
         if (geneLabFusionPortraitImages == null || slot < 0 || slot >= geneLabFusionPortraitImages.Length)
@@ -3379,6 +3633,7 @@ public class MainTerminalController : MonoBehaviour
         portrait.color = Color.white;
     }
 
+    // Defense note: Clears the gene lab fusion idle state so it can be rebuilt safely.
     private void ClearGeneLabFusionIdle(int slot)
     {
         if (geneLabFusionIdleKeys != null && slot >= 0 && slot < geneLabFusionIdleKeys.Length)
@@ -3391,6 +3646,7 @@ public class MainTerminalController : MonoBehaviour
             geneLabFusionIdleFrameIndices[slot] = 0;
     }
 
+    // Defense note: Runs the tick gene lab fusion idle helper used by this script.
     private void TickGeneLabFusionIdle()
     {
         if (!inSectionView || !showingGeneLabPanel || geneLabRouteSelectionMode)
@@ -3422,6 +3678,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Refreshes the gene lab mini payload display from current data.
     private void RefreshGeneLabMiniPayload(GameManager targetManager, string speciesCode)
     {
         if (geneLabMiniPayloadButtons == null)
@@ -3479,12 +3736,14 @@ public class MainTerminalController : MonoBehaviour
             geneLabMiniPayloadNextButton.interactable = geneLabPayloadPage < pageCount - 1;
     }
 
+    // Defense note: Runs the change gene lab mini payload page helper used by this script.
     private void ChangeGeneLabMiniPayloadPage(int delta)
     {
         geneLabPayloadPage += delta;
         RefreshGeneLabModule();
     }
 
+    // Defense note: Runs the on gene lab mini payload clicked helper used by this script.
     private void OnGeneLabMiniPayloadClicked(int cellIndex)
     {
         if (geneLabMiniPayloadIndices == null || cellIndex < 0 || cellIndex >= geneLabMiniPayloadIndices.Length)
@@ -3525,6 +3784,7 @@ public class MainTerminalController : MonoBehaviour
         RefreshGeneLabModule();
     }
 
+    // Defense note: Updates the payload panel controls state or visual value.
     private void SetPayloadPanelControls(bool showPrevious, bool showNext, bool showFuse, bool showEvolve)
     {
         SetPanelButtonState(payloadPreviousButton, showPrevious, showPrevious);
@@ -3533,6 +3793,7 @@ public class MainTerminalController : MonoBehaviour
         SetPanelButtonState(geneLabEvolveButton, showEvolve, showEvolve);
     }
 
+    // Defense note: Updates the panel button state state or visual value.
     private static void SetPanelButtonState(Button button, bool visible, bool interactable)
     {
         if (button == null)
@@ -3542,6 +3803,7 @@ public class MainTerminalController : MonoBehaviour
         button.interactable = interactable;
     }
 
+    // Defense note: Updates the payload portrait state or visual value.
     private void SetPayloadPortrait(Sprite sprite, string fallbackLabel)
     {
         if (payloadPortraitImage != null)
@@ -3559,6 +3821,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the payload list data or UI structure.
     private static string BuildPayloadList(GameManager targetManager, int selectedIndex)
     {
         const int maxVisible = 8;
@@ -3581,6 +3844,7 @@ public class MainTerminalController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Builds the payload detail data or UI structure.
     private static string BuildPayloadDetail(AlgoMonInstance mon)
     {
         if (mon == null)
@@ -3623,6 +3887,7 @@ public class MainTerminalController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Runs the append subroutine section helper used by this script.
     private static void AppendSubroutineSection(StringBuilder builder, AlgoMonData data)
     {
         SubroutineData sub = data != null ? data.subroutine : null;
@@ -3637,6 +3902,7 @@ public class MainTerminalController : MonoBehaviour
             : "Hardwired passive. Activates automatically in battle.");
     }
 
+    // Defense note: Builds the gene lab preview data or UI structure.
     private static string BuildGeneLabPreview(GameManager targetManager, int unit1Index, int unit2Index, string status)
     {
         if (targetManager == null || targetManager.payload == null || targetManager.payload.Count == 0)
@@ -3667,6 +3933,7 @@ public class MainTerminalController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Builds the gene lab module detail data or UI structure.
     private string BuildGeneLabModuleDetail(GameManager targetManager)
     {
         string speciesCode = SelectedGeneLabSpeciesCode(targetManager);
@@ -3696,6 +3963,7 @@ public class MainTerminalController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Builds the gene lab route select detail data or UI structure.
     private static string BuildGeneLabRouteSelectDetail(GameManager targetManager)
     {
         var builder = new StringBuilder();
@@ -3707,6 +3975,7 @@ public class MainTerminalController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Refreshes the gene lab species buttons display from current data.
     private void RefreshGeneLabSpeciesButtons(GameManager targetManager, string selectedCode)
     {
         if (geneLabSpeciesButtons == null)
@@ -3760,6 +4029,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the gene lab species summary data or UI structure.
     private string BuildGeneLabSpeciesSummary(GameManager targetManager, string speciesCode, AlgoMonInstance selected)
     {
         int totalCount = CountPayloadForSpecies(targetManager, speciesCode);
@@ -3785,6 +4055,7 @@ public class MainTerminalController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Builds the gene lab detail data or UI structure.
     private static string BuildGeneLabDetail(
         GameManager targetManager,
         int selectedIndex,
@@ -3835,6 +4106,7 @@ public class MainTerminalController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Builds the gene lab fusion status data or UI structure.
     private static string BuildGeneLabFusionStatus(
         AlgoMonInstance target,
         AlgoMonInstance material,
@@ -3879,6 +4151,7 @@ public class MainTerminalController : MonoBehaviour
         return $"READY // U1 + U2 -> U1 // L{projectedLevel:00} // F{projectedFusion}/{AlgoMonInstance.FusionCopiesForEvolution} // {unlock}";
     }
 
+    // Defense note: Runs the compact fusion block reason helper used by this script.
     private static string CompactFusionBlockReason(string reason)
     {
         if (string.IsNullOrWhiteSpace(reason))
@@ -3899,6 +4172,7 @@ public class MainTerminalController : MonoBehaviour
         return reason.Trim();
     }
 
+    // Defense note: Runs the compact gene lab action status helper used by this script.
     private static string CompactGeneLabActionStatus(string status)
     {
         if (string.IsNullOrWhiteSpace(status))
@@ -3922,6 +4196,7 @@ public class MainTerminalController : MonoBehaviour
             : trimmed.ToUpperInvariant();
     }
 
+    // Defense note: Runs the gene lab selection status helper used by this script.
     private string GeneLabSelectionStatus(GameManager targetManager)
     {
         if (targetManager == null || targetManager.payload == null || targetManager.payload.Count == 0)
@@ -3949,6 +4224,7 @@ public class MainTerminalController : MonoBehaviour
         return reason;
     }
 
+    // Defense note: Runs the selected gene lab species code helper used by this script.
     private string SelectedGeneLabSpeciesCode(GameManager targetManager)
     {
         string fallback = targetManager != null ? targetManager.SelectedBossSpeciesCodeName : BossRouteSpecies[0];
@@ -3960,6 +4236,7 @@ public class MainTerminalController : MonoBehaviour
         return selectedGeneLabSpeciesCode;
     }
 
+    // Defense note: Runs the best gene lab target index for species helper used by this script.
     private int BestGeneLabTargetIndexForSpecies(GameManager targetManager, string speciesCode)
     {
         if (targetManager == null || targetManager.payload == null || targetManager.payload.Count == 0)
@@ -4006,6 +4283,7 @@ public class MainTerminalController : MonoBehaviour
         return firstAny;
     }
 
+    // Defense note: Runs the payload matches species helper used by this script.
     private static bool PayloadMatchesSpecies(AlgoMonInstance mon, string speciesCode)
     {
         if (mon == null)
@@ -4015,6 +4293,7 @@ public class MainTerminalController : MonoBehaviour
         return string.Equals(monCode, NormalizeBossRouteCode(speciesCode), StringComparison.OrdinalIgnoreCase);
     }
 
+    // Defense note: Runs the count payload for species helper used by this script.
     private static int CountPayloadForSpecies(GameManager targetManager, string speciesCode)
     {
         if (targetManager == null || targetManager.payload == null)
@@ -4030,6 +4309,7 @@ public class MainTerminalController : MonoBehaviour
         return count;
     }
 
+    // Defense note: Runs the payload index for species at order helper used by this script.
     private static int PayloadIndexForSpeciesAtOrder(GameManager targetManager, string speciesCode, int order)
     {
         if (targetManager == null || targetManager.payload == null || order < 0)
@@ -4050,6 +4330,7 @@ public class MainTerminalController : MonoBehaviour
         return -1;
     }
 
+    // Defense note: Runs the focus gene lab mini payload page on helper used by this script.
     private void FocusGeneLabMiniPayloadPageOn(GameManager targetManager, string speciesCode, int payloadIndex)
     {
         if (targetManager == null || targetManager.payload == null || payloadIndex < 0)
@@ -4072,6 +4353,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the count base payload for species helper used by this script.
     private static int CountBasePayloadForSpecies(GameManager targetManager, string speciesCode)
     {
         if (targetManager == null || targetManager.payload == null)
@@ -4088,6 +4370,7 @@ public class MainTerminalController : MonoBehaviour
         return count;
     }
 
+    // Defense note: Runs the count fusion ready for species helper used by this script.
     private static int CountFusionReadyForSpecies(GameManager targetManager, string speciesCode)
     {
         if (targetManager == null || targetManager.payload == null)
@@ -4106,6 +4389,7 @@ public class MainTerminalController : MonoBehaviour
         return count;
     }
 
+    // Defense note: Runs the count evolvable for species helper used by this script.
     private static int CountEvolvableForSpecies(GameManager targetManager, string speciesCode)
     {
         if (targetManager == null || targetManager.payload == null)
@@ -4124,6 +4408,7 @@ public class MainTerminalController : MonoBehaviour
         return count;
     }
 
+    // Defense note: Runs the known skill count helper used by this script.
     private static int KnownSkillCount(AlgoMonInstance mon)
     {
         if (mon == null || mon.knownSkills == null)
@@ -4139,6 +4424,7 @@ public class MainTerminalController : MonoBehaviour
         return count;
     }
 
+    // Defense note: Runs the next valid learnset entry helper used by this script.
     private static LearnsetEntry NextValidLearnsetEntry(LearnsetEntry[] learnset, ref int startIndex)
     {
         if (learnset == null)
@@ -4155,15 +4441,17 @@ public class MainTerminalController : MonoBehaviour
         return default(LearnsetEntry);
     }
 
+    // Defense note: Runs the skill learn state helper used by this script.
     private static string SkillLearnState(AlgoMonInstance mon, LearnsetEntry entry)
     {
         if (mon != null && mon.knownSkills != null && mon.knownSkills.Contains(entry.skill))
             return "KNOWN";
         if (mon == null || entry.unlockLevel > mon.level)
             return "LOCKD";
-        return KnownSkillCount(mon) >= AlgoMonInstance.MaxSkillSlots ? "FULL " : "READY";
+        return KnownSkillCount(mon) >= AlgoMonInstance.MaxSkillSlots ? "SWAP " : "READY";
     }
 
+    // Defense note: Runs the skill display name helper used by this script.
     private static string SkillDisplayName(SkillData skill)
     {
         if (skill == null)
@@ -4171,11 +4459,13 @@ public class MainTerminalController : MonoBehaviour
         return !string.IsNullOrWhiteSpace(skill.skillName) ? skill.skillName.Trim() : skill.name;
     }
 
+    // Defense note: Runs the selected payload mon helper used by this script.
     private AlgoMonInstance SelectedPayloadMon(GameManager targetManager)
     {
         return PayloadAt(targetManager, selectedPayloadIndex);
     }
 
+    // Defense note: Runs the payload at helper used by this script.
     private static AlgoMonInstance PayloadAt(GameManager targetManager, int index)
     {
         if (targetManager == null || targetManager.payload == null || index < 0 || index >= targetManager.payload.Count)
@@ -4183,6 +4473,7 @@ public class MainTerminalController : MonoBehaviour
         return targetManager.payload[index];
     }
 
+    // Defense note: Runs the form label helper used by this script.
     private static string FormLabel(AlgoMonInstance mon)
     {
         if (mon == null)
@@ -4192,6 +4483,7 @@ public class MainTerminalController : MonoBehaviour
         return mon.IsEvolvedForm ? "EVOLVED" : "BASE";
     }
 
+    // Defense note: Runs the evolution status helper used by this script.
     private static string EvolutionStatus(AlgoMonInstance mon)
     {
         if (mon == null)
@@ -4203,6 +4495,7 @@ public class MainTerminalController : MonoBehaviour
         return $"NEED {mon.RemainingFusionCopies} MORE";
     }
 
+    // Defense note: Runs the append talent line helper used by this script.
     private static void AppendTalentLine(StringBuilder builder, AlgoMonInstance mon)
     {
         builder.AppendLine($"BAT {mon.iv_Battery:000}  SPD {mon.iv_ClockSpeed:000}");
@@ -4210,6 +4503,7 @@ public class MainTerminalController : MonoBehaviour
         builder.AppendLine($"FW  {mon.iv_Firewall:000}  ENC {mon.iv_Encryption:000}");
     }
 
+    // Defense note: Runs the append projected talent line helper used by this script.
     private static void AppendProjectedTalentLine(StringBuilder builder, AlgoMonInstance target, AlgoMonInstance material)
     {
         builder.AppendLine($"BAT {Mathf.Max(target.iv_Battery, material.iv_Battery):000}  SPD {Mathf.Max(target.iv_ClockSpeed, material.iv_ClockSpeed):000}");
@@ -4217,6 +4511,7 @@ public class MainTerminalController : MonoBehaviour
         builder.AppendLine($"FW  {Mathf.Max(target.iv_Firewall, material.iv_Firewall):000}  ENC {Mathf.Max(target.iv_Encryption, material.iv_Encryption):000}");
     }
 
+    // Defense note: Runs the talent value at helper used by this script.
     private static int TalentValueAt(AlgoMonInstance mon, int statIndex)
     {
         if (mon == null)
@@ -4241,6 +4536,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the append payload skills helper used by this script.
     private static void AppendPayloadSkills(StringBuilder builder, AlgoMonInstance mon)
     {
         if (mon.knownSkills == null || mon.knownSkills.Count == 0)
@@ -4265,6 +4561,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Resolves the payload sprite step and updates dependent state.
     private static Sprite ResolvePayloadSprite(AlgoMonInstance mon)
     {
         if (mon == null || mon.data == null)
@@ -4294,6 +4591,7 @@ public class MainTerminalController : MonoBehaviour
         return mon.data.portrait;
     }
 
+    // Defense note: Resolves the payload sprite from catalog step and updates dependent state.
     private static Sprite ResolvePayloadSpriteFromCatalog(AlgoMonInstance mon)
     {
         string codeName = PayloadSpriteName(mon.data.codeName);
@@ -4306,6 +4604,7 @@ public class MainTerminalController : MonoBehaviour
                RuntimeUiAssetCatalog.FindSprite($"Assets/_AlgoMon/Sprites/{folder}/{codeName}_Base.png");
     }
 
+    // Defense note: Runs the payload sprite name helper used by this script.
     private static string PayloadSpriteName(string codeName)
     {
         if (string.IsNullOrWhiteSpace(codeName))
@@ -4322,6 +4621,7 @@ public class MainTerminalController : MonoBehaviour
         return builder.ToString();
     }
 
+    // Defense note: Runs the display name for helper used by this script.
     private static string DisplayNameFor(AlgoMonInstance mon)
     {
         if (mon == null)
@@ -4335,6 +4635,7 @@ public class MainTerminalController : MonoBehaviour
             : "AlgoMon";
     }
 
+    // Defense note: Runs the short element helper used by this script.
     private static string ShortElement(string element)
     {
         if (string.IsNullOrEmpty(element))
@@ -4343,11 +4644,13 @@ public class MainTerminalController : MonoBehaviour
         return element.Length <= 4 ? element : element.Substring(0, 4);
     }
 
+    // Defense note: Runs the party count helper used by this script.
     private static int PartyCount(GameManager targetManager)
     {
         return targetManager != null && targetManager.party != null ? targetManager.party.Count : 0;
     }
 
+    // Defense note: Ensures the hud widgets dependency or state exists before use.
     private void EnsureHudWidgets()
     {
         Canvas canvas = GetComponentInParent<Canvas>();
@@ -4467,6 +4770,7 @@ public class MainTerminalController : MonoBehaviour
             EnsureSectionView();
     }
 
+    // Defense note: Ensures the section view dependency or state exists before use.
     private void EnsureSectionView()
     {
         Transform visual = FindSourceLayoutTrialVisual();
@@ -4521,14 +4825,17 @@ public class MainTerminalController : MonoBehaviour
         EnsureGeneLabPanel(sectionViewRoot);
         EnsureExitPanel(sectionViewRoot);
         EnsureSettingsPanel(sectionViewRoot);
+        EnsureGlossaryPanel(sectionViewRoot);
         ShowGeneLabPanel(false);
         ShowExitPanelRoot(false);
         ShowSettingsPanelRoot(false);
+        ShowGlossaryPanelRoot(false);
         ApplyTerminalZoomMode();
 
         sectionViewRoot.gameObject.SetActive(false);
     }
 
+    // Defense note: Ensures the payload grid dependency or state exists before use.
     private void EnsurePayloadGrid(Transform parent)
     {
         payloadGridRoot = CreateRect("PayloadGrid", parent);
@@ -4606,6 +4913,7 @@ public class MainTerminalController : MonoBehaviour
         EnsureSkillSwapPanel(parent);
     }
 
+    // Defense note: Ensures the gene lab panel dependency or state exists before use.
     private void EnsureGeneLabPanel(Transform parent)
     {
         if (geneLabPanelRoot != null)
@@ -4753,6 +5061,7 @@ public class MainTerminalController : MonoBehaviour
         geneLabEvolveActionButton.onClick.AddListener(EvolveSelectedPayload);
     }
 
+    // Defense note: Builds the gene lab fusion talent bars data or UI structure.
     private void BuildGeneLabFusionTalentBars(Transform parent)
     {
         geneLabFusionTalentRoot = CreateRect("GeneLabFusionTalentBars", parent);
@@ -4807,6 +5116,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the gene lab talent header data or UI structure.
     private void BuildGeneLabTalentHeader(Transform parent, string text, Vector2 anchorMin, Vector2 anchorMax, Color color)
     {
         Text header = CreateText("GeneLabTalentHeader_" + text, parent, 13, FontStyle.Bold, TextAnchor.MiddleCenter, color);
@@ -4816,6 +5126,7 @@ public class MainTerminalController : MonoBehaviour
         CreateBitmapTextMirror(header, 0.56f);
     }
 
+    // Defense note: Builds the gene lab talent bar data or UI structure.
     private Image BuildGeneLabTalentBar(RectTransform row, string name, Vector2 anchorMin, Vector2 anchorMax, Color fillColor)
     {
         Image barBg = CreateImage(name + "TalentBarBg", row, new Color(0.025f, 0.080f, 0.120f, 0.88f));
@@ -4832,6 +5143,7 @@ public class MainTerminalController : MonoBehaviour
         return fill;
     }
 
+    // Defense note: Builds the gene lab talent value data or UI structure.
     private Text BuildGeneLabTalentValue(RectTransform row, string name, Vector2 anchorMin, Vector2 anchorMax)
     {
         Vector2 plateMin = new Vector2(Mathf.Clamp01(anchorMin.x + 0.024f), 0.190f);
@@ -4849,6 +5161,7 @@ public class MainTerminalController : MonoBehaviour
         return value;
     }
 
+    // Defense note: Builds the gene lab fusion display data or UI structure.
     private void BuildGeneLabFusionDisplay(Transform parent, int slot, string title, Vector2 anchorMin, Vector2 anchorMax)
     {
         RectTransform panel = CreateRect("GeneLabFusionDisplay_" + slot, parent);
@@ -4894,6 +5207,7 @@ public class MainTerminalController : MonoBehaviour
         CreateBitmapTextMirror(metaText, 0.52f);
     }
 
+    // Defense note: Attempts to build gene lab boss route clone and reports success or failure.
     private bool TryBuildGeneLabBossRouteClone(Transform parent)
     {
         Transform visual = FindSourceLayoutTrialVisual();
@@ -4955,6 +5269,7 @@ public class MainTerminalController : MonoBehaviour
         return foundAny;
     }
 
+    // Defense note: Builds the gene lab fallback route selection data or UI structure.
     private void BuildGeneLabFallbackRouteSelection(Transform parent)
     {
         RectTransform grid = CreateRect("GeneLabFallbackRouteGrid", parent);
@@ -5005,6 +5320,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the cache gene lab route idle frames helper used by this script.
     private void CacheGeneLabRouteIdleFrames(int index, Image portraitImage)
     {
         if (index < 0 || geneLabRouteIdleFrames == null || index >= geneLabRouteIdleFrames.Length)
@@ -5027,6 +5343,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Applies the gene lab route idle frame change to gameplay or UI state.
     private void ApplyGeneLabRouteIdleFrame(int index, bool animate)
     {
         Image portraitImage = geneLabRoutePortraitImages != null && index >= 0 && index < geneLabRoutePortraitImages.Length
@@ -5063,6 +5380,483 @@ public class MainTerminalController : MonoBehaviour
         portraitImage.enabled = portraitImage.sprite != null;
     }
 
+    // Defense note: Ensures the glossary panel can appear even outside the source-layout section view.
+    private void EnsureGlossaryPanelAvailable()
+    {
+        if (glossaryPanelRoot != null)
+            return;
+
+        Transform parent = sectionViewRoot != null ? sectionViewRoot : null;
+        if (parent == null)
+        {
+            Canvas canvas = GetComponentInParent<Canvas>();
+            if (canvas == null)
+                canvas = FindObjectOfType<Canvas>();
+            if (canvas != null)
+                parent = canvas.transform;
+        }
+
+        if (parent != null)
+            EnsureGlossaryPanel(parent);
+    }
+
+    // Defense note: Ensures the system log glossary panel exists in the section view.
+    private void EnsureGlossaryPanel(Transform parent)
+    {
+        if (glossaryPanelRoot != null)
+        {
+            glossaryPanelRoot.SetParent(parent, false);
+            WireGlossaryPageButtons();
+            RenderGlossaryPanel();
+            return;
+        }
+
+        glossaryPanelRoot = CreateCyberPanel(
+            "SystemLogGlossaryPanel",
+            parent,
+            new Color(0.006f, 0.014f, 0.030f, 0.90f),
+            new Color(0.20f, 0.92f, 1f, 0.76f),
+            new Color(1f, 0.34f, 0.76f, 0.56f),
+            12f,
+            true);
+        SetAnchors(glossaryPanelRoot, new Vector2(0.065f, 0.065f), new Vector2(0.935f, 0.770f));
+
+        Text title = CreateText("GlossaryPanelTitle", glossaryPanelRoot, 22, FontStyle.Bold, TextAnchor.UpperLeft, new Color(0.82f, 1f, 1f, 1f));
+        ApplyCrispCyberText(title, new Color(0f, 0.12f, 0.18f, 0.95f));
+        SetAnchors(title.rectTransform, new Vector2(0.045f, 0.880f), new Vector2(0.510f, 0.955f));
+        title.text = "FIELD MANUAL / SYSTEM LOG";
+
+        glossaryPageIndicatorText = CreateText("GlossaryPageIndicator", glossaryPanelRoot, 14, FontStyle.Bold, TextAnchor.UpperRight, new Color(0.68f, 1f, 0.92f, 0.95f));
+        ApplyCrispCyberText(glossaryPageIndicatorText, new Color(0f, 0.10f, 0.14f, 0.92f));
+        SetAnchors(glossaryPageIndicatorText.rectTransform, new Vector2(0.670f, 0.890f), new Vector2(0.955f, 0.950f));
+
+        glossaryPageTitleText = CreateText("GlossaryPageTitle", glossaryPanelRoot, 18, FontStyle.Bold, TextAnchor.UpperLeft, new Color(1f, 0.72f, 0.92f, 1f));
+        glossaryPageTitleText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        glossaryPageTitleText.verticalOverflow = VerticalWrapMode.Truncate;
+        ApplyCrispCyberText(glossaryPageTitleText, new Color(0f, 0.08f, 0.14f, 0.94f));
+        SetAnchors(glossaryPageTitleText.rectTransform, new Vector2(0.045f, 0.790f), new Vector2(0.420f, 0.865f));
+
+        glossaryPageSubtitleText = CreateText("GlossaryPageSubtitle", glossaryPanelRoot, 15, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.78f, 0.96f, 1f, 0.98f));
+        ApplyGlossaryReadableText(glossaryPageSubtitleText, 15, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.78f, 0.96f, 1f, 0.98f));
+        glossaryPageSubtitleText.lineSpacing = 0.96f;
+        glossaryPageSubtitleText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        glossaryPageSubtitleText.verticalOverflow = VerticalWrapMode.Truncate;
+        SetAnchors(glossaryPageSubtitleText.rectTransform, new Vector2(0.430f, 0.790f), new Vector2(0.955f, 0.865f));
+
+        glossaryVisualRoot = CreateRect("GlossaryVisualRoot", glossaryPanelRoot);
+        SetAnchors(glossaryVisualRoot, new Vector2(0.045f, 0.548f), new Vector2(0.955f, 0.770f));
+
+        glossaryBodyText = CreateText("GlossaryBody", glossaryPanelRoot, 16, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.90f, 1f, 0.98f, 0.98f));
+        ApplyGlossaryReadableText(glossaryBodyText, 16, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.90f, 1f, 0.98f, 0.98f));
+        glossaryBodyText.lineSpacing = 1.0f;
+        glossaryBodyText.horizontalOverflow = HorizontalWrapMode.Wrap;
+        glossaryBodyText.verticalOverflow = VerticalWrapMode.Truncate;
+        SetAnchors(glossaryBodyText.rectTransform, new Vector2(0.045f, 0.145f), new Vector2(0.955f, 0.530f));
+
+        glossaryPreviousButton = FindOrCreatePanelButton("GlossaryPreviousButton", glossaryPanelRoot, "< PREV", new Vector2(0.045f, 0.052f), new Vector2(0.235f, 0.125f));
+        glossaryNextButton = FindOrCreatePanelButton("GlossaryNextButton", glossaryPanelRoot, "NEXT >", new Vector2(0.765f, 0.052f), new Vector2(0.955f, 0.125f));
+        SetPanelButtonLabelSize(glossaryPreviousButton, 11);
+        SetPanelButtonLabelSize(glossaryNextButton, 11);
+        WireGlossaryPageButtons();
+
+        RenderGlossaryPanel();
+    }
+
+    // Defense note: Runs the wire glossary page buttons helper used by this script.
+    private void WireGlossaryPageButtons()
+    {
+        WireButton(glossaryPreviousButton, ShowPreviousGlossaryPage);
+        WireButton(glossaryNextButton, ShowNextGlossaryPage);
+    }
+
+    // Defense note: Shows the previous glossary page.
+    private void ShowPreviousGlossaryPage()
+    {
+        if (GlossaryPages.Length <= 0)
+            return;
+
+        glossaryPageIndex = (glossaryPageIndex + GlossaryPages.Length - 1) % GlossaryPages.Length;
+        RenderGlossaryPanel();
+    }
+
+    // Defense note: Shows the next glossary page.
+    private void ShowNextGlossaryPage()
+    {
+        if (GlossaryPages.Length <= 0)
+            return;
+
+        glossaryPageIndex = (glossaryPageIndex + 1) % GlossaryPages.Length;
+        RenderGlossaryPanel();
+    }
+
+    // Defense note: Refreshes the glossary page.
+    private void RenderGlossaryPanel()
+    {
+        if (GlossaryPages.Length <= 0)
+            return;
+
+        glossaryPageIndex = Mathf.Clamp(glossaryPageIndex, 0, GlossaryPages.Length - 1);
+        GlossaryPageInfo page = GlossaryPages[glossaryPageIndex];
+
+        if (glossaryPageTitleText != null)
+            glossaryPageTitleText.text = page.Title;
+        if (glossaryPageSubtitleText != null)
+        {
+            ApplyGlossaryReadableText(glossaryPageSubtitleText, 15, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.78f, 0.96f, 1f, 0.98f));
+            glossaryPageSubtitleText.text = page.Subtitle;
+        }
+        if (glossaryPageIndicatorText != null)
+            glossaryPageIndicatorText.text = $"{glossaryPageIndex + 1:00}/{GlossaryPages.Length:00}";
+        if (glossaryBodyText != null)
+        {
+            ApplyGlossaryReadableText(glossaryBodyText, 16, FontStyle.Normal, TextAnchor.UpperLeft, new Color(0.90f, 1f, 0.98f, 0.98f));
+            glossaryBodyText.text = page.Body;
+        }
+
+        if (glossaryPreviousButton != null)
+            glossaryPreviousButton.interactable = GlossaryPages.Length > 1;
+        if (glossaryNextButton != null)
+            glossaryNextButton.interactable = GlossaryPages.Length > 1;
+
+        RenderGlossaryVisual(page.VisualKind);
+    }
+
+    // Defense note: Redraws the compact visual guide for the current glossary page.
+    private void RenderGlossaryVisual(GlossaryVisualKind visualKind)
+    {
+        ClearGlossaryVisuals();
+        if (glossaryVisualRoot == null)
+            return;
+
+        switch (visualKind)
+        {
+            case GlossaryVisualKind.Story:
+                RenderGlossaryStoryVisual();
+                break;
+            case GlossaryVisualKind.Battle:
+                RenderGlossaryBattleVisual();
+                break;
+            case GlossaryVisualKind.Nodes:
+                RenderGlossaryNodesVisual();
+                break;
+            case GlossaryVisualKind.Stats:
+                RenderGlossaryStatsVisual();
+                break;
+            case GlossaryVisualKind.Status:
+                RenderGlossaryStatusVisual();
+                break;
+            case GlossaryVisualKind.LabPayload:
+                RenderGlossaryLabPayloadVisual();
+                break;
+        }
+    }
+
+    // Defense note: Clears the temporary visual guide children before drawing another glossary page.
+    private void ClearGlossaryVisuals()
+    {
+        if (glossaryVisualRoot == null)
+            return;
+
+        for (int i = glossaryVisualRoot.childCount - 1; i >= 0; i--)
+        {
+            Transform child = glossaryVisualRoot.GetChild(i);
+            child.SetParent(null, false);
+            if (Application.isPlaying)
+                Destroy(child.gameObject);
+            else
+                DestroyImmediate(child.gameObject);
+        }
+    }
+
+    // Defense note: Draws the story glossary visual.
+    private void RenderGlossaryStoryVisual()
+    {
+        CreateGlossaryChip("StoryYou", "CYBER\nHACKER", new Vector2(0.040f, 0.180f), new Vector2(0.260f, 0.880f), new Color(0.50f, 1f, 0.78f, 1f), GlossaryCyberHudSprite("icon_tech_01.png"), 12);
+        CreateGlossaryArrow("StoryArrowA", "REPAIR", new Vector2(0.285f, 0.400f), new Vector2(0.365f, 0.640f), new Color(0.86f, 1f, 0.96f, 0.95f));
+        CreateGlossaryChip("StoryBug", "BUG\nSPRITE", new Vector2(0.390f, 0.180f), new Vector2(0.610f, 0.880f), new Color(0.20f, 0.92f, 1f, 1f), GlossaryCyberHudSprite("icon_skill_06.png"), 12);
+        CreateGlossaryArrow("StoryArrowB", "COLLECT", new Vector2(0.635f, 0.400f), new Vector2(0.715f, 0.640f), new Color(0.86f, 1f, 0.96f, 0.95f));
+        CreateGlossaryChip("StoryData", "BUG DATA\nRECOVERED", new Vector2(0.740f, 0.180f), new Vector2(0.960f, 0.880f), new Color(1f, 0.38f, 0.76f, 1f), GlossaryCyberHudSprite("icon_datapack.png"), 10);
+    }
+
+    // Defense note: Draws the ASD and element glossary visual.
+    private void RenderGlossaryBattleVisual()
+    {
+        CreateGlossaryChip("BattleAttack", "ATTACK\nbeats STATUS", new Vector2(0.030f, 0.575f), new Vector2(0.285f, 0.950f), new Color(1f, 0.48f, 0.48f, 1f), GlossaryInstructionSprite("Attack"), 11);
+        CreateGlossaryArrow("BattleAS", ">", new Vector2(0.300f, 0.650f), new Vector2(0.360f, 0.875f), new Color(1f, 0.82f, 0.56f, 0.96f));
+        CreateGlossaryChip("BattleStatus", "STATUS\nbeats DEFENSE", new Vector2(0.375f, 0.575f), new Vector2(0.630f, 0.950f), new Color(0.58f, 1f, 0.80f, 1f), GlossaryInstructionSprite("Status"), 11);
+        CreateGlossaryArrow("BattleSD", ">", new Vector2(0.645f, 0.650f), new Vector2(0.705f, 0.875f), new Color(1f, 0.82f, 0.56f, 0.96f));
+        CreateGlossaryChip("BattleDefense", "DEFENSE\nbeats ATTACK", new Vector2(0.720f, 0.575f), new Vector2(0.970f, 0.950f), new Color(0.38f, 0.78f, 1f, 1f), GlossaryInstructionSprite("Defense"), 11);
+        Color asdReturnColor = new Color(1f, 0.82f, 0.56f, 0.72f);
+        CreateGlossaryLine("BattleReturnRightDrop", new Vector2(0.850f, 0.470f), new Vector2(0.862f, 0.575f), asdReturnColor);
+        CreateGlossaryLine("BattleReturnBottom", new Vector2(0.152f, 0.470f), new Vector2(0.862f, 0.492f), asdReturnColor);
+        CreateGlossaryLine("BattleReturnLeftRise", new Vector2(0.152f, 0.470f), new Vector2(0.164f, 0.575f), asdReturnColor);
+        CreateGlossaryArrow("BattleReturnHead", "<", new Vector2(0.455f, 0.405f), new Vector2(0.515f, 0.555f), new Color(1f, 0.82f, 0.56f, 0.96f));
+
+        CreateElementPair("ElementWaterFire", "WATER > FIRE", "Water", new Vector2(0.030f, 0.035f), new Vector2(0.200f, 0.325f), 9);
+        CreateElementPair("ElementFireGrass", "FIRE > GRASS / ICE", "Fire", new Vector2(0.220f, 0.035f), new Vector2(0.410f, 0.325f), 8);
+        CreateElementPair("ElementGrassIce", "GRASS > WATER\nICE > GRASS", "Grass", new Vector2(0.430f, 0.035f), new Vector2(0.620f, 0.325f), 8);
+        CreateElementPair("ElementElectricWater", "ELECTRIC > WATER", "Electric", new Vector2(0.640f, 0.035f), new Vector2(0.810f, 0.325f), 8);
+        CreateElementPair("ElementGroundElectric", "GROUND > ELECTRIC", "Ground", new Vector2(0.830f, 0.035f), new Vector2(0.970f, 0.325f), 8);
+    }
+
+    // Defense note: Draws the grid node glossary visual.
+    private void RenderGlossaryNodesVisual()
+    {
+        CreateGlossaryChip("NodeStart", "START", new Vector2(0.010f, 0.560f), new Vector2(0.235f, 0.940f), new Color(0.66f, 1f, 0.88f, 1f), GlossaryGridSprite("square-chevron-right.png"), 11);
+        CreateGlossaryChip("NodeCombat", "COMBAT", new Vector2(0.255f, 0.560f), new Vector2(0.480f, 0.940f), new Color(1f, 0.56f, 0.46f, 1f), GlossaryGridSprite("sword.png"), 11);
+        CreateGlossaryChip("NodeHacker", "HACKER", new Vector2(0.500f, 0.560f), new Vector2(0.725f, 0.940f), new Color(0.38f, 0.92f, 1f, 1f), GlossaryGridSprite("square-terminal.png"), 11);
+        CreateGlossaryChip("NodeElite", "ELITE", new Vector2(0.745f, 0.560f), new Vector2(0.990f, 0.940f), new Color(1f, 0.36f, 0.76f, 1f), GlossaryGridSprite("swords.png"), 11);
+
+        CreateGlossaryChip("NodeShop", "SHOP\nCR", new Vector2(0.080f, 0.090f), new Vector2(0.310f, 0.470f), new Color(1f, 0.78f, 0.36f, 1f), GlossaryGridSprite("shopping-bag.png"), 11);
+        CreateGlossaryChip("NodeReboot", "REBOOT", new Vector2(0.385f, 0.090f), new Vector2(0.615f, 0.470f), new Color(0.64f, 0.78f, 1f, 1f), GlossaryGridSprite("cpu.png"), 11);
+        CreateGlossaryChip("NodeBoss", "BOSS\nHIGH DATA", new Vector2(0.690f, 0.090f), new Vector2(0.920f, 0.470f), new Color(1f, 0.38f, 0.52f, 1f), GlossaryGridSprite("cpu.png"), 10);
+    }
+
+    // Defense note: Draws the stat glossary visual.
+    private void RenderGlossaryStatsVisual()
+    {
+        CreateGlossaryChip("StatBattery", "BATTERY\nHP", new Vector2(0.040f, 0.570f), new Vector2(0.310f, 0.920f), new Color(0.54f, 1f, 0.72f, 1f), null, 11);
+        CreateGlossaryChip("StatClock", "CLOCK\nTURN ORDER", new Vector2(0.365f, 0.570f), new Vector2(0.635f, 0.920f), new Color(0.22f, 0.88f, 1f, 1f), null, 10);
+        CreateGlossaryChip("StatCPU", "CPU\nCOMPUTE DMG", new Vector2(0.690f, 0.570f), new Vector2(0.960f, 0.920f), new Color(1f, 0.58f, 0.50f, 1f), null, 10);
+        CreateGlossaryChip("StatTP", "TP\nTHROUGHPUT DMG", new Vector2(0.040f, 0.120f), new Vector2(0.310f, 0.470f), new Color(1f, 0.82f, 0.42f, 1f), null, 10);
+        CreateGlossaryChip("StatFW", "FW\nVS COMPUTE", new Vector2(0.365f, 0.120f), new Vector2(0.635f, 0.470f), new Color(0.56f, 0.82f, 1f, 1f), null, 10);
+        CreateGlossaryChip("StatENC", "ENC\nVS THROUGHPUT", new Vector2(0.690f, 0.120f), new Vector2(0.960f, 0.470f), new Color(0.78f, 0.62f, 1f, 1f), null, 10);
+        CreateGlossaryHorizontalFrame("StatTPFrame", new Vector2(0.040f, 0.120f), new Vector2(0.310f, 0.470f), new Color(1f, 0.82f, 0.42f, 0.56f));
+        CreateGlossaryHorizontalFrame("StatFWFrame", new Vector2(0.365f, 0.120f), new Vector2(0.635f, 0.470f), new Color(0.56f, 0.82f, 1f, 0.56f));
+        CreateGlossaryHorizontalFrame("StatENCFrame", new Vector2(0.690f, 0.120f), new Vector2(0.960f, 0.470f), new Color(0.78f, 0.62f, 1f, 0.56f));
+    }
+
+    // Defense note: Draws the status glossary visual.
+    private void RenderGlossaryStatusVisual()
+    {
+        CreateGlossaryChip("StatusHarm", "HARM\nBRN / FRZ\nLCH / SNR", new Vector2(0.040f, 0.160f), new Vector2(0.315f, 0.880f), new Color(1f, 0.48f, 0.42f, 1f), GlossaryInstructionSprite("Attack"), 12);
+        CreateGlossaryChip("StatusAction", "ACTION\nX2 / CP -4\nPRI / FW -%", new Vector2(0.362f, 0.160f), new Vector2(0.638f, 0.880f), new Color(1f, 0.78f, 0.36f, 1f), GlossaryInstructionSprite("Status"), 12);
+        CreateGlossaryChip("StatusBuff", "STAT BUFF\nCPU / TP\nFW / ENC", new Vector2(0.685f, 0.160f), new Vector2(0.960f, 0.880f), new Color(0.54f, 1f, 0.72f, 1f), GlossaryInstructionSprite("Defense"), 12);
+    }
+
+    // Defense note: Draws the Gene Lab and Payload glossary visual.
+    private void RenderGlossaryLabPayloadVisual()
+    {
+        CreateGlossaryChip("PayloadWarehouse", "PAYLOAD\nWAREHOUSE", new Vector2(0.020f, 0.560f), new Vector2(0.235f, 0.940f), new Color(0.38f, 0.92f, 1f, 1f), GlossaryCyberHudSprite("icon_datapack.png"), 10);
+        CreateGlossaryChip("PayloadSkills", "SKILLS\nEDIT", new Vector2(0.275f, 0.560f), new Vector2(0.490f, 0.940f), new Color(1f, 0.48f, 0.74f, 1f), GlossaryGridSprite("sword.png"), 10);
+        CreateGlossaryChip("PayloadSquad", "SQUAD\nMAX 4", new Vector2(0.530f, 0.560f), new Vector2(0.745f, 0.940f), new Color(0.54f, 1f, 0.72f, 1f), GlossaryArenaSprite("icon_switch.png"), 10);
+        CreateGlossaryChip("PayloadLead", "#1\nLEAD", new Vector2(0.785f, 0.560f), new Vector2(0.980f, 0.940f), new Color(1f, 0.78f, 0.36f, 1f), null, 11);
+
+        CreateGlossaryChip("LabSameSpecies", "SAME\nSPECIES", new Vector2(0.020f, 0.090f), new Vector2(0.235f, 0.470f), new Color(0.64f, 0.78f, 1f, 1f), null, 10);
+        CreateGlossaryArrow("LabArrowA", "+", new Vector2(0.250f, 0.165f), new Vector2(0.300f, 0.380f), new Color(0.86f, 1f, 0.96f, 0.95f));
+        CreateGlossaryChip("LabFuse", "FUSE\n1/3 -> 3/3", new Vector2(0.315f, 0.090f), new Vector2(0.565f, 0.470f), new Color(0.20f, 0.92f, 1f, 1f), GlossaryCyberHudSprite("icon_skill_example.png"), 10);
+        CreateGlossaryArrow("LabArrowB", ">", new Vector2(0.580f, 0.165f), new Vector2(0.630f, 0.380f), new Color(0.86f, 1f, 0.96f, 0.95f));
+        CreateGlossaryChip("LabEvolve", "EVOLVE\nSTATS x1.15", new Vector2(0.645f, 0.090f), new Vector2(0.980f, 0.470f), new Color(1f, 0.38f, 0.76f, 1f), GlossaryArenaSprite("zap.png"), 10);
+    }
+
+    // Defense note: Creates a compact labelled chip for glossary visuals.
+    private RectTransform CreateGlossaryChip(
+        string objectName,
+        string label,
+        Vector2 anchorMin,
+        Vector2 anchorMax,
+        Color accent,
+        Sprite icon,
+        int fontSize)
+    {
+        Image background = CreateImage(objectName, glossaryVisualRoot, new Color(0.006f, 0.018f, 0.034f, 0.70f));
+        RectTransform rect = background.rectTransform;
+        SetAnchors(rect, anchorMin, anchorMax);
+
+        Color edge = GlossaryAlpha(Color.Lerp(accent, Color.white, 0.34f), 0.46f);
+        CreateGlossaryLine(objectName + "_Top", rect, new Vector2(0f, 0.982f), new Vector2(1f, 1f), edge);
+        CreateGlossaryLine(objectName + "_Bottom", rect, new Vector2(0f, 0f), new Vector2(1f, 0.018f), GlossaryAlpha(edge, 0.30f));
+        CreateGlossaryLine(objectName + "_Left", rect, new Vector2(0f, 0f), new Vector2(0.008f, 1f), GlossaryAlpha(edge, 0.34f));
+        CreateGlossaryLine(objectName + "_Right", rect, new Vector2(0.992f, 0f), new Vector2(1f, 1f), GlossaryAlpha(edge, 0.24f));
+
+        Vector2 labelMin = new Vector2(0.100f, 0.120f);
+        Vector2 labelMax = new Vector2(0.900f, 0.880f);
+        if (icon != null)
+        {
+            Image iconImage = CreateImage("Icon", rect, GlossaryAlpha(accent, 0.92f));
+            iconImage.sprite = icon;
+            iconImage.preserveAspect = true;
+            SetAnchors(iconImage.rectTransform, new Vector2(0.080f, 0.270f), new Vector2(0.235f, 0.730f));
+            labelMin = new Vector2(0.285f, 0.120f);
+        }
+
+        int labelSize = Mathf.Max(13, fontSize + 2);
+        Text text = CreateText("Label", rect, labelSize, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.96f, 1f, 0.98f, 1f));
+        ApplyGlossaryReadableText(text, labelSize, FontStyle.Bold, TextAnchor.MiddleCenter, new Color(0.96f, 1f, 0.98f, 1f));
+        text.text = label;
+        text.lineSpacing = 0.95f;
+        text.horizontalOverflow = HorizontalWrapMode.Wrap;
+        text.verticalOverflow = VerticalWrapMode.Truncate;
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = 10;
+        text.resizeTextMaxSize = labelSize;
+        SetAnchors(text.rectTransform, labelMin, labelMax);
+        return rect;
+    }
+
+    // Defense note: Creates a paired element badge for the battle glossary visual.
+    private void CreateElementPair(string objectName, string label, string elementName, Vector2 anchorMin, Vector2 anchorMax, int fontSize = 8)
+    {
+        CreateGlossaryChip(objectName, label, anchorMin, anchorMax, ElementColor(elementName), GlossaryElementSprite(elementName), fontSize);
+    }
+
+    // Defense note: Creates a stat bar for the stats glossary visual.
+    private void CreateGlossaryStat(string objectName, string label, string caption, Vector2 anchorMin, Vector2 anchorMax, Color accent, float fill)
+    {
+        RectTransform rect = CreateGlossaryChip(objectName, label + "\n" + caption, anchorMin, anchorMax, accent, null, 10);
+        Image rail = CreateImage("Rail", rect, new Color(0.02f, 0.08f, 0.12f, 0.90f));
+        SetAnchors(rail.rectTransform, new Vector2(0.090f, 0.120f), new Vector2(0.910f, 0.220f));
+        Image bar = CreateImage("Fill", rail.rectTransform, GlossaryAlpha(accent, 0.92f));
+        SetAnchors(bar.rectTransform, new Vector2(0f, 0f), new Vector2(Mathf.Clamp01(fill), 1f));
+    }
+
+    // Defense note: Creates a visual line inside the glossary visual root.
+    private void CreateGlossaryLine(string objectName, Vector2 anchorMin, Vector2 anchorMax, Color color)
+    {
+        CreateGlossaryLine(objectName, glossaryVisualRoot, anchorMin, anchorMax, color);
+    }
+
+    // Defense note: Creates a visual line inside the provided parent.
+    private void CreateGlossaryLine(string objectName, Transform parent, Vector2 anchorMin, Vector2 anchorMax, Color color)
+    {
+        Image line = CreateImage(objectName, parent, color);
+        SetAnchors(line.rectTransform, anchorMin, anchorMax);
+    }
+
+    // Defense note: Reinforces horizontal borders where thin lines can disappear over the HUD background.
+    private void CreateGlossaryHorizontalFrame(string objectName, Vector2 anchorMin, Vector2 anchorMax, Color color)
+    {
+        const float thickness = 0.014f;
+        CreateGlossaryLine(objectName + "Top", new Vector2(anchorMin.x, anchorMax.y - thickness), new Vector2(anchorMax.x, anchorMax.y), color);
+        CreateGlossaryLine(objectName + "Bottom", new Vector2(anchorMin.x, anchorMin.y), new Vector2(anchorMax.x, anchorMin.y + thickness), color);
+    }
+
+    // Defense note: Creates a compact arrow label for glossary diagrams.
+    private void CreateGlossaryArrow(string objectName, string label, Vector2 anchorMin, Vector2 anchorMax, Color color)
+    {
+        if (label == ">" || label == "+")
+        {
+            float midY = Mathf.Lerp(anchorMin.y, anchorMax.y, 0.5f);
+            CreateGlossaryLine(
+                objectName + "Line",
+                new Vector2(anchorMin.x, midY - 0.012f),
+                new Vector2(anchorMax.x, midY + 0.012f),
+                GlossaryAlpha(color, 0.45f));
+        }
+
+        Text text = CreateText(objectName, glossaryVisualRoot, 18, FontStyle.Bold, TextAnchor.MiddleCenter, color);
+        ApplyGlossaryReadableText(text, 18, FontStyle.Bold, TextAnchor.MiddleCenter, color);
+        text.text = label;
+        text.resizeTextForBestFit = true;
+        text.resizeTextMinSize = 10;
+        text.resizeTextMaxSize = 18;
+        SetAnchors(text.rectTransform, anchorMin, anchorMax);
+    }
+
+    // Defense note: Applies readable default UI font styling to glossary body text.
+    private static void ApplyGlossaryReadableText(Text text, int size, FontStyle style, TextAnchor alignment, Color color)
+    {
+        if (text == null)
+            return;
+
+        text.font = GlossaryReadableFont();
+        text.fontSize = size;
+        text.fontStyle = style;
+        text.alignment = alignment;
+        text.color = color;
+        text.alignByGeometry = false;
+    }
+
+    // Defense note: Loads the readable default font used by the glossary content.
+    private static Font GlossaryReadableFont()
+    {
+        if (glossaryReadableFont == null)
+            glossaryReadableFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        return glossaryReadableFont;
+    }
+
+    // Defense note: Loads a grid icon sprite for glossary visuals.
+    private static Sprite GlossaryGridSprite(string fileName)
+    {
+        return GlossaryCatalogSprite(GlossaryGridIconRoot + "/" + fileName);
+    }
+
+    // Defense note: Loads an arena icon sprite for glossary visuals.
+    private static Sprite GlossaryArenaSprite(string fileName)
+    {
+        return GlossaryCatalogSprite(GlossaryArenaIconRoot + "/" + fileName);
+    }
+
+    // Defense note: Loads a main terminal HUD icon sprite for glossary visuals.
+    private static Sprite GlossaryCyberHudSprite(string fileName)
+    {
+        return GlossaryCatalogSprite(GlossaryCyberHudIconRoot + "/" + fileName);
+    }
+
+    // Defense note: Loads the panel sprite reused by glossary cards.
+    private static Sprite GlossaryPanelSprite()
+    {
+        return GlossaryCatalogSprite(GlossaryPanelSpritePath);
+    }
+
+    // Defense note: Loads the slot sprite reused behind glossary icons.
+    private static Sprite GlossarySkillSlotSprite()
+    {
+        return GlossaryCatalogSprite(GlossaryPixelHudSpriteRoot + "/SkillTree/White/SkillSlotSharp.png");
+    }
+
+    // Defense note: Loads the connector sprite reused by glossary flow arrows.
+    private static Sprite GlossaryConnectorSprite()
+    {
+        return GlossaryCatalogSprite(GlossaryConnectorSpritePath);
+    }
+
+
+    // Defense note: Loads an instruction icon sprite for glossary visuals.
+    private static Sprite GlossaryInstructionSprite(string instructionName)
+    {
+        return Resources.Load<Sprite>(GlossaryInstructionIconRoot + instructionName);
+    }
+
+    // Defense note: Loads an element icon sprite for glossary visuals.
+    private static Sprite GlossaryElementSprite(string elementName)
+    {
+        return Resources.Load<Sprite>(GlossaryElementIconRoot + elementName);
+    }
+
+    // Defense note: Loads a runtime catalog sprite with an editor fallback.
+    private static Sprite GlossaryCatalogSprite(string assetPath)
+    {
+#if UNITY_EDITOR
+        Sprite editorSprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+        if (editorSprite != null)
+            return editorSprite;
+#endif
+        return RuntimeUiAssetCatalog.FindSprite(assetPath);
+    }
+
+    // Defense note: Returns a color with adjusted alpha.
+    private static Color GlossaryAlpha(Color color, float alpha)
+    {
+        return new Color(color.r, color.g, color.b, alpha);
+    }
+
+    // Defense note: Returns the glossary display color for an element name.
+    private static Color ElementColor(string elementName)
+    {
+        switch (elementName)
+        {
+            case "Water": return new Color(0.36f, 0.78f, 1f, 1f);
+            case "Fire": return new Color(1f, 0.48f, 0.32f, 1f);
+            case "Grass": return new Color(0.48f, 1f, 0.58f, 1f);
+            case "Ice": return new Color(0.66f, 0.96f, 1f, 1f);
+            case "Electric": return new Color(1f, 0.92f, 0.36f, 1f);
+            case "Ground": return new Color(0.82f, 0.62f, 0.42f, 1f);
+            default: return new Color(0.82f, 1f, 1f, 1f);
+        }
+    }
+
+    // Defense note: Ensures the exit panel dependency or state exists before use.
     private void EnsureExitPanel(Transform parent)
     {
         if (exitPanelRoot != null)
@@ -5100,6 +5894,7 @@ public class MainTerminalController : MonoBehaviour
         exitConfirmButton.onClick.AddListener(ConfirmExit);
     }
 
+    // Defense note: Ensures the settings panel dependency or state exists before use.
     private void EnsureSettingsPanel(Transform parent)
     {
         if (settingsPanelRoot != null)
@@ -5199,6 +5994,7 @@ public class MainTerminalController : MonoBehaviour
         RenderSettingsPanel();
     }
 
+    // Defense note: Builds the volume slider row data or UI structure.
     private void BuildVolumeSliderRow(
         string idPrefix,
         string label,
@@ -5238,6 +6034,7 @@ public class MainTerminalController : MonoBehaviour
         valueText.text = Mathf.RoundToInt(Mathf.Clamp01(value) * 100f) + "%";
     }
 
+    // Defense note: Creates the cyber slider object used by the scene or runtime.
     private Slider CreateCyberSlider(
         string objectName,
         RectTransform parent,
@@ -5297,6 +6094,7 @@ public class MainTerminalController : MonoBehaviour
         return slider;
     }
 
+    // Defense note: Builds the menu track row data or UI structure.
     private void BuildMenuTrackRow(Vector2 rowAnchorMin, Vector2 rowAnchorMax)
     {
         RectTransform row = CreateCyberPanel(
@@ -5327,6 +6125,7 @@ public class MainTerminalController : MonoBehaviour
         nextButton.onClick.AddListener(() => StepMenuTrack(1));
     }
 
+    // Defense note: Runs the step menu track helper used by this script.
     private void StepMenuTrack(int direction)
     {
         AudioManager audio = AudioManager.Instance;
@@ -5337,6 +6136,7 @@ public class MainTerminalController : MonoBehaviour
         RenderSettingsPanel();
     }
 
+    // Defense note: Runs the on music volume slider changed helper used by this script.
     private void OnMusicVolumeSliderChanged(float value)
     {
         AudioManager.Instance?.SetMusicVolume(value);
@@ -5344,6 +6144,7 @@ public class MainTerminalController : MonoBehaviour
             musicVolumeValueText.text = Mathf.RoundToInt(value * 100f) + "%";
     }
 
+    // Defense note: Runs the on sfx volume slider changed helper used by this script.
     private void OnSfxVolumeSliderChanged(float value)
     {
         AudioManager.Instance?.SetSfxVolume(value);
@@ -5351,10 +6152,14 @@ public class MainTerminalController : MonoBehaviour
             sfxVolumeValueText.text = Mathf.RoundToInt(value * 100f) + "%";
     }
 
+    // Defense note: Resolves the slider track sprite step and updates dependent state.
     private static Sprite ResolveSliderTrackSprite() => LoadUiSprite(SliderTrackSpritePath, ref cachedSliderTrackSprite);
+    // Defense note: Resolves the slider fill sprite step and updates dependent state.
     private static Sprite ResolveSliderFillSprite() => LoadUiSprite(SliderFillSpritePath, ref cachedSliderFillSprite);
+    // Defense note: Resolves the slider handle sprite step and updates dependent state.
     private static Sprite ResolveSliderHandleSprite() => LoadUiSprite(SliderHandleSpritePath, ref cachedSliderHandleSprite);
 
+    // Defense note: Ensures the payload page nav dependency or state exists before use.
     private void EnsurePayloadPageNav(Transform parent)
     {
         RectTransform pageNav = CreateRect("PayloadPageNav", parent);
@@ -5374,6 +6179,7 @@ public class MainTerminalController : MonoBehaviour
         payloadPageLabel.text = "PAGE 1/1";
     }
 
+    // Defense note: Runs the change payload page helper used by this script.
     private void ChangePayloadPage(int delta)
     {
         manager = manager != null ? manager : GameManager.EnsureInstance();
@@ -5381,6 +6187,7 @@ public class MainTerminalController : MonoBehaviour
         RenderPayloadGrid(manager);
     }
 
+    // Defense note: Ensures the payload detail strips dependency or state exists before use.
     private void EnsurePayloadDetailStrips(Transform parent)
     {
         RectTransform detailArea = CreateRect("UnitDetailArea", parent);
@@ -5441,6 +6248,7 @@ public class MainTerminalController : MonoBehaviour
         BuildInspectorTalentBars(detailArea);
     }
 
+    // Defense note: Builds the inspector portrait data or UI structure.
     private void BuildInspectorPortrait(Transform detailArea)
     {
         RectTransform band = CreateRect("InspectorPortraitBand", detailArea);
@@ -5458,6 +6266,7 @@ public class MainTerminalController : MonoBehaviour
         SetAnchors(inspectorPortraitImage.rectTransform, new Vector2(0.040f, 0.080f), new Vector2(0.365f, 1f));
     }
 
+    // Defense note: Builds the inspector name data or UI structure.
     private void BuildInspectorName(Transform detailArea)
     {
         inspectorNameText = CreateText("InspectorName", detailArea, 18, FontStyle.Bold, TextAnchor.MiddleLeft, new Color(0.84f, 1f, 1f, 1f));
@@ -5505,6 +6314,7 @@ public class MainTerminalController : MonoBehaviour
         inspectorExpText.text = "EXP --/--";
     }
 
+    // Defense note: Builds the inspector radar data or UI structure.
     private void BuildInspectorRadar(Transform detailArea)
     {
         inspectorRadarRoot = CreateRect("InspectorRadar", detailArea);
@@ -5528,6 +6338,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Builds the inspector talent bars data or UI structure.
     private void BuildInspectorTalentBars(Transform detailArea)
     {
         RectTransform talentRoot = CreateRect("InspectorTalentBars", detailArea);
@@ -5580,6 +6391,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Creates the section back button object used by the scene or runtime.
     private Button CreateSectionBackButton(Transform parent)
     {
         RectTransform buttonRect = CreateRect("SectionBackButton", parent);
@@ -5613,11 +6425,13 @@ public class MainTerminalController : MonoBehaviour
         return button;
     }
 
+    // Defense note: Returns whether source layout trial visual exists or is active.
     private bool HasSourceLayoutTrialVisual()
     {
         return FindSourceLayoutTrialVisual() != null;
     }
 
+    // Defense note: Finds the source layout trial visual reference used by this component.
     private Transform FindSourceLayoutTrialVisual()
     {
         Transform current = transform;
@@ -5633,6 +6447,7 @@ public class MainTerminalController : MonoBehaviour
         return visual != null ? visual.transform : null;
     }
 
+    // Defense note: Runs the disable runtime depth widgets helper used by this script.
     private void DisableRuntimeDepthWidgets()
     {
         if (depthTierPanel != null)
@@ -5641,6 +6456,7 @@ public class MainTerminalController : MonoBehaviour
             launchProtocolButton.gameObject.SetActive(false);
     }
 
+    // Defense note: Runs the bind source layout depth buttons helper used by this script.
     private void BindSourceLayoutDepthButtons()
     {
         Transform visual = FindSourceLayoutTrialVisual();
@@ -5693,6 +6509,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the bind source layout menu buttons helper used by this script.
     private void BindSourceLayoutMenuButtons()
     {
         Transform visual = FindSourceLayoutTrialVisual();
@@ -5704,10 +6521,58 @@ public class MainTerminalController : MonoBehaviour
         sourceLayoutPayloadButton = FindChildButton(visual, "Button_PAYLOAD");
         if (sourceLayoutPayloadButton == null)
             sourceLayoutPayloadButton = FindChildButton(visual, "Button_PAYLOADBOX");
+        HideSourceLayoutMenuSystemLogButton(visual);
+        sourceLayoutSystemLogButton = FindChildButton(visual, "Button_SYSTEMLOG_MINI");
+        if (sourceLayoutSystemLogButton == null)
+            sourceLayoutSystemLogButton = EnsureRuntimeSystemLogMiniButton(visual);
+        LayoutSystemLogMiniButton(sourceLayoutSystemLogButton);
         sourceLayoutSettingsButton = FindChildButton(visual, "Button_SETTINGS");
         sourceLayoutExitButton = FindChildButton(visual, "Button_EXIT");
     }
 
+    // Defense note: Hides the former menu-sized System Log button so the main menu stays at five entries.
+    private static void HideSourceLayoutMenuSystemLogButton(Transform visual)
+    {
+        Button oldMenuButton = visual != null ? FindChildButton(visual, "Button_SYSTEMLOG") : null;
+        if (oldMenuButton != null)
+            oldMenuButton.gameObject.SetActive(false);
+    }
+
+    // Defense note: Adds a compact System Log button beside the terminal instead of inside the main menu.
+    private Button EnsureRuntimeSystemLogMiniButton(Transform visual)
+    {
+        if (visual == null)
+            return null;
+
+        Button button = FindOrCreatePanelButton(
+            "Button_SYSTEMLOG_MINI",
+            visual,
+            "LOG",
+            new Vector2(0.815f, 0.872f),
+            new Vector2(0.890f, 0.922f));
+        SetPanelButtonLabelSize(button, 12);
+        return button;
+    }
+
+    // Defense note: Keeps the compact System Log button tucked inside the terminal frame.
+    private static void LayoutSystemLogMiniButton(Button button)
+    {
+        if (button == null)
+            return;
+
+        RectTransform rect = button.GetComponent<RectTransform>();
+        if (rect != null)
+        {
+            rect.anchorMin = new Vector2(0.815f, 0.872f);
+            rect.anchorMax = new Vector2(0.890f, 0.922f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.localScale = Vector3.one;
+        }
+    }
+
+    // Defense note: Runs the bind source layout boss route buttons helper used by this script.
     private void BindSourceLayoutBossRouteButtons()
     {
         Transform visual = FindSourceLayoutTrialVisual();
@@ -5760,6 +6625,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the cache source layout boss route parts helper used by this script.
     private void CacheSourceLayoutBossRouteParts(int index, Button button)
     {
         if (button == null || index < 0)
@@ -5817,6 +6683,7 @@ public class MainTerminalController : MonoBehaviour
             sourceLayoutBossRouteSelectedRails[index] = button.transform.Find("SelectedRail");
     }
 
+    // Defense note: Configures the source layout boss route layout layout, style, or behavior.
     private void ConfigureSourceLayoutBossRouteLayout(int index, Button button)
     {
         Transform root = button.transform;
@@ -5831,6 +6698,7 @@ public class MainTerminalController : MonoBehaviour
         ConfigureBossRouteText(root, "RouteStatus", BossRouteStatusFontSize);
     }
 
+    // Defense note: Ensures the source layout boss route selection frame dependency or state exists before use.
     private void EnsureSourceLayoutBossRouteSelectionFrame(int index, Button button)
     {
         if (button == null || index < 0)
@@ -5904,6 +6772,7 @@ public class MainTerminalController : MonoBehaviour
             sourceLayoutBossRouteSelectionBottomRightCorners[index] = bottomRightCorner;
     }
 
+    // Defense note: Configures the selection shape layout, style, or behavior.
     private static void ConfigureSelectionShape(Image image)
     {
         if (image == null)
@@ -5916,6 +6785,7 @@ public class MainTerminalController : MonoBehaviour
         image.gameObject.SetActive(false);
     }
 
+    // Defense note: Configures the selection bar layout, style, or behavior.
     private static void ConfigureSelectionBar(RectTransform rect, Vector2 anchoredPosition, Vector2 size)
     {
         if (rect == null)
@@ -5928,6 +6798,7 @@ public class MainTerminalController : MonoBehaviour
         rect.sizeDelta = RoundVector(size);
     }
 
+    // Defense note: Retrieves the or create child rect value used by this system.
     private RectTransform GetOrCreateChildRect(Transform parent, string childName)
     {
         Transform existing = parent != null ? parent.Find(childName) : null;
@@ -5937,6 +6808,7 @@ public class MainTerminalController : MonoBehaviour
         return CreateRect(childName, parent);
     }
 
+    // Defense note: Retrieves the or create child image value used by this system.
     private static Image GetOrCreateChildImage(Transform parent, string childName)
     {
         Transform existing = parent != null ? parent.Find(childName) : null;
@@ -5953,6 +6825,7 @@ public class MainTerminalController : MonoBehaviour
         return CreateImage(childName, parent, Color.clear);
     }
 
+    // Defense note: Runs the cache source layout boss route idle frames helper used by this script.
     private void CacheSourceLayoutBossRouteIdleFrames(int index, Image portraitImage)
     {
         if (index < 0 || sourceLayoutBossRouteIdleFrames == null || index >= sourceLayoutBossRouteIdleFrames.Length)
@@ -5972,6 +6845,7 @@ public class MainTerminalController : MonoBehaviour
             portraitImage.sprite = sourceLayoutBossRouteIdleFrames[index][0];
     }
 
+    // Defense note: Loads the boss route idle frames asset or data needed at runtime.
     private static Sprite[] LoadBossRouteIdleFrames(string speciesCodeName, out float secondsPerFrame)
     {
         secondsPerFrame = 1f / BossRouteFallbackIdleFps;
@@ -5984,6 +6858,7 @@ public class MainTerminalController : MonoBehaviour
         return profile.idle.frames;
     }
 
+    // Defense note: Runs the boss route selection bar sprite helper used by this script.
     private static Sprite BossRouteSelectionBarSprite()
     {
         if (bossRouteSelectionBarSprite != null)
@@ -6003,6 +6878,7 @@ public class MainTerminalController : MonoBehaviour
         return bossRouteSelectionBarSprite;
     }
 
+    // Defense note: Runs the boss route selection panel sprite helper used by this script.
     private static Sprite BossRouteSelectionPanelSprite()
     {
         if (bossRouteSelectionPanelSprite != null)
@@ -6016,6 +6892,7 @@ public class MainTerminalController : MonoBehaviour
         return bossRouteSelectionPanelSprite;
     }
 
+    // Defense note: Runs the boss route card size helper used by this script.
     private static Vector2 BossRouteCardSize(RectTransform rect)
     {
         if (rect == null || rect.sizeDelta.x <= 0f || rect.sizeDelta.y <= 0f)
@@ -6024,6 +6901,7 @@ public class MainTerminalController : MonoBehaviour
         return rect.sizeDelta;
     }
 
+    // Defense note: Runs the boss route portrait offset helper used by this script.
     private static Vector2 BossRoutePortraitOffset(string bossName, Vector2 cardSize)
     {
         float x = Mathf.Clamp(cardSize.x * 0.12f, 12f, 22f);
@@ -6045,6 +6923,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the boss route portrait size helper used by this script.
     private static Vector2 BossRoutePortraitSize(string bossName, Vector2 cardSize)
     {
         float width = Mathf.Clamp(cardSize.x * 1.82f, 205f, 278f);
@@ -6066,6 +6945,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Updates the child rect state or visual value.
     private static void SetChildRect(Transform parent, string childPath, Vector2 anchoredPosition, Vector2 size)
     {
         Transform child = parent != null ? parent.Find(childPath) : null;
@@ -6077,6 +6957,7 @@ public class MainTerminalController : MonoBehaviour
         rect.sizeDelta = RoundVector(size);
     }
 
+    // Defense note: Configures the boss route text layout, style, or behavior.
     private static void ConfigureBossRouteText(Transform parent, string childPath, int fontSize)
     {
         Transform child = parent != null ? parent.Find(childPath) : null;
@@ -6094,6 +6975,7 @@ public class MainTerminalController : MonoBehaviour
         text.lineSpacing = 0.86f;
     }
 
+    // Defense note: Resolves the boss route default font step and updates dependent state.
     private static Font ResolveBossRouteDefaultFont()
     {
         if (bossRouteDefaultFont == null)
@@ -6102,6 +6984,7 @@ public class MainTerminalController : MonoBehaviour
         return bossRouteDefaultFont;
     }
 
+    // Defense note: Creates the bitmap text mirror object used by the scene or runtime.
     private TextMeshProUGUI CreateBitmapTextMirror(Text sourceText, float fontScale)
     {
         if (sourceText == null)
@@ -6110,6 +6993,7 @@ public class MainTerminalController : MonoBehaviour
         return EnableBitmapMirror(sourceText, fontScale, sourceText.alignment);
     }
 
+    // Defense note: Runs the rebind cloned bitmap mirror helper used by this script.
     private void RebindClonedBitmapMirror(Text legacyText)
     {
         if (legacyText == null)
@@ -6123,6 +7007,7 @@ public class MainTerminalController : MonoBehaviour
         mirror.HideSourceText = true;
     }
 
+    // Defense note: Ensures the boss route bitmap text dependency or state exists before use.
     private TextMeshProUGUI EnsureBossRouteBitmapText(Transform buttonRoot, string legacyTextPath, float fontScale)
     {
         Transform legacyTextTransform = buttonRoot != null ? buttonRoot.Find(legacyTextPath) : null;
@@ -6149,6 +7034,7 @@ public class MainTerminalController : MonoBehaviour
         return ConfigureTmpMirror(bitmapRect, legacyText, TextAnchor.MiddleCenter, fontScale);
     }
 
+    // Defense note: Configures the boss route label backplate layout, style, or behavior.
     private void ConfigureBossRouteLabelBackplate(Transform legacyTextTransform, bool visible)
     {
         if (legacyTextTransform == null)
@@ -6172,6 +7058,7 @@ public class MainTerminalController : MonoBehaviour
         backplate.transform.SetAsFirstSibling();
     }
 
+    // Defense note: Applies the source layout static label bitmaps change to gameplay or UI state.
     private void ApplySourceLayoutStaticLabelBitmaps()
     {
         if (sourceLayoutStaticLabelBitmapsReady)
@@ -6193,6 +7080,7 @@ public class MainTerminalController : MonoBehaviour
         sourceLayoutStaticLabelBitmapsReady = status != null && meta != null;
     }
 
+    // Defense note: Runs the enable bitmap mirror helper used by this script.
     private TextMeshProUGUI EnableBitmapMirror(Text legacyText, float fontScale, TextAnchor alignment)
     {
         if (legacyText == null)
@@ -6212,6 +7100,7 @@ public class MainTerminalController : MonoBehaviour
 
     // Builds (or updates) a crisp TextMeshPro (SDF) graphic on `mirrorRect` that mirrors
     // the legacy Text. The legacy Text stays the data source but is hidden; TMP renders.
+    // Defense note: Configures the tmp mirror layout, style, or behavior.
     private TextMeshProUGUI ConfigureTmpMirror(RectTransform mirrorRect, Text legacyText, TextAnchor alignment, float fontScale)
     {
         if (mirrorRect == null)
@@ -6253,6 +7142,7 @@ public class MainTerminalController : MonoBehaviour
         return tmp;
     }
 
+    // Defense note: Runs the to tmp alignment helper used by this script.
     private static TextAlignmentOptions ToTmpAlignment(TextAnchor anchor)
     {
         switch (anchor)
@@ -6270,6 +7160,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Resolves the tmp font asset step and updates dependent state.
     private static TMP_FontAsset ResolveTmpFontAsset()
     {
         if (tmpMirrorFontAsset != null)
@@ -6281,11 +7172,13 @@ public class MainTerminalController : MonoBehaviour
         return tmpMirrorFontAsset;
     }
 
+    // Defense note: Runs the round vector helper used by this script.
     private static Vector2 RoundVector(Vector2 value)
     {
         return new Vector2(Mathf.Round(value.x), Mathf.Round(value.y));
     }
 
+    // Defense note: Updates the child active state or visual value.
     private static void SetChildActive(Transform parent, string childPath, bool active)
     {
         Transform child = parent != null ? parent.Find(childPath) : null;
@@ -6293,6 +7186,7 @@ public class MainTerminalController : MonoBehaviour
             child.gameObject.SetActive(active);
     }
 
+    // Defense note: Finds the child button reference used by this component.
     private static Button FindChildButton(Transform root, string childName)
     {
         if (root == null || string.IsNullOrEmpty(childName))
@@ -6308,6 +7202,7 @@ public class MainTerminalController : MonoBehaviour
         return null;
     }
 
+    // Defense note: Hides the legacy scene button visuals UI or feedback state.
     private void HideLegacySceneButtonVisuals()
     {
         HideLegacySceneButtonVisual(enterGridButton);
@@ -6318,6 +7213,7 @@ public class MainTerminalController : MonoBehaviour
         HideLegacySceneButtonVisual(exitButton);
     }
 
+    // Defense note: Hides the legacy scene button visual UI or feedback state.
     private static void HideLegacySceneButtonVisual(Button button)
     {
         if (button == null)
@@ -6348,6 +7244,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Creates the rect object used by the scene or runtime.
     private RectTransform CreateRect(string objectName, Transform parent)
     {
         GameObject child = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer));
@@ -6355,6 +7252,7 @@ public class MainTerminalController : MonoBehaviour
         return child.GetComponent<RectTransform>();
     }
 
+    // Defense note: Creates the cyber panel object used by the scene or runtime.
     private RectTransform CreateCyberPanel(
         string objectName,
         Transform parent,
@@ -6375,6 +7273,7 @@ public class MainTerminalController : MonoBehaviour
         return rect;
     }
 
+    // Defense note: Finds the or create cyber panel reference used by this component.
     private RectTransform FindOrCreateCyberPanel(
         Transform parent,
         string objectName,
@@ -6392,6 +7291,7 @@ public class MainTerminalController : MonoBehaviour
         return rect;
     }
 
+    // Defense note: Configures the cyber frame layout, style, or behavior.
     private void ConfigureCyberFrame(
         RectTransform rect,
         Color fillColor,
@@ -6414,6 +7314,7 @@ public class MainTerminalController : MonoBehaviour
         frame.AccentColor = accentColor;
     }
 
+    // Defense note: Finds the or create text reference used by this component.
     private Text FindOrCreateText(
         Transform parent,
         string objectName,
@@ -6438,6 +7339,7 @@ public class MainTerminalController : MonoBehaviour
         return text;
     }
 
+    // Defense note: Runs the normalize main terminal fonts helper used by this script.
     private void NormalizeMainTerminalFonts()
     {
         Font font = defaultFont != null ? defaultFont : ResolveTerminalDefaultFont();
@@ -6454,6 +7356,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Configures the crisp canvas layout, style, or behavior.
     private void ConfigureCrispCanvas()
     {
         ConfigureCrispCanvases(GetComponentsInParent<Canvas>(true));
@@ -6462,6 +7365,7 @@ public class MainTerminalController : MonoBehaviour
         ConfigureCrispCanvasScalers(GetComponentsInChildren<CanvasScaler>(true));
     }
 
+    // Defense note: Configures the crisp canvases layout, style, or behavior.
     private static void ConfigureCrispCanvases(Canvas[] canvases)
     {
         if (canvases == null)
@@ -6474,6 +7378,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Configures the crisp canvas scalers layout, style, or behavior.
     private static void ConfigureCrispCanvasScalers(CanvasScaler[] scalers)
     {
         if (scalers == null)
@@ -6490,6 +7395,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Resolves the terminal default font step and updates dependent state.
     private static Font ResolveTerminalDefaultFont()
     {
         Font font = Resources.Load<Font>("Fonts/NicoBold-Regular");
@@ -6498,6 +7404,7 @@ public class MainTerminalController : MonoBehaviour
             : Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
     }
 
+    // Defense note: Finds the or create image reference used by this component.
     private Image FindOrCreateImage(string objectName, Transform parent, Color color)
     {
         Transform existing = parent != null ? parent.Find(objectName) : null;
@@ -6512,6 +7419,7 @@ public class MainTerminalController : MonoBehaviour
         return image;
     }
 
+    // Defense note: Ensures the frame rails dependency or state exists before use.
     private void EnsureFrameRails(RectTransform parent, string prefix, Color color, float thickness)
     {
         if (parent == null)
@@ -6523,6 +7431,7 @@ public class MainTerminalController : MonoBehaviour
         EnsureRail(parent, $"{prefix}_Right", color, new Vector2(1f - thickness, 0.080f), new Vector2(1f, 0.920f));
     }
 
+    // Defense note: Ensures the rail dependency or state exists before use.
     private void EnsureRail(RectTransform parent, string objectName, Color color, Vector2 anchorMin, Vector2 anchorMax)
     {
         Image rail = FindOrCreateImage(objectName, parent, color);
@@ -6531,6 +7440,7 @@ public class MainTerminalController : MonoBehaviour
         SetAnchors(rail.rectTransform, anchorMin, anchorMax);
     }
 
+    // Defense note: Creates the text object used by the scene or runtime.
     private Text CreateText(string objectName, Transform parent, int size, FontStyle style, TextAnchor alignment, Color color)
     {
         GameObject textObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer));
@@ -6548,6 +7458,7 @@ public class MainTerminalController : MonoBehaviour
         return text;
     }
 
+    // Defense note: Ensures the status panel dependency or state exists before use.
     private RectTransform EnsureStatusPanel(Transform parent)
     {
         statusPanel = statusPanel != null
@@ -6570,6 +7481,7 @@ public class MainTerminalController : MonoBehaviour
         return panelRect;
     }
 
+    // Defense note: Ensures the depth tier selector dependency or state exists before use.
     private void EnsureDepthTierSelector(Transform parent)
     {
         if (depthTierPanel == null)
@@ -6693,6 +7605,7 @@ public class MainTerminalController : MonoBehaviour
         RefreshDepthTierSelector();
     }
 
+    // Defense note: Ensures the depth tier buttons dependency or state exists before use.
     private void EnsureDepthTierButtons()
     {
         if (depthTierPanel == null)
@@ -6732,6 +7645,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Creates the depth tier button object used by the scene or runtime.
     private Button CreateDepthTierButton(string objectName, RectTransform parent, int tier, int index)
     {
         RectTransform rect = CreateRect(objectName, parent);
@@ -6780,6 +7694,7 @@ public class MainTerminalController : MonoBehaviour
         return button;
     }
 
+    // Defense note: Runs the cache depth tier button parts helper used by this script.
     private void CacheDepthTierButtonParts(int index, Button button)
     {
         if (button == null || index < 0)
@@ -6799,6 +7714,7 @@ public class MainTerminalController : MonoBehaviour
             depthTierButtonFeedbacks[index] = button.GetComponent<CyberButtonFeedback>();
     }
 
+    // Defense note: Runs the normalize source layout depth buttons helper used by this script.
     private void NormalizeSourceLayoutDepthButtons()
     {
         if (depthTierButtons == null || depthTierButtons.Length == 0)
@@ -6872,6 +7788,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the depth tier recommendation label dependency or state exists before use.
     private Text EnsureDepthTierRecommendationLabel(Transform buttonTransform, int tier)
     {
         if (buttonTransform == null)
@@ -6918,6 +7835,7 @@ public class MainTerminalController : MonoBehaviour
         return recommendation;
     }
 
+    // Defense note: Ensures the depth tier route layers label dependency or state exists before use.
     private Text EnsureDepthTierRouteLayersLabel(Transform buttonTransform, int tier)
     {
         if (buttonTransform == null)
@@ -6972,17 +7890,20 @@ public class MainTerminalController : MonoBehaviour
         return routeLayers;
     }
 
+    // Defense note: Builds the depth tier recommendation text data or UI structure.
     private static string BuildDepthTierRecommendationText(int tier)
     {
         ThreatTier clamped = ThreatTierRules.ClampTier(tier);
         return $"REC LV {ThreatTierRules.MinLevel(clamped)}-{ThreatTierRules.MaxLevel(clamped)}";
     }
 
+    // Defense note: Builds the depth tier route layers text data or UI structure.
     private static string BuildDepthTierRouteLayersText(int tier)
     {
         return $"DEPTH {GridGenerationSettings.TotalLayerRangeLabel(tier)}";
     }
 
+    // Defense note: Returns whether approx anchors exists or is active.
     private static bool HasApproxAnchors(RectTransform rect, Vector2 anchorMin, Vector2 anchorMax)
     {
         const float epsilon = 0.001f;
@@ -6991,6 +7912,7 @@ public class MainTerminalController : MonoBehaviour
             && Vector2.SqrMagnitude(rect.anchorMax - anchorMax) <= epsilon;
     }
 
+    // Defense note: Runs the copy image style helper used by this script.
     private static void CopyImageStyle(Image source, Image target, bool sameObject)
     {
         if (source == null || target == null || sameObject)
@@ -7009,6 +7931,7 @@ public class MainTerminalController : MonoBehaviour
         target.raycastTarget = source.raycastTarget;
     }
 
+    // Defense note: Updates the children active state or visual value.
     private static void SetChildrenActive(Transform parent, string childName, bool active)
     {
         if (parent == null)
@@ -7023,6 +7946,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Ensures the launch protocol button dependency or state exists before use.
     private void EnsureLaunchProtocolButton(Transform parent)
     {
         Transform targetParent = depthTierPanel != null ? depthTierPanel : parent;
@@ -7081,6 +8005,7 @@ public class MainTerminalController : MonoBehaviour
         RefreshLaunchProtocolText();
     }
 
+    // Defense note: Ensures the launch protocol bars dependency or state exists before use.
     private void EnsureLaunchProtocolBars(RectTransform parent)
     {
         Color[] colors =
@@ -7101,6 +8026,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Refreshes the launch protocol text display from current data.
     private void RefreshLaunchProtocolText()
     {
         if (manager == null)
@@ -7115,6 +8041,7 @@ public class MainTerminalController : MonoBehaviour
             launchProtocolFeedback.Selected = true;
     }
 
+    // Defense note: Ensures the main screen progress dependency or state exists before use.
     private RectTransform EnsureMainScreenProgress(Transform parent)
     {
         progressTrack = progressTrack != null
@@ -7141,6 +8068,7 @@ public class MainTerminalController : MonoBehaviour
         return trackRect;
     }
 
+    // Defense note: Ensures the payload panel dependency or state exists before use.
     private void EnsurePayloadPanel(Transform parent)
     {
         if (payloadPanel == null)
@@ -7220,6 +8148,7 @@ public class MainTerminalController : MonoBehaviour
         SetAnchors(payloadDetailPanelText.rectTransform, new Vector2(0.43f, 0.06f), new Vector2(0.965f, 0.92f));
     }
 
+    // Defense note: Finds the or create panel button reference used by this component.
     private Button FindOrCreatePanelButton(
         string objectName,
         Transform parent,
@@ -7254,6 +8183,7 @@ public class MainTerminalController : MonoBehaviour
         return button;
     }
 
+    // Defense note: Ensures the panel button feedback layers dependency or state exists before use.
     private void EnsurePanelButtonFeedbackLayers(Button button, Text label)
     {
         if (button == null)
@@ -7293,6 +8223,7 @@ public class MainTerminalController : MonoBehaviour
         pixelFeedback.Configure(button, hoverGlow, pressFeedback);
     }
 
+    // Defense note: Applies the panel frame background change to gameplay or UI state.
     private void ApplyPanelFrameBackground(Image image, Sprite sprite, Color fallbackColor, bool sliced = true)
     {
         if (image == null)
@@ -7316,6 +8247,7 @@ public class MainTerminalController : MonoBehaviour
         image.color = fallbackColor;
     }
 
+    // Defense note: Resolves the payload inspector panel sprite step and updates dependent state.
     private Sprite ResolvePayloadInspectorPanelSprite()
     {
         return payloadInspectorPanelSprite != null
@@ -7323,6 +8255,7 @@ public class MainTerminalController : MonoBehaviour
             : LoadUiSprite(PayloadInspectorPanelSpritePath, ref cachedPayloadInspectorPanelSprite);
     }
 
+    // Defense note: Resolves the squad panel background sprite step and updates dependent state.
     private Sprite ResolveSquadPanelBackgroundSprite()
     {
         return squadPanelBackgroundSprite != null
@@ -7330,6 +8263,7 @@ public class MainTerminalController : MonoBehaviour
             : LoadUiSprite(SquadPanelFrameSpritePath, ref cachedSquadPanelBackgroundSprite);
     }
 
+    // Defense note: Resolves the monster display panel sprite step and updates dependent state.
     private Sprite ResolveMonsterDisplayPanelSprite()
     {
         return monsterDisplayPanelSprite != null
@@ -7337,16 +8271,19 @@ public class MainTerminalController : MonoBehaviour
             : LoadUiSprite(MonsterDisplayPanelSpritePath, ref cachedMonsterDisplayPanelSprite);
     }
 
+    // Defense note: Resolves the inspector exp bar fill sprite step and updates dependent state.
     private static Sprite ResolveInspectorExpBarFillSprite()
     {
         return LoadUiSprite(InspectorExpBarFillSpritePath, ref cachedInspectorExpBarFillSprite);
     }
 
+    // Defense note: Resolves the inspector exp bar under sprite step and updates dependent state.
     private static Sprite ResolveInspectorExpBarUnderSprite()
     {
         return LoadUiSprite(InspectorExpBarUnderSpritePath, ref cachedInspectorExpBarUnderSprite);
     }
 
+    // Defense note: Resolves the terminal toggle sprite step and updates dependent state.
     private static Sprite ResolveTerminalToggleSprite(bool enabled)
     {
         return enabled
@@ -7354,6 +8291,7 @@ public class MainTerminalController : MonoBehaviour
             : LoadUiSprite(TerminalToggleOffSpritePath, ref cachedTerminalToggleOffSprite);
     }
 
+    // Defense note: Loads the ui sprite asset or data needed at runtime.
     private static Sprite LoadUiSprite(string assetPath, ref Sprite cache)
     {
         if (cache != null)
@@ -7367,6 +8305,7 @@ public class MainTerminalController : MonoBehaviour
         return cache;
     }
 
+    // Defense note: Applies the panel button sprite style change to gameplay or UI state.
     private void ApplyPanelButtonSpriteStyle(Button button, Image image)
     {
         if (button == null || image == null)
@@ -7416,6 +8355,7 @@ public class MainTerminalController : MonoBehaviour
         button.colors = fallbackColors;
     }
 
+    // Defense note: Resolves the panel button normal sprite step and updates dependent state.
     private Sprite ResolvePanelButtonNormalSprite()
     {
         return panelButtonNormalSprite != null
@@ -7423,6 +8363,7 @@ public class MainTerminalController : MonoBehaviour
             : LoadPanelButtonSprite(PanelButtonNormalSpritePath, ref cachedPanelButtonNormalSprite);
     }
 
+    // Defense note: Resolves the panel button highlighted sprite step and updates dependent state.
     private Sprite ResolvePanelButtonHighlightedSprite()
     {
         return panelButtonHighlightedSprite != null
@@ -7430,6 +8371,7 @@ public class MainTerminalController : MonoBehaviour
             : LoadPanelButtonSprite(PanelButtonHighlightedSpritePath, ref cachedPanelButtonHighlightedSprite);
     }
 
+    // Defense note: Resolves the panel button pressed sprite step and updates dependent state.
     private Sprite ResolvePanelButtonPressedSprite()
     {
         return panelButtonPressedSprite != null
@@ -7437,11 +8379,13 @@ public class MainTerminalController : MonoBehaviour
             : LoadPanelButtonSprite(PanelButtonPressedSpritePath, ref cachedPanelButtonPressedSprite);
     }
 
+    // Defense note: Resolves the panel button hover glow sprite step and updates dependent state.
     private static Sprite ResolvePanelButtonHoverGlowSprite()
     {
         return LoadPanelButtonSprite(PanelButtonHoverGlowSpritePath, ref cachedPanelButtonHoverGlowSprite);
     }
 
+    // Defense note: Loads the panel button sprite asset or data needed at runtime.
     private static Sprite LoadPanelButtonSprite(string assetPath, ref Sprite cache)
     {
         if (cache != null)
@@ -7468,6 +8412,7 @@ public class MainTerminalController : MonoBehaviour
         return cache;
     }
 
+    // Defense note: Updates the panel button label size state or visual value.
     private static void SetPanelButtonLabelSize(Button button, int size)
     {
         if (button == null)
@@ -7478,6 +8423,7 @@ public class MainTerminalController : MonoBehaviour
             ConfigurePanelButtonText(label, size);
     }
 
+    // Defense note: Configures the panel button text layout, style, or behavior.
     private static void ConfigurePanelButtonText(Text label, int size)
     {
         if (label == null)
@@ -7494,6 +8440,7 @@ public class MainTerminalController : MonoBehaviour
         ApplyCrispCyberText(label, new Color(0f, 0.11f, 0.17f, 0.95f));
     }
 
+    // Defense note: Applies the cyber text change to gameplay or UI state.
     private static void ApplyCyberText(Text text, Color effectColor, Vector2 distance)
     {
         if (text == null)
@@ -7511,6 +8458,7 @@ public class MainTerminalController : MonoBehaviour
         shadow.useGraphicAlpha = true;
     }
 
+    // Defense note: Applies the crisp cyber text change to gameplay or UI state.
     private static void ApplyCrispCyberText(Text text, Color effectColor)
     {
         if (text == null)
@@ -7524,6 +8472,7 @@ public class MainTerminalController : MonoBehaviour
         shadow.enabled = false;
     }
 
+    // Defense note: Runs the disable outline helper used by this script.
     private static void DisableOutline(Text text)
     {
         Outline outline = text != null ? text.GetComponent<Outline>() : null;
@@ -7531,6 +8480,7 @@ public class MainTerminalController : MonoBehaviour
             outline.enabled = false;
     }
 
+    // Defense note: Runs the round text effect distance helper used by this script.
     private static Vector2 RoundTextEffectDistance(Vector2 distance)
     {
         float x = distance.x == 0f ? 0f : Mathf.Sign(distance.x);
@@ -7538,6 +8488,7 @@ public class MainTerminalController : MonoBehaviour
         return new Vector2(x, y);
     }
 
+    // Defense note: Finds the exact shadow reference used by this component.
     private static Shadow FindExactShadow(Text text)
     {
         Shadow[] shadows = text.GetComponents<Shadow>();
@@ -7562,6 +8513,7 @@ public class MainTerminalController : MonoBehaviour
     /// Five-pointed star drawn procedurally (same approach as the battle HUD's
     /// triangle / chamfer sprites). filled = solid; otherwise a uniform-width outline.
     /// </summary>
+    // Defense note: Runs the star sprite helper used by this script.
     private static Sprite StarSprite(bool filled)
     {
         if (filled && cachedFilledStarSprite != null) return cachedFilledStarSprite;
@@ -7612,6 +8564,7 @@ public class MainTerminalController : MonoBehaviour
         return sprite;
     }
 
+    // Defense note: Runs the point in star polygon helper used by this script.
     private static bool PointInStarPolygon(float px, float py, float[] vx, float[] vy)
     {
         bool inside = false;
@@ -7625,6 +8578,7 @@ public class MainTerminalController : MonoBehaviour
         return inside;
     }
 
+    // Defense note: Runs the near star boundary helper used by this script.
     private static bool NearStarBoundary(bool[] inside, int size, int x, int y, int thickness)
     {
         for (int dy = -thickness; dy <= thickness; dy++)
@@ -7641,6 +8595,7 @@ public class MainTerminalController : MonoBehaviour
         return false;
     }
 
+    // Defense note: Runs the skill swap element icon helper used by this script.
     private Sprite SkillSwapElementIcon(ElementType elementType)
     {
         int i = (int)elementType;
@@ -7650,6 +8605,7 @@ public class MainTerminalController : MonoBehaviour
         return skillSwapElementIcons[i];
     }
 
+    // Defense note: Runs the skill swap instruction icon helper used by this script.
     private Sprite SkillSwapInstructionIcon(InstructionType instructionType)
     {
         int i = (int)instructionType;
@@ -7659,6 +8615,7 @@ public class MainTerminalController : MonoBehaviour
         return skillSwapInstructionIcons[i];
     }
 
+    // Defense note: Runs the skill swap select frame sprite helper used by this script.
     private static Sprite SkillSwapSelectFrameSprite()
     {
         if (cachedSkillSelectFrameSprite == null)
@@ -7666,6 +8623,7 @@ public class MainTerminalController : MonoBehaviour
         return cachedSkillSelectFrameSprite;
     }
 
+    // Defense note: Runs the skill card frame sprite helper used by this script.
     private static Sprite SkillCardFrameSprite()
     {
         if (cachedSkillCardFrameSprite == null)
@@ -7676,6 +8634,7 @@ public class MainTerminalController : MonoBehaviour
         return cachedSkillCardFrameSprite;
     }
 
+    // Defense note: Builds the chamfered skill sprite data or UI structure.
     private static Sprite BuildChamferedSkillSprite(Color fill, Color edge, string spriteName)
     {
         // Mirrors BattleHudController's chamfered panel chrome so payload skill
@@ -7717,6 +8676,7 @@ public class MainTerminalController : MonoBehaviour
     private static readonly Color SkillTagPowerTint   = new Color(1f, 0.62f, 0.40f, 1f);
     private static readonly Color SkillTagCounterTint = new Color(0.35f, 0.85f, 0.50f, 1f);
 
+    // Defense note: Runs the skill swap panel sprite helper used by this script.
     private static Sprite SkillSwapPanelSprite()
     {
         if (cachedSkillSwapPanelSprite == null)
@@ -7728,6 +8688,7 @@ public class MainTerminalController : MonoBehaviour
     }
 
     /// <summary>White-bordered chamfer chip; Image.color tints the border (battle tag style).</summary>
+    // Defense note: Runs the skill chip frame sprite helper used by this script.
     private static Sprite SkillChipFrameSprite()
     {
         if (cachedSkillChipFrameSprite == null)
@@ -7738,6 +8699,7 @@ public class MainTerminalController : MonoBehaviour
         return cachedSkillChipFrameSprite;
     }
 
+    // Defense note: Runs the instruction accent color helper used by this script.
     private static Color InstructionAccentColor(InstructionType instructionType)
     {
         switch (instructionType)
@@ -7749,6 +8711,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the instruction letter for helper used by this script.
     private static string InstructionLetterFor(InstructionType instructionType)
     {
         switch (instructionType)
@@ -7760,6 +8723,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Creates the image object used by the scene or runtime.
     private static Image CreateImage(string objectName, Transform parent, Color color)
     {
         GameObject imageObject = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer));
@@ -7770,6 +8734,7 @@ public class MainTerminalController : MonoBehaviour
         return image;
     }
 
+    // Defense note: Updates the anchors state or visual value.
     private static void SetAnchors(RectTransform rect, Vector2 min, Vector2 max)
     {
         rect.anchorMin = min;
@@ -7778,6 +8743,7 @@ public class MainTerminalController : MonoBehaviour
         rect.offsetMax = Vector2.zero;
     }
 
+    // Defense note: Refreshes the depth tier selector display from current data.
     private void RefreshDepthTierSelector()
     {
         if (manager == null)
@@ -7876,6 +8842,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Refreshes the source layout depth buttons display from current data.
     private void RefreshSourceLayoutDepthButtons(int selected, int highest)
     {
         NormalizeSourceLayoutDepthButtons();
@@ -7994,6 +8961,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Refreshes the source layout boss routes display from current data.
     private void RefreshSourceLayoutBossRoutes()
     {
         if (sourceLayoutBossRouteButtons == null || manager == null)
@@ -8130,6 +9098,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Refreshes the boss route selection frame display from current data.
     private void RefreshBossRouteSelectionFrame(int index, bool isSelected, Color accent, bool locked)
     {
         RectTransform frameRoot = sourceLayoutBossRouteSelectionFrames != null && index >= 0 && index < sourceLayoutBossRouteSelectionFrames.Length
@@ -8168,12 +9137,14 @@ public class MainTerminalController : MonoBehaviour
         SetSelectionShapeColor(CachedImage(sourceLayoutBossRouteSelectionBottomRightCorners, index), cornerColor);
     }
 
+    // Defense note: Updates the image color state or visual value.
     private static void SetImageColor(Image image, Color color)
     {
         if (image != null)
             image.color = color;
     }
 
+    // Defense note: Updates the selection shape color state or visual value.
     private static void SetSelectionShapeColor(Image image, Color color)
     {
         if (image == null)
@@ -8183,6 +9154,7 @@ public class MainTerminalController : MonoBehaviour
         image.color = color;
     }
 
+    // Defense note: Applies the boss route idle frame change to gameplay or UI state.
     private void ApplyBossRouteIdleFrame(int index, bool isSelected)
     {
         Image portraitImage = CachedImage(sourceLayoutBossRoutePortraitImages, index);
@@ -8223,26 +9195,31 @@ public class MainTerminalController : MonoBehaviour
         portraitImage.sprite = frames[sourceLayoutBossRouteIdleFrameIndices[index]];
     }
 
+    // Defense note: Runs the cached graphic helper used by this script.
     private static Graphic CachedGraphic(Graphic[] graphics, int index)
     {
         return graphics != null && index >= 0 && index < graphics.Length ? graphics[index] : null;
     }
 
+    // Defense note: Runs the cached image helper used by this script.
     private static Image CachedImage(Image[] images, int index)
     {
         return images != null && index >= 0 && index < images.Length ? images[index] : null;
     }
 
+    // Defense note: Runs the cached text helper used by this script.
     private static Text CachedText(Text[] texts, int index)
     {
         return texts != null && index >= 0 && index < texts.Length ? texts[index] : null;
     }
 
+    // Defense note: Runs the cached bitmap text helper used by this script.
     private static TextMeshProUGUI CachedBitmapText(TextMeshProUGUI[] texts, int index)
     {
         return texts != null && index >= 0 && index < texts.Length ? texts[index] : null;
     }
 
+    // Defense note: Updates the boss route bitmap text state or visual value.
     private static void SetBossRouteBitmapText(TextMeshProUGUI bitmapText, string value, Color color)
     {
         if (bitmapText == null)
@@ -8252,6 +9229,7 @@ public class MainTerminalController : MonoBehaviour
         bitmapText.color = color;
     }
 
+    // Defense note: Runs the boss route accent color helper used by this script.
     private static Color BossRouteAccentColor(int index)
     {
         Color purple = CyberUiTheme.RoomPurple;
@@ -8273,6 +9251,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Runs the normalize boss route code helper used by this script.
     private static string NormalizeBossRouteCode(string codeName)
     {
         if (string.IsNullOrWhiteSpace(codeName))
@@ -8288,12 +9267,14 @@ public class MainTerminalController : MonoBehaviour
         return trimmed.ToUpperInvariant();
     }
 
+    // Defense note: Runs the source layout depth sprite color helper used by this script.
     private static Color SourceLayoutDepthSpriteColor(int tier)
     {
         Color accent = AccentColorForTier(tier);
         return CyberUiTheme.WithAlpha(Color.Lerp(accent, CyberUiTheme.TextPrimary, 0.18f), 0.92f);
     }
 
+    // Defense note: Runs the wire depth tier buttons helper used by this script.
     private void WireDepthTierButtons()
     {
         if (depthTierButtons == null)
@@ -8313,6 +9294,7 @@ public class MainTerminalController : MonoBehaviour
             WireButton(depthTierButtons[i], depthTierButtonActions[i]);
     }
 
+    // Defense note: Runs the unwire depth tier buttons helper used by this script.
     private void UnwireDepthTierButtons()
     {
         if (depthTierButtons == null || depthTierButtonActions == null)
@@ -8323,6 +9305,7 @@ public class MainTerminalController : MonoBehaviour
             UnwireButton(depthTierButtons[i], depthTierButtonActions[i]);
     }
 
+    // Defense note: Runs the wire boss route buttons helper used by this script.
     private void WireBossRouteButtons()
     {
         if (sourceLayoutBossRouteButtons == null)
@@ -8343,6 +9326,7 @@ public class MainTerminalController : MonoBehaviour
             WireButton(sourceLayoutBossRouteButtons[i], sourceLayoutBossRouteActions[i]);
     }
 
+    // Defense note: Runs the unwire boss route buttons helper used by this script.
     private void UnwireBossRouteButtons()
     {
         if (sourceLayoutBossRouteButtons == null || sourceLayoutBossRouteActions == null)
@@ -8353,6 +9337,7 @@ public class MainTerminalController : MonoBehaviour
             UnwireButton(sourceLayoutBossRouteButtons[i], sourceLayoutBossRouteActions[i]);
     }
 
+    // Defense note: Runs the wire button helper used by this script.
     private static void WireButton(Button button, UnityEngine.Events.UnityAction action)
     {
         if (button == null)
@@ -8362,24 +9347,30 @@ public class MainTerminalController : MonoBehaviour
         button.onClick.AddListener(action);
     }
 
+    // Defense note: Runs the unwire button helper used by this script.
     private static void UnwireButton(Button button, UnityEngine.Events.UnityAction action)
     {
         if (button != null)
             button.onClick.RemoveListener(action);
     }
 
+    // Defense note: Ensures the starter party dependency or state exists before use.
     private static void EnsureStarterParty(GameManager targetManager, AlgoMonData starterData)
     {
         if (targetManager == null || targetManager.party == null)
             return;
 
         targetManager.EnsureRosterState();
-        int partyCount = targetManager.party != null ? targetManager.party.Count : 0;
-        int payloadCount = targetManager.payload != null ? targetManager.payload.Count : 0;
+        int partyCount = CountNonDemoMons(targetManager.party);
+        int payloadCount = CountNonDemoMons(targetManager.payload);
         if (partyCount > 0 || payloadCount > 0)
+        {
+            EnsureInitialPayloadPage(targetManager);
+            targetManager.EnsureDefenseDemoNullbyteInPayload();
             return;
+        }
 
-        if (targetManager.party.Count == 0)
+        if (partyCount == 0)
         {
             AlgoMonData starterSpecies = starterData != null
                 ? starterData
@@ -8396,8 +9387,10 @@ public class MainTerminalController : MonoBehaviour
         }
 
         EnsureInitialPayloadPage(targetManager);
+        targetManager.EnsureDefenseDemoNullbyteInPayload();
     }
 
+    // Defense note: Attempts to add party member and reports success or failure.
     private static bool TryAddPartyMember(GameManager targetManager, AlgoMonData species, int slotIndex)
     {
         if (targetManager == null || species == null || targetManager.party == null)
@@ -8423,11 +9416,13 @@ public class MainTerminalController : MonoBehaviour
         return targetManager.AddToParty(member);
     }
 
+    // Defense note: Ensures the initial payload page dependency or state exists before use.
     private static void EnsureInitialPayloadPage(GameManager targetManager)
     {
         if (targetManager == null || targetManager.payload == null)
             return;
-        if (targetManager.payload.Count >= InitialPayloadFillCount)
+        int payloadCount = CountNonDemoMons(targetManager.payload);
+        if (payloadCount >= InitialPayloadFillCount)
             return;
 
         List<AlgoMonData> candidates = LoadPartyCandidateSpecies();
@@ -8435,9 +9430,9 @@ public class MainTerminalController : MonoBehaviour
             return;
 
         int guard = InitialPayloadFillCount * 2;
-        while (targetManager.payload.Count < InitialPayloadFillCount && guard-- > 0)
+        while (payloadCount < InitialPayloadFillCount && guard-- > 0)
         {
-            int payloadSlot = targetManager.payload.Count;
+            int payloadSlot = payloadCount;
             AlgoMonData species = FindInitialPayloadSpecies(candidates, payloadSlot);
             if (species == null)
                 break;
@@ -8447,9 +9442,27 @@ public class MainTerminalController : MonoBehaviour
                 break;
 
             targetManager.AddToPayload(mon);
+            payloadCount = CountNonDemoMons(targetManager.payload);
         }
     }
 
+    // Defense note: Counts real player-owned mons while ignoring the temporary demo helper.
+    private static int CountNonDemoMons(List<AlgoMonInstance> mons)
+    {
+        if (mons == null)
+            return 0;
+
+        int count = 0;
+        for (int i = 0; i < mons.Count; i++)
+        {
+            if (mons[i] != null && !GameManager.IsDefenseDemoNullbyteInstance(mons[i]))
+                count++;
+        }
+
+        return count;
+    }
+
+    // Defense note: Finds the initial payload species reference used by this component.
     private static AlgoMonData FindInitialPayloadSpecies(List<AlgoMonData> candidates, int payloadSlot)
     {
         if (candidates == null || candidates.Count == 0)
@@ -8472,6 +9485,7 @@ public class MainTerminalController : MonoBehaviour
         return candidates[Mathf.Abs(payloadSlot) % candidates.Count];
     }
 
+    // Defense note: Creates the initial payload mon object used by the scene or runtime.
     private static AlgoMonInstance CreateInitialPayloadMon(AlgoMonData species, int payloadSlot)
     {
         int seed = InitialPayloadSeed(payloadSlot, species);
@@ -8488,6 +9502,7 @@ public class MainTerminalController : MonoBehaviour
         return mon;
     }
 
+    // Defense note: Runs the initial payload seed helper used by this script.
     private static int InitialPayloadSeed(int payloadSlot, AlgoMonData species)
     {
         unchecked
@@ -8501,6 +9516,7 @@ public class MainTerminalController : MonoBehaviour
         }
     }
 
+    // Defense note: Finds the reserve candidate reference used by this component.
     private static AlgoMonData FindReserveCandidate(GameManager targetManager)
     {
         for (int i = 0; i < PreferredReserveSpecies.Length; i++)
@@ -8513,6 +9529,7 @@ public class MainTerminalController : MonoBehaviour
         return FindPartyCandidate(targetManager, null);
     }
 
+    // Defense note: Finds the party candidate reference used by this component.
     private static AlgoMonData FindPartyCandidate(GameManager targetManager, string preferredCodeName)
     {
         List<AlgoMonData> candidates = LoadPartyCandidateSpecies();
@@ -8540,6 +9557,7 @@ public class MainTerminalController : MonoBehaviour
         return null;
     }
 
+    // Defense note: Loads the party candidate species asset or data needed at runtime.
     private static List<AlgoMonData> LoadPartyCandidateSpecies()
     {
         var candidates = new List<AlgoMonData>();
@@ -8564,6 +9582,7 @@ public class MainTerminalController : MonoBehaviour
         return candidates;
     }
 
+    // Defense note: Adds the unique candidate entry into the target collection or UI.
     private static void AddUniqueCandidate(List<AlgoMonData> candidates, AlgoMonData candidate)
     {
         if (candidate == null)
@@ -8583,6 +9602,7 @@ public class MainTerminalController : MonoBehaviour
         candidates.Add(candidate);
     }
 
+    // Defense note: Runs the party contains species helper used by this script.
     private static bool PartyContainsSpecies(GameManager targetManager, AlgoMonData species)
     {
         if (targetManager == null || targetManager.party == null || species == null)
@@ -8604,6 +9624,7 @@ public class MainTerminalController : MonoBehaviour
         return false;
     }
 
+    // Defense note: Runs the normalized code name helper used by this script.
     private static string NormalizedCodeName(AlgoMonData data)
     {
         if (data == null || string.IsNullOrWhiteSpace(data.codeName))
@@ -8611,6 +9632,7 @@ public class MainTerminalController : MonoBehaviour
         return data.codeName.Trim();
     }
 
+    // Defense note: Runs the format clock helper used by this script.
     private static string FormatClock(float elapsed)
     {
         int totalSeconds = Mathf.FloorToInt(elapsed);
