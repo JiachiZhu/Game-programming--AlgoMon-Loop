@@ -9419,31 +9419,15 @@ public class MainTerminalController : MonoBehaviour
     // Defense note: Ensures the initial payload page dependency or state exists before use.
     private static void EnsureInitialPayloadPage(GameManager targetManager)
     {
-        if (targetManager == null || targetManager.payload == null)
-            return;
-        int payloadCount = CountNonDemoMons(targetManager.payload);
-        if (payloadCount >= InitialPayloadFillCount)
-            return;
-
-        List<AlgoMonData> candidates = LoadPartyCandidateSpecies();
-        if (candidates.Count == 0)
-            return;
-
-        int guard = InitialPayloadFillCount * 2;
-        while (payloadCount < InitialPayloadFillCount && guard-- > 0)
-        {
-            int payloadSlot = payloadCount;
-            AlgoMonData species = FindInitialPayloadSpecies(candidates, payloadSlot);
-            if (species == null)
-                break;
-
-            AlgoMonInstance mon = CreateInitialPayloadMon(species, payloadSlot);
-            if (mon == null)
-                break;
-
-            targetManager.AddToPayload(mon);
-            payloadCount = CountNonDemoMons(targetManager.payload);
-        }
+        // Intentionally disabled for the shipped game.
+        //
+        // This was a development-only convenience that padded the first payload page up
+        // to InitialPayloadFillCount with synthetic placeholder AlgoMon. Because it ran
+        // every time MainTerminal opened, it re-filled blank slots after fusion consumed
+        // real records — so consumed units appeared to be "replaced" by hard-coded fillers
+        // (e.g. Cachelon), duplicating and corrupting the player's roster, and those filler
+        // units misbehaved in the Gene Lab. The payload must hold only creatures the player
+        // has actually captured, so the initial page no longer auto-fills anything.
     }
 
     // Defense note: Counts real player-owned mons while ignoring the temporary demo helper.
