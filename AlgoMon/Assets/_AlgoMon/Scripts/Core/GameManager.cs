@@ -43,7 +43,7 @@ public class GameManager : MonoBehaviour
     };
     private const string AlgoMonAssetSearchFolder = "Assets/_AlgoMon/ScriptableObjects/AlgoMons";
     private const string EncounterSpeciesCatalogResourcePath = "EncounterSpeciesCatalog";
-    private const bool DefenseDemoInjectMaxNullbyte = true;
+    private const bool DefenseDemoInjectMaxNullbyte = false;
     private const string DefenseDemoNullbyteInstanceId = "DEFENSE_DEMO_NULLBYTE";
     private const string DefenseDemoNullbyteCodeName = "Nullbyte";
     private const int DefenseDemoMaxIv = 255;
@@ -1254,6 +1254,9 @@ public class GameManager : MonoBehaviour
         if (completedRunRewards == null)
             completedRunRewards = new RunRewardSummary();
 
+        if (!DefenseDemoInjectMaxNullbyte)
+            RemoveDefenseDemoNullbyteFromRoster();
+
         EnsureMonState(payload);
         EnsureMonState(party);
         EnsurePartyPayloadLinks();
@@ -1278,6 +1281,12 @@ public class GameManager : MonoBehaviour
     public void EnsureDefenseDemoNullbyteInPayload()
     {
         EnsureRewardContainers();
+        if (!DefenseDemoInjectMaxNullbyte)
+        {
+            RemoveDefenseDemoNullbyteFromRoster();
+            return;
+        }
+
         EnsureDefenseDemoNullbyte();
     }
 
@@ -1372,6 +1381,22 @@ public class GameManager : MonoBehaviour
         }
 
         return null;
+    }
+
+    // Defense note: Removes the old presentation-only max-level Nullbyte if it exists in runtime data.
+    private void RemoveDefenseDemoNullbyteFromRoster()
+    {
+        RemoveDefenseDemoNullbyte(payload);
+        RemoveDefenseDemoNullbyte(party);
+    }
+
+    // Defense note: Removes the fixed temporary defense demo Nullbyte from a runtime list.
+    private static void RemoveDefenseDemoNullbyte(List<AlgoMonInstance> mons)
+    {
+        if (mons == null)
+            return;
+
+        mons.RemoveAll(IsDefenseDemoNullbyte);
     }
 
     // Defense note: Returns whether a mon is the temporary defense demo Nullbyte.
