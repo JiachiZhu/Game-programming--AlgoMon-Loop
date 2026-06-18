@@ -1,6 +1,6 @@
 {
   "profileId": "Sortex_Base",
-  "horizontalScaleMultiplier": 1.15,
+  "horizontalScaleMultiplier": 1.05,
   "entry": {
     "fps": 8,
     "startFrame": 6,

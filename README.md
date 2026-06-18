@@ -28,7 +28,7 @@ The exploration layer is a pure UI route-selection graph, with no walking or rea
 | Component | Algorithm / Pattern | Complexity |
 |---|---|---|
 | Map generation | **Directed Acyclic Graph (DAG)** with layered topology | O(V + E) |
-| Path connectivity | Topological sort + reachability validation | O(V + E) |
+| Path connectivity | Layered construction + **BFS** reachability validation | O(V + E) |
 | State separation | Tactical Chips (session) vs. Payload (persistent) | — |
 
 A DAG guarantees the player always has a valid route to the Boss node, while preventing graph-level backward loops that would break roguelite progression. Reboot nodes are a controlled exception in run state only: from a Reboot node, the player may either continue forward or return the route cursor to Start while preserving visited nodes.
@@ -112,7 +112,7 @@ The meta-progression layer, styled as a backend admin dashboard.
 | Component | Algorithm / Pattern | Complexity |
 |---|---|---|
 | IV inheritance (gene merge) | **Greedy Algorithm** — `IV_child = Math.Max(IV_A, IV_B)` per stat | O(S) where S = stat dimensions |
-| Payload sorting & search | **QuickSort** with multi-key comparator | O(N log N) average |
+| Payload sorting | C# **`List.Sort`** (IntroSort, quicksort-based) by code name | O(N log N) |
 | Stat model | Hard-cap IV (hardware) / soft-cap EXP (software) separation | — |
 
 The IV/EXP split is the game's core design pillar: grinding only raises software progress. To break the hardware ceiling, players must invest in genetic merging — a deliberate resource sink.
@@ -125,7 +125,7 @@ The IV/EXP split is the game's core design pillar: grinding only raises software
 |---|---|---|
 | **What it is** | Every AlgoMon the player has ever captured | The squad selected for the current run |
 | **Size limit** | Unlimited | Max 4 |
-| **Where managed** | The Lab — sorted via QuickSort | Pre-run selection screen |
+| **Where managed** | The Lab — sorted by code name (`List.Sort`) | Pre-run selection screen |
 | **Algorithmic focus** | O(N log N) retrieval and sorting | — |
 
 This separation means the player must make deliberate squad-building decisions before each run — they cannot bring everything.
@@ -152,16 +152,16 @@ Detailed UI wireframes and interaction flows are archived in the [`/Prototype`](
 AlgoMon-Loop/
 ├── Assets/_AlgoMon/
 │   ├── Scripts/
-│   │   ├── Core/          # EventBus, GameManager, StateMachine
-│   │   ├── Data/          # ScriptableObjects — AlgoMonSO, SkillSO
-│   │   ├── Grid/          # DAGGenerator, NodeGraph, PathValidator
-│   │   ├── Battle/        # PriorityQueue, CombatResolver, ASDMatrix
-│   │   ├── Lab/           # GeneticMerger, PayloadSorter (QuickSort)
-│   │   └── UI/            # Controllers for Terminal, Grid, Arena, Lab
+│   │   ├── Core/          # GameManager (singleton), EventBus, GameEvents, RunShop, ThreatTierRules, EncounterFactory
+│   │   ├── Data/          # ScriptableObjects: AlgoMonData, SkillData, SubroutineData, BattleAnimationProfile; AlgoMonInstance (gene merge: FuseFrom/Merge)
+│   │   ├── Grid/          # GridGenerator (DAG), GridGraph, GridNode, GridValidator (BFS), GridGenerationSettings
+│   │   ├── Battle/        # BattleManager, CombatResolver, TurnQueue, PriorityQueue (max-heap), BattleStats, BattleStatusSet
+│   │   └── UI/            # Controllers: MainTerminal, Grid (map), Arena (battle), RunResult
 │   ├── Scenes/
 │   │   ├── MainTerminal.unity
 │   │   ├── TheGrid.unity
 │   │   ├── TheArena.unity
+│   │   ├── RunResult.unity
 │   │   └── TheLab.unity
 │   └── ScriptableObjects/
 ├── Prototype/             # UI wireframes & design archive
@@ -203,15 +203,13 @@ AlgoMon-Loop/
 | Main menu cover and battle background | ChatGPT Image 2 | Project-specific generated UI/background art |
 | Element icons | Gemini 3.1 Pro / Nano Banana | Project-specific generated element badge artwork |
 | AlgoMon battle animation frames | PixelLab | Project-specific pixel-style sprite animation frames |
-| Battle action effect animations | [Super Pixel Effects Pack 2 by unTied Games](https://untiedgames.itch.io/super-pixel-effects-pack-2) | Used for AlgoMon attack/guard effects (claw, electric burst, fire burst, explosion, splatter, magic swirl). License: attribution required, no reselling the asset itself; commercial and non-commercial use OK. |
+| Battle action effect animations | [Super Pixel Effects Pack 2 by unTied Games (Will Tice)](https://untiedgames.itch.io/super-pixel-effects-pack-2) | Used for AlgoMon attack/guard effects (claw, electric burst, fire burst, explosion, splatter, magic swirl). License: attribution to **Will Tice** required, no reselling the asset itself; commercial and non-commercial use OK. |
 | Pozac Combat Effects 6 battle effects | [Combat Effects 6 - 2D Pixel Art VFX Pack by Pozac](https://pozac.itch.io/combat-effects-6-2d-pixel-art-vfx-pack) | Eleven `Effect (N)` sequences (N = 1, 3, 8, 13, 16, 19, 25, 26, 29, 30, 31) used as AlgoMon attack/defense/status effects. Paid itch.io pack, purchased for this project (itch receipt retained); used in-game and credited to Pozac. |
 | Pixel-art editing and Aseprite import workflow | Aseprite prebuilt GitHub build + Unity 2D Aseprite package | Used as the pixel-art canvas/editor workflow for sprite cleanup, frame editing, and Unity import support |
 | UI icons | [Lucide Icons](https://lucide.dev/) | Used under the ISC License |
 | Fonts | [Nico Font Pack by Emily Huo](https://emhuo.itch.io/nico-pixel-fonts-pack) | Used under the SIL Open Font License 1.1 |
 | Skill frame UI | [Free Inventory Sci-Fi by ELV Games](https://elvgames.itch.io/free-sci-fi-inventory) | License permits use and modification; credit ELV Games |
-| Battle health bar UI | [Basic Pixel Health bar and Scroll bar by BDragon1727](https://bdragon1727.itch.io/basic-pixel-health-bar-and-scroll-bar) | Used for Pixel UI Pack 3 health-bar pieces |
-| Battle announcer panel | [Pixel ui asset art by DuxDevGames](https://dux-dev-games.itch.io/pixel-ui-asset-art) | Cropped into the announcer panel |
-| MainTerminal & battle UI sprites | [Pixel UI & HUD Pack by Dead Revolver](https://deadrevolver.itch.io/pixel-ui-hud-pack) | MainTerminal panel frames, selectors, grid/skill-tree pieces, value bars, tooltips, command-button states, and the in-battle skill/counter announcement banner; keep Dead Revolver credit and purchase evidence |
+| MainTerminal & battle UI sprites | [Pixel UI & HUD Pack by Dead Revolver](https://deadrevolver.itch.io/pixel-ui-hud-pack) | MainTerminal panel frames, selectors, grid/skill-tree pieces, value bars, tooltips, command-button states, and the in-battle skill/counter announcement banner — including the player/enemy action-banner decorators (`TitleBannerDecoratorB_Blue/Red`, project-recoloured from the Dead Revolver banner); keep Dead Revolver credit and purchase evidence |
 | MainTerminal cyber HUD sprites | PRO Cyberpunk HUD System – Godot 4 Animated UI by DJY66 / GameSupply | Cyber HUD panels, frames, icons, deco, progress pieces, Payload slot states, the arena flee icon, and player/enemy battery-health bars; used and modified per the pack license (no resale/redistribution); keep purchase/download evidence |
 | CP battery visual reference | [Complete UI Essential Pack by Crusenho](https://crusenho.itch.io/complete-ui-essential-pack) | Visual reference for custom CP battery frame; CC BY 4.0 |
 | Custom battle/grid support UI | Project-generated / Codex-assisted | Ground disc, CP fills, round sandclock frames, terminal node disc/ring, and MainTerminal mask/shadow pieces |
@@ -245,7 +243,6 @@ All tracks sourced from [Pixabay](https://pixabay.com/music/) under the **Pixaba
 | [Custom Tiger Claw Ice Laser](https://freesound.org/people/Artninja/sounds/777293/) | Artninja (Freesound) | Cachelon attack sound (both forms) | CC BY 4.0 (attribution given here) |
 | [Water Impact Magic Spell](https://freesound.org/people/mikiko850/sounds/848661/) | mikiko850 (Freesound) | Nullbyte attack sound (both forms) | CC BY 4.0 (attribution given here) |
 | [Thunder Distant 5](https://freesound.org/people/TimoSchmied/sounds/848278/) | TimoSchmied (Freesound) | Sortex evolved attack sound | CC BY 4.0 (attribution given here) |
-| [Scratch Short Reverb](https://freesound.org/people/perspektywa_tn/sounds/844111/) | perspektywa_tn (Freesound) | (superseded) earlier Sortex base attempt | _confirm license on page_ |
 | [RPG Essentials SFX — Free!](https://leohpaz.itch.io/rpg-essentials-sfx-free) — Claw + Thunder + Heal + Debuff | Leohpaz (itch.io) | Sortex base attack (Claw_03 × Thunder_02 mix); positive status cue (Heal_02 — buff/charge/heal); negative status cue (Debuff_01) | Free (name-your-price); royalty-free, credit appreciated |
 | [Block - RPG 1](https://freesound.org/people/colorsCrimsonTears/sounds/641896/) | colorsCrimsonTears (Freesound) | Shared defense-skill sound (all AlgoMons) | CC0 1.0 (public domain) |
 | [Energy Burst](https://freesound.org/people/SilverIllusionist/sounds/668645/) | SilverIllusionist (Freesound) | Recursix attack sound (both forms) | CC BY 4.0 (attribution given here) |

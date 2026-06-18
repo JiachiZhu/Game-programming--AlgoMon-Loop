@@ -116,3 +116,6 @@ My project 2D/.vs/
 AlgoMon/Assets/Plugins/
 AlgoMon/Assets/Resources/DOTweenSettings.asset*
 AlgoMon/Assets/_AlgoMon/Fonts/CyberpunkUISystem/
+
+# Defense-prep study notes — local only, not part of the submitted/public project
+Docs/_defense_*.md
