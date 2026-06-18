@@ -172,10 +172,20 @@ AlgoMon-Loop/
 
 ## 🚀 Getting Started
 
-1. Clone the repository
-2. Open in **Unity Hub** with Unity **2022.3 LTS**
-3. Open scene `Assets/_AlgoMon/Scenes/MainTerminal.unity`
-4. Press Play
+### ▶️ Play the packaged build (recommended)
+1. Download and unzip the Windows build.
+2. Run **`AlgoMon.exe`** (Windows 64-bit — no installation needed).
+3. Keep the **`AlgoMon_Data`** folder in the same directory as the executable.
+
+### 🛠️ Open the source in Unity
+1. Clone the repository.
+2. Open in **Unity Hub** with Unity **2022.3 LTS**.
+3. Open the scene `Assets/_AlgoMon/Scenes/MainTerminal.unity`.
+4. Press **Play**.
+
+### 🎮 Controls
+- **Mouse** — navigate menus, pick route nodes on The Grid, and select skills / actions in battle (Attack / Status / Defense, Switch, Recharge, Flee).
+- **Number keys `1`–`4`** (or **numpad `1`–`4`**) — cast the active creature's four battle skills.
 
 ---
 
